@@ -1,0 +1,63 @@
+{
+  "total_tests": 11,
+  "passed_tests": 10,
+  "success_rate": "90.9%",
+  "test_results": [
+    {
+      "test": "Backend Connectivity",
+      "success": true,
+      "details": ""
+    },
+    {
+      "test": "CORS Headers Present",
+      "success": false,
+      "details": ""
+    },
+    {
+      "test": "Get All Events",
+      "success": true,
+      "details": ""
+    },
+    {
+      "test": "Get Single Event",
+      "success": true,
+      "details": ""
+    },
+    {
+      "test": "Get Events by Category (Comedy)",
+      "success": true,
+      "details": ""
+    },
+    {
+      "test": "Get Non-existent Event",
+      "success": true,
+      "details": ""
+    },
+    {
+      "test": "Get User Info (No Auth)",
+      "success": true,
+      "details": ""
+    },
+    {
+      "test": "Create Session (Invalid)",
+      "success": true,
+      "details": ""
+    },
+    {
+      "test": "Logout (No Session)",
+      "success": true,
+      "details": ""
+    },
+    {
+      "test": "Get Tickets (No Auth)",
+      "success": true,
+      "details": ""
+    },
+    {
+      "test": "Purchase Ticket (No Auth)",
+      "success": true,
+      "details": ""
+    }
+  ],
+  "timestamp": "2025-11-17T17:40:25.688254"
+}
