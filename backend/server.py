@@ -64,12 +64,12 @@ class Event(BaseModel):
     model_config = ConfigDict(extra="ignore")
     
     id: str = Field(default_factory=lambda: str(uuid.uuid4()))
-    creator_id: str
+    creator_id: Optional[str] = None
     title: str
     category: str
     image_url: str
     date: str
-    time: str
+    time: str = "7:00 PM"  # Default time
     description: str
     venue: str
     price: float
