@@ -68,7 +68,7 @@ const Browse = ({ user, onLogout }) => {
                   boxShadow: '0 0 0 rgba(59, 130, 246, 0)'
                 }}
                 onMouseEnter={(e) => {
-                  e.currentTarget.style.boxShadow = '0 0 20px rgba(59, 130, 246, 0.8), 0 0 40px rgba(59, 130, 246, 0.5), 0 0 60px rgba(59, 130, 246, 0.3)';
+                  e.currentTarget.style.boxShadow = '0 0 5px rgba(59, 130, 246, 0.8), 0 0 10px rgba(59, 130, 246, 0.5), 0 0 15px rgba(59, 130, 246, 0.3)';
                 }}
                 onMouseLeave={(e) => {
                   e.currentTarget.style.boxShadow = '0 0 0 rgba(59, 130, 246, 0)';
