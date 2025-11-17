@@ -77,7 +77,7 @@ const EventDetail = ({ user, onLogout }) => {
           
           <button
             onClick={() => navigate(-1)}
-            className="absolute top-8 left-8 bg-black/60 hover:bg-black/80 text-white p-3 rounded-full"
+            className="absolute top-8 left-8 bg-black/60 hover:bg-blue-600/80 text-white p-3 rounded-full transition-colors"
             data-testid="back-button"
           >
             <ArrowLeft className="w-6 h-6" />
@@ -106,8 +106,8 @@ const EventDetail = ({ user, onLogout }) => {
                 <p className="text-gray-300 text-lg leading-relaxed" data-testid="event-description">{event.description}</p>
               </div>
 
-              <div className="inline-block bg-red-600/20 border border-red-600 rounded-lg px-4 py-2">
-                <span className="text-red-500 font-medium">{event.category}</span>
+              <div className="inline-block bg-blue-600/20 border border-blue-600 rounded-lg px-4 py-2">
+                <span className="text-blue-400 font-medium">{event.category}</span>
               </div>
             </div>
 
@@ -127,7 +127,7 @@ const EventDetail = ({ user, onLogout }) => {
                   <div className="flex items-center gap-3">
                     <Button
                       onClick={() => setQuantity(Math.max(1, quantity - 1))}
-                      className="bg-gray-800 hover:bg-gray-700 text-white px-4 py-2"
+                      className="bg-gray-800 hover:bg-blue-600 text-white px-4 py-2 transition-colors"
                       data-testid="decrease-quantity"
                     >
                       -
@@ -135,7 +135,7 @@ const EventDetail = ({ user, onLogout }) => {
                     <span className="text-white text-xl font-bold w-12 text-center" data-testid="ticket-quantity">{quantity}</span>
                     <Button
                       onClick={() => setQuantity(quantity + 1)}
-                      className="bg-gray-800 hover:bg-gray-700 text-white px-4 py-2"
+                      className="bg-gray-800 hover:bg-blue-600 text-white px-4 py-2 transition-colors"
                       data-testid="increase-quantity"
                     >
                       +
@@ -153,7 +153,7 @@ const EventDetail = ({ user, onLogout }) => {
                 <Button
                   onClick={handlePurchase}
                   disabled={purchasing}
-                  className="w-full bg-red-600 hover:bg-red-700 text-white font-bold text-lg py-6"
+                  className="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold text-lg py-6 transition-colors"
                   data-testid="purchase-button"
                 >
                   {purchasing ? "Processing..." : user ? "Purchase Tickets" : "Sign in to Purchase"}

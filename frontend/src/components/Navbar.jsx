@@ -20,8 +20,11 @@ const Navbar = ({ user, onLogout }) => {
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex items-center justify-between h-16">
           <div className="flex items-center gap-8">
-            <Link to="/" className="flex items-center gap-2" data-testid="logo-link">
-              <div className="text-red-600 text-3xl font-black tracking-tight">SHOWME</div>
+            <Link to="/" className="flex items-center" data-testid="logo-link">
+              <div className="text-3xl font-black tracking-tight">
+                <span className="text-blue-500">ShowMe</span>
+                <span className="text-white">Live</span>
+              </div>
             </Link>
             
             <div className="hidden md:flex items-center gap-6">
@@ -76,7 +79,7 @@ const Navbar = ({ user, onLogout }) => {
             ) : (
               <Button 
                 onClick={handleLogin} 
-                className="bg-red-600 hover:bg-red-700 text-white font-medium px-6"
+                className="bg-blue-600 hover:bg-blue-700 text-white font-medium px-6"
                 data-testid="login-button"
               >
                 Sign In

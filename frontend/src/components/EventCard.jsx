@@ -6,7 +6,7 @@ const EventCard = ({ event }) => {
 
   return (
     <div 
-      className="group relative cursor-pointer flex-shrink-0 w-64 h-36 rounded-lg overflow-hidden"
+      className="group relative cursor-pointer flex-shrink-0 w-64 h-36 rounded-lg overflow-hidden transition-all duration-300 hover:ring-2 hover:ring-blue-500"
       onClick={() => navigate(`/event/${event.id}`)}
       data-testid={`event-card-${event.id}`}
     >
@@ -18,7 +18,7 @@ const EventCard = ({ event }) => {
       <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300">
         <div className="absolute bottom-0 left-0 right-0 p-4">
           <h3 className="text-white font-bold text-lg mb-1" data-testid={`event-title-${event.id}`}>{event.title}</h3>
-          <p className="text-gray-300 text-sm" data-testid={`event-category-${event.id}`}>{event.category}</p>
+          <p className="text-blue-400 text-sm" data-testid={`event-category-${event.id}`}>{event.category}</p>
         </div>
       </div>
     </div>

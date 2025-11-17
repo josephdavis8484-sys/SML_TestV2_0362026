@@ -43,9 +43,9 @@ const Browse = ({ user, onLogout }) => {
               onClick={() => setSelectedCategory(category)}
               className={`${
                 selectedCategory === category
-                  ? "bg-white text-black hover:bg-gray-200"
-                  : "bg-gray-800 text-white hover:bg-gray-700"
-              } font-medium px-6 py-2`}
+                  ? "bg-blue-600 text-white hover:bg-blue-700"
+                  : "bg-gray-800 text-white hover:bg-blue-600"
+              } font-medium px-6 py-2 transition-colors`}
               data-testid={`category-filter-${category.toLowerCase()}`}
             >
               {category}
@@ -62,20 +62,20 @@ const Browse = ({ user, onLogout }) => {
               onClick={() => navigate(`/event/${event.id}`)}
               data-testid={`browse-event-card-${event.id}`}
             >
-              <div className="relative aspect-[2/3] rounded-lg overflow-hidden mb-2">
+              <div className="relative aspect-[2/3] rounded-lg overflow-hidden mb-2 ring-2 ring-transparent hover:ring-blue-500 transition-all">
                 <img
                   src={event.image_url}
                   alt={event.title}
                   className="w-full h-full object-cover transition-transform duration-300 group-hover:scale-110"
                 />
                 <div className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 transition-opacity duration-300 flex items-center justify-center">
-                  <Button className="bg-white text-black hover:bg-gray-200 font-bold" data-testid={`view-event-${event.id}`}>
+                  <Button className="bg-blue-600 text-white hover:bg-blue-700 font-bold" data-testid={`view-event-${event.id}`}>
                     View Details
                   </Button>
                 </div>
               </div>
               <h3 className="text-white font-semibold text-sm mb-1" data-testid={`browse-event-title-${event.id}`}>{event.title}</h3>
-              <p className="text-gray-400 text-xs" data-testid={`browse-event-category-${event.id}`}>{event.category}</p>
+              <p className="text-blue-400 text-xs" data-testid={`browse-event-category-${event.id}`}>{event.category}</p>
             </div>
           ))}
         </div>
