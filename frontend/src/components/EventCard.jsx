@@ -6,7 +6,7 @@ const EventCard = ({ event }) => {
 
   return (
     <div 
-      className="group relative cursor-pointer flex-shrink-0 w-64 h-36 rounded-lg overflow-hidden transition-all duration-300 hover:scale-105"
+      className="group relative cursor-pointer flex-shrink-0 w-48 h-72 rounded-lg overflow-hidden transition-all duration-300 hover:scale-105"
       style={{
         boxShadow: '0 0 0 rgba(59, 130, 246, 0)'
       }}

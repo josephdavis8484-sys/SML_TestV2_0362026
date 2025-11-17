@@ -52,7 +52,7 @@ const MyTickets = ({ user, onLogout }) => {
               
               return (
                 <div key={ticket.id} className="bg-gray-900/50 rounded-lg overflow-hidden hover:bg-gray-900/70 hover:ring-2 hover:ring-blue-500 transition-all" data-testid={`ticket-card-${ticket.id}`}>
-                  <div className="aspect-video w-full relative">
+                  <div className="aspect-[3/4] w-full relative">
                     <img 
                       src={event.image_url} 
                       alt={event.title}
