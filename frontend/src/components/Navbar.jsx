@@ -7,7 +7,7 @@ import { User, Ticket, LogOut } from "lucide-react";
 
 const EMERGENT_AUTH_URL = "https://auth.emergentagent.com";
 
-const Navbar = ({ user, onLogout }) => {
+const Navbar = ({ user, onLogout, isCreator = false }) => {
   const navigate = useNavigate();
   
   const handleLogin = () => {
@@ -20,7 +20,7 @@ const Navbar = ({ user, onLogout }) => {
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex items-center justify-between h-16">
           <div className="flex items-center gap-8">
-            <Link to="/" className="flex items-center" data-testid="logo-link">
+            <Link to={user?.role === "creator" ? "/creator/dashboard" : "/"} className="flex items-center" data-testid="logo-link">
               <div className="text-3xl font-black tracking-tight">
                 <span className="text-blue-500">ShowMe</span>
                 <span className="text-white">Live</span>
@@ -28,16 +28,29 @@ const Navbar = ({ user, onLogout }) => {
             </Link>
             
             <div className="hidden md:flex items-center gap-6">
-              <Link to="/" className="text-gray-300 hover:text-white text-sm font-medium" data-testid="home-link">
-                Home
-              </Link>
-              <Link to="/browse" className="text-gray-300 hover:text-white text-sm font-medium" data-testid="browse-link">
-                Browse
-              </Link>
-              {user && (
-                <Link to="/my-tickets" className="text-gray-300 hover:text-white text-sm font-medium" data-testid="my-tickets-link">
-                  My Tickets
-                </Link>
+              {user?.role === "creator" ? (
+                <>
+                  <Link to="/creator/dashboard" className="text-gray-300 hover:text-white text-sm font-medium" data-testid="dashboard-link">
+                    Dashboard
+                  </Link>
+                  <Link to="/creator/create-event" className="text-gray-300 hover:text-white text-sm font-medium" data-testid="create-event-link">
+                    Create Event
+                  </Link>
+                </>
+              ) : (
+                <>
+                  <Link to="/" className="text-gray-300 hover:text-white text-sm font-medium" data-testid="home-link">
+                    Home
+                  </Link>
+                  <Link to="/browse" className="text-gray-300 hover:text-white text-sm font-medium" data-testid="browse-link">
+                    Browse
+                  </Link>
+                  {user && (
+                    <Link to="/my-tickets" className="text-gray-300 hover:text-white text-sm font-medium" data-testid="my-tickets-link">
+                      My Tickets
+                    </Link>
+                  )}
+                </>
               )}
             </div>
           </div>
