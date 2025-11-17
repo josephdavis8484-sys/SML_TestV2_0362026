@@ -62,7 +62,7 @@ const Browse = ({ user, onLogout }) => {
               onClick={() => navigate(`/event/${event.id}`)}
               data-testid={`browse-event-card-${event.id}`}
             >
-              <div className="relative aspect-[2/3] rounded-lg overflow-hidden mb-2 ring-2 ring-transparent hover:ring-blue-500 transition-all">
+              <div className="relative aspect-[2/3] rounded-lg overflow-hidden mb-2 transition-all duration-300 hover:scale-105 hover:shadow-[0_0_30px_rgba(59,130,246,0.6)]">
                 <img
                   src={event.image_url}
                   alt={event.title}

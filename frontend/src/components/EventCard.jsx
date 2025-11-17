@@ -6,7 +6,7 @@ const EventCard = ({ event }) => {
 
   return (
     <div 
-      className="group relative cursor-pointer flex-shrink-0 w-64 h-36 rounded-lg overflow-hidden transition-all duration-300 hover:ring-2 hover:ring-blue-500"
+      className="group relative cursor-pointer flex-shrink-0 w-64 h-36 rounded-lg overflow-hidden transition-all duration-300 hover:scale-105 hover:shadow-[0_0_30px_rgba(59,130,246,0.6)]"
       onClick={() => navigate(`/event/${event.id}`)}
       data-testid={`event-card-${event.id}`}
     >
