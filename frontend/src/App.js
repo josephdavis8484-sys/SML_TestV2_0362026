@@ -94,7 +94,7 @@ function App() {
     <div className="App">
       <BrowserRouter>
         <Routes>
-          {/* Public routes */}
+          {/* Public routes - accessible without login */}
           <Route path="/" element={
             user?.role === "creator" ? 
             <Navigate to="/creator/dashboard" /> : 
