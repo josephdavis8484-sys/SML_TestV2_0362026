@@ -55,8 +55,8 @@ const Home = ({ user, onLogout }) => {
               alt={featuredEvent.title}
               className="w-full h-full object-cover"
             />
-            <div className="absolute inset-0 bg-gradient-to-r from-black via-black/60 to-transparent"></div>
-            <div className="absolute bottom-0 left-0 right-0 h-40 bg-gradient-to-t from-[#0f0f0f] to-transparent"></div>
+            <div className="absolute inset-0 bg-gradient-to-r from-black via-black/70 via-40% to-black/30 to-70%"></div>
+            <div className="absolute bottom-0 left-0 right-0 h-48 bg-gradient-to-t from-[#0f0f0f] via-[#0f0f0f]/80 via-40% to-transparent"></div>
           </div>
           
           <div className="relative h-full flex items-center px-4 sm:px-6 lg:px-8 max-w-7xl mx-auto">

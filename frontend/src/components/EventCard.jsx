@@ -6,7 +6,16 @@ const EventCard = ({ event }) => {
 
   return (
     <div 
-      className="group relative cursor-pointer flex-shrink-0 w-64 h-36 rounded-lg overflow-hidden transition-all duration-300 hover:scale-105 hover:shadow-[0_0_30px_rgba(59,130,246,0.6)]"
+      className="group relative cursor-pointer flex-shrink-0 w-64 h-36 rounded-lg overflow-hidden transition-all duration-300 hover:scale-105"
+      style={{
+        boxShadow: '0 0 0 rgba(59, 130, 246, 0)'
+      }}
+      onMouseEnter={(e) => {
+        e.currentTarget.style.boxShadow = '0 0 20px rgba(59, 130, 246, 0.8), 0 0 40px rgba(59, 130, 246, 0.5), 0 0 60px rgba(59, 130, 246, 0.3)';
+      }}
+      onMouseLeave={(e) => {
+        e.currentTarget.style.boxShadow = '0 0 0 rgba(59, 130, 246, 0)';
+      }}
       onClick={() => navigate(`/event/${event.id}`)}
       data-testid={`event-card-${event.id}`}
     >
@@ -15,7 +24,7 @@ const EventCard = ({ event }) => {
         alt={event.title}
         className="w-full h-full object-cover transition-transform duration-300 group-hover:scale-110"
       />
-      <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300">
+      <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/40 via-50% to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500">
         <div className="absolute bottom-0 left-0 right-0 p-4">
           <h3 className="text-white font-bold text-lg mb-1" data-testid={`event-title-${event.id}`}>{event.title}</h3>
           <p className="text-blue-400 text-sm" data-testid={`event-category-${event.id}`}>{event.category}</p>

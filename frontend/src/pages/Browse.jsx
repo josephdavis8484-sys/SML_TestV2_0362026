@@ -62,13 +62,24 @@ const Browse = ({ user, onLogout }) => {
               onClick={() => navigate(`/event/${event.id}`)}
               data-testid={`browse-event-card-${event.id}`}
             >
-              <div className="relative aspect-[2/3] rounded-lg overflow-hidden mb-2 transition-all duration-300 hover:scale-105 hover:shadow-[0_0_30px_rgba(59,130,246,0.6)]">
+              <div 
+                className="relative aspect-[2/3] rounded-lg overflow-hidden mb-2 transition-all duration-300 hover:scale-105"
+                style={{
+                  boxShadow: '0 0 0 rgba(59, 130, 246, 0)'
+                }}
+                onMouseEnter={(e) => {
+                  e.currentTarget.style.boxShadow = '0 0 20px rgba(59, 130, 246, 0.8), 0 0 40px rgba(59, 130, 246, 0.5), 0 0 60px rgba(59, 130, 246, 0.3)';
+                }}
+                onMouseLeave={(e) => {
+                  e.currentTarget.style.boxShadow = '0 0 0 rgba(59, 130, 246, 0)';
+                }}
+              >
                 <img
                   src={event.image_url}
                   alt={event.title}
                   className="w-full h-full object-cover transition-transform duration-300 group-hover:scale-110"
                 />
-                <div className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 transition-opacity duration-300 flex items-center justify-center">
+                <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/40 via-50% to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500 flex items-center justify-center">
                   <Button className="bg-blue-600 text-white hover:bg-blue-700 font-bold" data-testid={`view-event-${event.id}`}>
                     View Details
                   </Button>
