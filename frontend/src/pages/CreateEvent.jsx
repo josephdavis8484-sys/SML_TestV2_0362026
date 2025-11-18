@@ -57,7 +57,7 @@ const CreateEvent = ({ user, onLogout }) => {
       const eventData = {
         ...formData,
         price: parseFloat(formData.price),
-        image_url: imageUrl || "https://via.placeholder.com/400x600"
+        image_url: imageUrl || "https://images.unsplash.com/photo-1540039155733-5bb30b53aa14?w=400&h=600&fit=crop"
       };
 
       const response = await axiosInstance.post("/events", eventData);
