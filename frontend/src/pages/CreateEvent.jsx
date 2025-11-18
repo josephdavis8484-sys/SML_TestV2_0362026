@@ -137,6 +137,7 @@ const CreateEvent = ({ user, onLogout }) => {
                 <option value="Sports">Sports</option>
                 <option value="Entertainment">Entertainment</option>
                 <option value="Influencer">Influencer</option>
+                <option value="Education">Education</option>
               </select>
             </div>
 
