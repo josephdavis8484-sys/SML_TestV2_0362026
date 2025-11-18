@@ -22,7 +22,7 @@ const Browse = ({ user, onLogout }) => {
     }
   };
 
-  const categories = ["All", "Comedy", "Music", "Influencer", "Entertainment", "Sports"];
+  const categories = ["All", "Comedy", "Music", "Influencer", "Entertainment", "Sports", "Education"];
 
   const filteredEvents = selectedCategory === "All" 
     ? events 
