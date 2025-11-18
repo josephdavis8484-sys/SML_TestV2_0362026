@@ -67,7 +67,7 @@ class Event(BaseModel):
     creator_id: Optional[str] = None
     title: str
     category: str
-    image_url: str
+    image_url: str = "https://images.unsplash.com/photo-1540039155733-5bb30b53aa14?w=400&h=600&fit=crop"
     date: str
     time: str = "7:00 PM"  # Default time
     description: str
