@@ -39,7 +39,7 @@ const Home = ({ user, onLogout }) => {
     return events.filter(event => event.category.toLowerCase() === category.toLowerCase());
   };
 
-  const categories = ["Comedy", "Music", "Influencer", "Entertainment", "Sports"];
+  const categories = ["Comedy", "Music", "Influencer", "Entertainment", "Sports", "Education"];
   const featuredEvent = events[featuredEventIndex];
 
   return (
