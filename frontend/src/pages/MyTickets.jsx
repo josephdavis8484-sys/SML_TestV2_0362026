@@ -70,12 +70,20 @@ const MyTickets = ({ user, onLogout }) => {
                       <span className="text-sm" data-testid={`ticket-event-date-${ticket.id}`}>{event.date}</span>
                     </div>
                     <p className="text-gray-400 text-sm mb-4" data-testid={`ticket-event-venue-${ticket.id}`}>{event.venue}</p>
-                    <div className="border-t border-gray-700 pt-4 flex justify-between items-center">
+                    <div className="border-t border-gray-700 pt-4 mb-4 flex justify-between items-center">
                       <span className="text-gray-400 text-sm">Purchased</span>
                       <span className="text-white text-sm" data-testid={`ticket-purchase-date-${ticket.id}`}>
                         {new Date(ticket.purchase_date).toLocaleDateString()}
                       </span>
                     </div>
+                    <a
+                      href={`${process.env.REACT_APP_BACKEND_URL}/api/tickets/${ticket.id}/calendar`}
+                      download
+                      className="block w-full bg-blue-600 hover:bg-blue-700 text-white text-center font-bold py-3 rounded-lg transition-colors"
+                      data-testid={`add-to-calendar-${ticket.id}`}
+                    >
+                      📅 Add to Calendar
+                    </a>
                   </div>
                 </div>
               );
