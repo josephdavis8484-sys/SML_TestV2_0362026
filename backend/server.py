@@ -492,7 +492,6 @@ async def download_calendar(ticket_id: str, current_user: User = Depends(get_cur
     ical_event.add('url', event.get('share_link', ''))
     
     # Add reminder 1 day before
-    from icalendar import Alarm
     alarm = Alarm()
     alarm.add('action', 'DISPLAY')
     alarm.add('description', f"Reminder: {event['title']} tomorrow!")
