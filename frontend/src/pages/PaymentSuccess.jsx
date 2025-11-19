@@ -56,19 +56,20 @@ const PaymentSuccess = ({ user, onLogout }) => {
             <div className="animate-fadeIn">
               <CheckCircle className="w-20 h-20 text-green-500 mx-auto mb-6" />
               <h2 className="text-white text-3xl font-bold mb-4">Payment Successful!</h2>
-              <p className="text-gray-400 mb-8">Thank you for your purchase</p>
-              <div className="flex gap-4 justify-center">
+              <p className="text-gray-400 mb-4">Thank you for your purchase</p>
+              <p className="text-gray-500 text-sm mb-8">You can now add this event to your calendar</p>
+              <div className="flex flex-col gap-4 max-w-sm mx-auto">
                 <Button
                   onClick={() => navigate(user?.role === "creator" ? "/creator/dashboard" : "/my-tickets")}
-                  className="bg-blue-600 hover:bg-blue-700 text-white font-bold"
+                  className="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold"
                 >
-                  {user?.role === "creator" ? "Go to Dashboard" : "View My Tickets"}
+                  {user?.role === "creator" ? "Go to Dashboard" : "View My Tickets & Add to Calendar"}
                 </Button>
                 <Button
                   onClick={() => navigate("/browse")}
-                  className="bg-gray-700 hover:bg-gray-600 text-white font-bold"
+                  className="w-full bg-gray-700 hover:bg-gray-600 text-white font-bold"
                 >
-                  Browse Events
+                  Browse More Events
                 </Button>
               </div>
             </div>
