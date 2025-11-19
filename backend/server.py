@@ -15,8 +15,9 @@ import qrcode
 from io import BytesIO
 import base64
 from emergentintegrations.payments.stripe.checkout import StripeCheckout, CheckoutSessionResponse, CheckoutStatusResponse, CheckoutSessionRequest
-from icalendar import Calendar, Event as ICalEvent
+from icalendar import Calendar, Event as ICalEvent, Alarm
 from datetime import timedelta as td
+from dateutil import parser
 
 ROOT_DIR = Path(__file__).parent
 load_dotenv(ROOT_DIR / '.env')
