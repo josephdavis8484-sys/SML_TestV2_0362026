@@ -469,7 +469,6 @@ async def download_calendar(ticket_id: str, current_user: User = Depends(get_cur
     
     # Parse date and time
     try:
-        from dateutil import parser
         # Combine date and time
         date_str = event['date']
         time_str = event['time']
