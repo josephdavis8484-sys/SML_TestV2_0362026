@@ -412,6 +412,102 @@ async def get_my_tickets(current_user: User = Depends(get_current_user)):
             ticket['purchase_date'] = datetime.fromisoformat(ticket['purchase_date'])
     return tickets
 
+@api_router.post("/tickets", response_model=Ticket)
+async def purchase_ticket(ticket_input: TicketCreate, current_user: User = Depends(get_current_user)):
+    """Purchase ticket (authenticated)"""
+    # Verify event exists
+    event = await db.events.find_one({"id": ticket_input.event_id})
+    if not event:
+        raise HTTPException(status_code=404, detail="Event not found")
+    
+    ticket = Ticket(
+        event_id=ticket_input.event_id,
+        user_id=current_user.id,
+        quantity=ticket_input.quantity
+    )
+    
+    ticket_doc = ticket.model_dump()
+    ticket_doc['purchase_date'] = ticket_doc['purchase_date'].isoformat()
+    
+    await db.tickets.insert_one(ticket_doc)
+    
+    return ticket
+
+@api_router.get("/tickets/{ticket_id}/calendar")
+async def download_calendar(ticket_id: str, current_user: User = Depends(get_current_user)):
+    """Generate ICS calendar file for a ticket"""
+    # Get ticket
+    ticket = await db.tickets.find_one({"id": ticket_id, "user_id": current_user.id}, {"_id": 0})
+    if not ticket:
+        raise HTTPException(status_code=404, detail="Ticket not found")
+    
+    # Get event details
+    event = await db.events.find_one({"id": ticket["event_id"]}, {"_id": 0})
+    if not event:
+        raise HTTPException(status_code=404, detail="Event not found")
+    
+    # Create calendar
+    cal = Calendar()
+    cal.add('prodid', '-//ShowMeLive//Event Ticket//EN')
+    cal.add('version', '2.0')
+    cal.add('calscale', 'GREGORIAN')
+    cal.add('method', 'PUBLISH')
+    cal.add('x-wr-calname', 'ShowMeLive Events')
+    cal.add('x-wr-timezone', 'America/New_York')
+    
+    # Create event
+    ical_event = ICalEvent()
+    ical_event.add('uid', f"showmelive-{event['id']}@showmelive.online")
+    ical_event.add('summary', event['title'])
+    ical_event.add('description', f"{event['description']}\n\nTicket Quantity: {ticket['quantity']}\n\nEvent URL: {event.get('share_link', '')}" )
+    ical_event.add('location', event['venue'])
+    
+    # Parse date and time
+    try:
+        from dateutil import parser
+        # Combine date and time
+        date_str = event['date']
+        time_str = event['time']
+        
+        # Try to parse the date
+        event_datetime = parser.parse(f"{date_str} {time_str}")
+        
+        # Set start time
+        ical_event.add('dtstart', event_datetime)
+        # Set end time (2 hours after start)
+        ical_event.add('dtend', event_datetime + td(hours=2))
+    except Exception as e:
+        # Fallback if parsing fails
+        ical_event.add('dtstart', datetime.now(timezone.utc))
+        ical_event.add('dtend', datetime.now(timezone.utc) + td(hours=2))
+    
+    ical_event.add('dtstamp', datetime.now(timezone.utc))
+    ical_event.add('status', 'CONFIRMED')
+    ical_event.add('category', event['category'])
+    ical_event.add('url', event.get('share_link', ''))
+    
+    # Add reminder 1 day before
+    from icalendar import Alarm
+    alarm = Alarm()
+    alarm.add('action', 'DISPLAY')
+    alarm.add('description', f"Reminder: {event['title']} tomorrow!")
+    alarm.add('trigger', td(days=-1))
+    ical_event.add_component(alarm)
+    
+    cal.add_component(ical_event)
+    
+    # Generate ICS file
+    ics_content = cal.to_ical()
+    
+    # Return as downloadable file
+    return StreamingResponse(
+        BytesIO(ics_content),
+        media_type="text/calendar",
+        headers={
+            "Content-Disposition": f"attachment; filename={event['title'].replace(' ', '_')}.ics"
+        }
+    )
+
 # Payment Routes
 @api_router.post("/payments/checkout/session")
 async def create_checkout_session(request: Request, current_user: User = Depends(get_current_user)):
