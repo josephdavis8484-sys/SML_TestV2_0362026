@@ -421,10 +421,14 @@ async def purchase_ticket(ticket_input: TicketCreate, current_user: User = Depen
     if not event:
         raise HTTPException(status_code=404, detail="Event not found")
     
+    # Calculate total amount
+    amount_paid = float(event["price"]) * ticket_input.quantity
+    
     ticket = Ticket(
         event_id=ticket_input.event_id,
         user_id=current_user.id,
-        quantity=ticket_input.quantity
+        quantity=ticket_input.quantity,
+        amount_paid=amount_paid
     )
     
     ticket_doc = ticket.model_dump()
