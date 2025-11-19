@@ -480,7 +480,7 @@ async def download_calendar(ticket_id: str, current_user: User = Depends(get_cur
         ical_event.add('dtstart', event_datetime)
         # Set end time (2 hours after start)
         ical_event.add('dtend', event_datetime + td(hours=2))
-    except Exception as e:
+    except Exception:
         # Fallback if parsing fails
         ical_event.add('dtstart', datetime.now(timezone.utc))
         ical_event.add('dtend', datetime.now(timezone.utc) + td(hours=2))
