@@ -86,15 +86,10 @@ function App() {
           {/* Role selection route - accessible without login */}
           <Route path="/select-role" element={<RoleSelection user={user} onRoleSelected={updateUser} />} />
           
-          {/* If user logged in but no role, redirect to role selection (only if not already on select-role) */}
-          {user && !user.role && window.location.pathname !== '/select-role' && (
-            <Route path="*" element={<Navigate to="/select-role" replace />} />
-          )}
-          
           {/* Public routes - accessible without login */}
           <Route path="/" element={
-            user?.role === "creator" ? 
-            <Navigate to="/creator/dashboard" /> : 
+            user && !user.role ? <Navigate to="/select-role" replace /> :
+            user?.role === "creator" ? <Navigate to="/creator/dashboard" replace /> : 
             <Home user={user} onLogout={handleLogout} />
           } />
           <Route path="/browse" element={<Browse user={user} onLogout={handleLogout} />} />
