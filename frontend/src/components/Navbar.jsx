@@ -11,8 +11,8 @@ const Navbar = ({ user, onLogout, isCreator = false }) => {
   const navigate = useNavigate();
   
   const handleLogin = () => {
-    // Redirect to role selection page first
-    navigate('/select-role');
+    const redirectUrl = `${window.location.origin}/`;
+    window.location.href = `${EMERGENT_AUTH_URL}/?redirect=${encodeURIComponent(redirectUrl)}`;
   };
 
   return (
