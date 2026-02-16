@@ -97,6 +97,9 @@ function App() {
     <div className="App">
       <BrowserRouter>
         <Routes>
+          {/* Role selection route - accessible without login */}
+          <Route path="/select-role" element={<RoleSelection user={user} onRoleSelected={updateUser} />} />
+          
           {/* Public routes - accessible without login */}
           <Route path="/" element={
             user?.role === "creator" ? 
