@@ -1,9 +1,10 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { axiosInstance } from "@/App";
 import { User, Video, X } from "lucide-react";
 import { toast } from "sonner";
 import { Checkbox } from "@/components/ui/checkbox";
+import { useNavigate } from "react-router-dom";
 
 const EMERGENT_AUTH_URL = "https://auth.emergentagent.com";
 
@@ -12,30 +13,41 @@ const RoleSelection = ({ user, onRoleSelected }) => {
   const [showCreatorGuidelines, setShowCreatorGuidelines] = useState(false);
   const [acceptedGuidelines, setAcceptedGuidelines] = useState(false);
   const [acceptedFee, setAcceptedFee] = useState(false);
+  const navigate = useNavigate();
+
+  // If user is already authenticated and just returned from OAuth, apply saved role
+  useEffect(() => {
+    if (user && !user.role) {
+      const savedRole = localStorage.getItem('selected_role');
+      if (savedRole) {
+        applyRole(savedRole);
+        localStorage.removeItem('selected_role');
+      }
+    }
+  }, [user]);
 
   const handleViewerSelection = () => {
-    // Viewers can proceed without login for browsing
     if (!user) {
-      // Redirect to home as guest
-      window.location.href = "/";
+      // Save role choice and redirect to auth
+      localStorage.setItem('selected_role', 'viewer');
+      const redirectUrl = `${window.location.origin}/`;
+      window.location.href = `${EMERGENT_AUTH_URL}/?redirect=${encodeURIComponent(redirectUrl)}`;
     } else {
-      selectRole("viewer");
+      applyRole('viewer');
     }
   };
 
   const handleCreatorSelection = () => {
     if (!user) {
-      // Creators must login first
-      toast.info("Please sign in to continue as Content Creator");
-      const redirectUrl = `${window.location.origin}/`;
-      window.location.href = `${EMERGENT_AUTH_URL}/?redirect=${encodeURIComponent(redirectUrl)}`;
-      return;
+      // Show guidelines first, then will save role and auth
+      setShowCreatorGuidelines(true);
+    } else {
+      // Already authenticated, show guidelines
+      setShowCreatorGuidelines(true);
     }
-    // Show guidelines modal
-    setShowCreatorGuidelines(true);
   };
 
-  const selectRole = async (role) => {
+  const applyRole = async (role) => {
     setSelecting(true);
     try {
       const response = await axiosInstance.post("/auth/role", { role });
@@ -55,7 +67,16 @@ const RoleSelection = ({ user, onRoleSelected }) => {
       return;
     }
     setShowCreatorGuidelines(false);
-    selectRole("creator");
+    
+    if (!user) {
+      // Save role and redirect to auth
+      localStorage.setItem('selected_role', 'creator');
+      const redirectUrl = `${window.location.origin}/`;
+      window.location.href = `${EMERGENT_AUTH_URL}/?redirect=${encodeURIComponent(redirectUrl)}`;
+    } else {
+      // Already authenticated, apply role
+      applyRole('creator');
+    }
   };
 
   return (
@@ -66,7 +87,7 @@ const RoleSelection = ({ user, onRoleSelected }) => {
             Welcome to <span className="text-blue-500">ShowMe</span><span className="text-white">Live</span>
           </h1>
           <p className="text-gray-400 text-2xl font-light">Premium Virtual Events Platform</p>
-          <p className="text-gray-500 text-lg mt-2">Choose your experience</p>
+          <p className="text-gray-500 text-lg mt-2">Choose your experience to continue</p>
         </div>
 
         <div className="grid md:grid-cols-2 gap-8">
@@ -148,7 +169,7 @@ const RoleSelection = ({ user, onRoleSelected }) => {
                 <ul className="text-gray-300 text-left space-y-3">
                   <li className="flex items-start gap-3">
                     <span className="text-blue-400 text-xl">✓</span>
-                    <span>Browse all events for free</span>
+                    <span>Browse all events</span>
                   </li>
                   <li className="flex items-start gap-3">
                     <span className="text-blue-400 text-xl">✓</span>
@@ -165,17 +186,15 @@ const RoleSelection = ({ user, onRoleSelected }) => {
                 </ul>
               </div>
               <div className="text-sm text-blue-400 font-medium">
-                No login required to browse
+                Continue with sign-in
               </div>
             </div>
           </button>
         </div>
 
-        {!user && (
-          <p className="text-center text-gray-500 mt-12 text-lg">
-            Already have an account? <button onClick={() => window.location.href = `${EMERGENT_AUTH_URL}/?redirect=${encodeURIComponent(window.location.origin)}`} className="text-blue-500 hover:text-blue-400 underline">Sign In</button>
-          </p>
-        )}
+        <p className="text-center text-gray-500 mt-12 text-lg">
+          Select your role to sign in with Google
+        </p>
       </div>
 
       {/* Creator Guidelines Modal */}
@@ -243,7 +262,7 @@ const RoleSelection = ({ user, onRoleSelected }) => {
                 className="flex-1 bg-blue-600 hover:bg-blue-700 text-white font-bold py-4 text-lg"
                 data-testid="confirm-creator-button"
               >
-                {selecting ? "Processing..." : "Agree & Continue as Creator"}
+                {selecting ? "Processing..." : "Agree & Continue"}
               </Button>
               <Button
                 onClick={() => setShowCreatorGuidelines(false)}
