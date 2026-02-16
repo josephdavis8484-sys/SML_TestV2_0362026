@@ -79,17 +79,25 @@ function App() {
     return <LoadingScreen />;
   }
 
+  // If user is logged in but hasn't selected a role, show role selection
+  if (user && !user.role) {
+    return (
+      <BrowserRouter>
+        <Routes>
+          <Route path="*" element={<RoleSelection user={user} onRoleSelected={updateUser} />} />
+        </Routes>
+      </BrowserRouter>
+    );
+  }
+
   return (
     <div className="App">
       <BrowserRouter>
         <Routes>
-          {/* Role selection route - accessible without login */}
-          <Route path="/select-role" element={<RoleSelection user={user} onRoleSelected={updateUser} />} />
-          
-          {/* Public routes - accessible without login */}
+          {/* Public routes */}
           <Route path="/" element={
-            user && !user.role ? <Navigate to="/select-role" replace /> :
-            user?.role === "creator" ? <Navigate to="/creator/dashboard" replace /> : 
+            user?.role === "creator" ? 
+            <Navigate to="/creator/dashboard" /> : 
             <Home user={user} onLogout={handleLogout} />
           } />
           <Route path="/browse" element={<Browse user={user} onLogout={handleLogout} />} />
