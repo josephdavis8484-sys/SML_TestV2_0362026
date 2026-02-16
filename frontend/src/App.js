@@ -90,6 +90,9 @@ function App() {
     );
   }
 
+  // Allow guest access for viewers (no role selection needed if not logged in)
+  // If not logged in, they can browse as guest viewer
+
   return (
     <div className="App">
       <BrowserRouter>
