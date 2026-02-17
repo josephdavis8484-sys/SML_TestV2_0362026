@@ -3,9 +3,9 @@
 ## Original Problem Statement
 Build a virtual event platform (ShowMeLive) with a clean, modern Netflix-inspired design. The platform should support:
 - Role-based access for Content Creators and Content Viewers
-- Social login (Google) with role selection
+- Social login (Google) with role selection BEFORE authentication
 - Event creation and management for creators
-- Ticket purchasing for viewers
+- Ticket purchasing for viewers via Stripe
 - Admin panel for platform management
 
 ## User's Preferred Language
@@ -28,6 +28,7 @@ English
 ### 3. Content Viewer Flow
 - Home page to browse upcoming events
 - Event details page with "Buy Ticket" button
+- Stripe checkout for ticket purchases
 - "Add to Calendar" functionality
 
 ### 4. Admin Panel
@@ -53,24 +54,35 @@ English
 - [x] Dynamic homepage with event banner carousel
 - [x] Event cards with neon glow hover effects
 
-#### Authentication
+#### Authentication & Role Selection (UPDATED)
 - [x] Google OAuth integration via Emergent Auth
-- [x] Post-authentication role selection (Viewer/Creator)
+- [x] **Pre-authentication role selection** at `/select-role`
+- [x] User picks Viewer or Creator BEFORE Google sign-in
+- [x] Role stored in sessionStorage and applied after auth
 - [x] Session management with cookies
 - [x] Admin email/password authentication
 
 #### Public Features
 - [x] Public event browsing (no login required)
-- [x] Event details page
+- [x] Event details page with time display
 - [x] "Add to Calendar" (.ics file download)
 
-#### Creator Features
-- [x] Creator Dashboard skeleton
-- [x] Event creation form
-- [x] QR code generation for events
-- [x] Streaming device token generation
+#### Stripe Integration (NEW)
+- [x] Stripe checkout for ticket purchases
+- [x] "Pay $X" button on event detail page
+- [x] Free event handling ("Claim Free Tickets" button)
+- [x] Pro Mode payment ($1000) for creators
+- [x] Payment success/cancel pages
 
-#### Admin Panel (COMPLETED)
+#### Creator Features
+- [x] Creator Dashboard with earnings overview
+- [x] Event creation form with image upload
+- [x] Basic (Free) streaming package
+- [x] Premium ($1000) Pro Mode package
+- [x] Visual package selection with checkmarks
+- [x] Pro Mode warning message
+
+#### Admin Panel
 - [x] Admin Login page at `/admin/login`
 - [x] Admin Dashboard with tabs:
   - Overview (user/event/ticket/revenue stats)
@@ -85,7 +97,7 @@ English
 #### Backend Infrastructure
 - [x] FastAPI server with all routes
 - [x] MongoDB database integration
-- [x] Stripe payment integration (backend)
+- [x] Stripe payment integration
 - [x] Event seeding script
 
 ### Default Admin Credentials
@@ -97,13 +109,14 @@ English
 ## Prioritized Backlog
 
 ### P0 (High Priority)
-- [ ] **Fix Sign-in/Role Selection Flow**: User wants role selection BEFORE Google sign-in (not after)
-- [ ] **Creator Dashboard Features**: Full event creation with image upload, Pro Mode selection
+- [x] ~~Fix Sign-in/Role Selection Flow~~ ✅ COMPLETED
+- [x] ~~Stripe Frontend~~ ✅ COMPLETED
+- [x] ~~Creator Pro Mode payment~~ ✅ COMPLETED
 
 ### P1 (Medium Priority)
-- [ ] Stripe integration for ticket purchases (frontend)
-- [ ] Stripe integration for Pro Mode ($1000 fee)
-- [ ] Plaid integration for creator bank account linking
+- [ ] Plaid integration for creator bank account linking (payouts)
+- [ ] Event image gallery with multiple uploads
+- [ ] Creator earnings withdrawal
 
 ### P2 (Lower Priority - Future)
 - [ ] Multi-camera streaming control panel (WebRTC)
@@ -118,7 +131,7 @@ English
 - **Backend**: FastAPI, Python
 - **Database**: MongoDB
 - **Auth**: Google OAuth 2.0 (Emergent Auth), JWT for Admin
-- **Payments**: Stripe (partially integrated)
+- **Payments**: Stripe (fully integrated)
 - **Calendar**: iCalendar library
 
 ---
@@ -126,13 +139,20 @@ English
 ## Key Files Reference
 - `/app/backend/server.py` - All backend routes and logic
 - `/app/frontend/src/App.js` - Main router and auth state
+- `/app/frontend/src/pages/SelectRole.jsx` - Pre-auth role selection (NEW)
 - `/app/frontend/src/pages/AdminDashboard.jsx` - Admin panel
 - `/app/frontend/src/pages/AdminLogin.jsx` - Admin login
+- `/app/frontend/src/pages/EventDetail.jsx` - Event detail with Stripe checkout
+- `/app/frontend/src/pages/CreateEvent.jsx` - Event creation with Pro Mode
 - `/app/frontend/src/pages/Home.jsx` - Public homepage
 - `/app/frontend/src/pages/CreatorDashboard.jsx` - Creator view
 
 ---
 
-## Known Issues
-1. Sign-in flow: Currently role selection happens AFTER auth, user wants BEFORE
-2. Duplicate users showing in admin panel (same email, different IDs)
+## Recent Changes (Dec 2025)
+1. Added `/select-role` page for pre-auth role selection
+2. Updated Navbar to redirect to role selection instead of direct auth
+3. Updated App.js to handle pending_role from sessionStorage
+4. Added Stripe checkout to EventDetail page
+5. Enhanced CreateEvent with visual Pro Mode selection
+6. Added payment flow for Pro Mode ($1000)
