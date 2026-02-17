@@ -5,7 +5,7 @@ import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
-import { Upload, QrCode } from "lucide-react";
+import { Upload, Crown, Check, Zap } from "lucide-react";
 import { toast } from "sonner";
 
 const CreateEvent = ({ user, onLogout }) => {
@@ -61,6 +61,26 @@ const CreateEvent = ({ user, onLogout }) => {
       };
 
       const response = await axiosInstance.post("/events", eventData);
+      const eventId = response.data.id;
+      
+      // If premium package selected, redirect to Stripe checkout
+      if (formData.streaming_package === "premium") {
+        try {
+          const checkoutRes = await axiosInstance.post("/payments/checkout/session", {
+            payment_type: "streaming_package",
+            package: "premium",
+            event_id: eventId,
+            origin_url: window.location.origin
+          });
+          
+          toast.success("Event created! Redirecting to payment...");
+          window.location.href = checkoutRes.data.url;
+          return;
+        } catch (paymentError) {
+          console.error("Payment setup error:", paymentError);
+          toast.error("Event created but payment setup failed. You can upgrade later.");
+        }
+      }
       
       toast.success("Event created successfully!");
       navigate("/creator/dashboard");
@@ -182,6 +202,7 @@ const CreateEvent = ({ user, onLogout }) => {
               <Input
                 type="number"
                 step="0.01"
+                min="0"
                 value={formData.price}
                 onChange={(e) => setFormData({...formData, price: e.target.value})}
                 placeholder="0.00"
@@ -205,50 +226,116 @@ const CreateEvent = ({ user, onLogout }) => {
             />
           </div>
 
-          {/* Streaming Package */}
+          {/* Streaming Package Selection */}
           <div>
             <label className="text-white text-lg font-semibold mb-4 block">Streaming Package</label>
             <div className="grid md:grid-cols-2 gap-4">
+              {/* Free Package */}
               <button
                 type="button"
                 onClick={() => setFormData({...formData, streaming_package: "free"})}
-                className={`p-6 rounded-lg border-2 transition-all ${
+                className={`relative p-6 rounded-lg border-2 transition-all text-left ${
                   formData.streaming_package === "free"
                     ? "border-blue-500 bg-blue-600/20"
-                    : "border-gray-700 bg-gray-900/50"
+                    : "border-gray-700 bg-gray-900/50 hover:border-gray-600"
                 }`}
                 data-testid="free-package-button"
               >
-                <h3 className="text-white text-xl font-bold mb-2">Free</h3>
-                <p className="text-gray-400 mb-2">1 streaming device</p>
-                <p className="text-blue-500 text-2xl font-bold">$0</p>
+                {formData.streaming_package === "free" && (
+                  <div className="absolute top-3 right-3">
+                    <Check className="w-5 h-5 text-blue-500" />
+                  </div>
+                )}
+                <div className="flex items-center gap-2 mb-3">
+                  <Zap className="w-6 h-6 text-gray-400" />
+                  <h3 className="text-white text-xl font-bold">Basic</h3>
+                </div>
+                <p className="text-gray-400 mb-4 text-sm">Perfect for getting started</p>
+                <p className="text-blue-500 text-3xl font-bold mb-4">FREE</p>
+                <ul className="text-gray-300 space-y-2 text-sm">
+                  <li className="flex items-center gap-2">
+                    <Check className="w-4 h-4 text-green-500" />
+                    1 streaming device
+                  </li>
+                  <li className="flex items-center gap-2">
+                    <Check className="w-4 h-4 text-green-500" />
+                    Standard quality
+                  </li>
+                  <li className="flex items-center gap-2">
+                    <Check className="w-4 h-4 text-green-500" />
+                    Basic analytics
+                  </li>
+                </ul>
               </button>
 
+              {/* Premium Package */}
               <button
                 type="button"
                 onClick={() => setFormData({...formData, streaming_package: "premium"})}
-                className={`p-6 rounded-lg border-2 transition-all ${
+                className={`relative p-6 rounded-lg border-2 transition-all text-left ${
                   formData.streaming_package === "premium"
-                    ? "border-blue-500 bg-blue-600/20"
-                    : "border-gray-700 bg-gray-900/50"
+                    ? "border-yellow-500 bg-yellow-600/20"
+                    : "border-gray-700 bg-gray-900/50 hover:border-gray-600"
                 }`}
                 data-testid="premium-package-button"
               >
-                <h3 className="text-white text-xl font-bold mb-2">Premium</h3>
-                <p className="text-gray-400 mb-2">5 streaming devices + control panel</p>
-                <p className="text-blue-500 text-2xl font-bold">$1,000</p>
+                {formData.streaming_package === "premium" && (
+                  <div className="absolute top-3 right-3">
+                    <Check className="w-5 h-5 text-yellow-500" />
+                  </div>
+                )}
+                <div className="absolute -top-3 left-4 bg-yellow-500 text-black text-xs font-bold px-2 py-1 rounded">
+                  PRO MODE
+                </div>
+                <div className="flex items-center gap-2 mb-3 mt-2">
+                  <Crown className="w-6 h-6 text-yellow-500" />
+                  <h3 className="text-white text-xl font-bold">Premium</h3>
+                </div>
+                <p className="text-gray-400 mb-4 text-sm">For professional creators</p>
+                <p className="text-yellow-500 text-3xl font-bold mb-4">$1,000</p>
+                <ul className="text-gray-300 space-y-2 text-sm">
+                  <li className="flex items-center gap-2">
+                    <Check className="w-4 h-4 text-green-500" />
+                    Up to 5 cameras
+                  </li>
+                  <li className="flex items-center gap-2">
+                    <Check className="w-4 h-4 text-green-500" />
+                    Professional control panel
+                  </li>
+                  <li className="flex items-center gap-2">
+                    <Check className="w-4 h-4 text-green-500" />
+                    HD streaming quality
+                  </li>
+                  <li className="flex items-center gap-2">
+                    <Check className="w-4 h-4 text-green-500" />
+                    Live transitions & effects
+                  </li>
+                  <li className="flex items-center gap-2">
+                    <Check className="w-4 h-4 text-green-500" />
+                    Advanced analytics
+                  </li>
+                </ul>
               </button>
             </div>
+            
+            {formData.streaming_package === "premium" && (
+              <div className="mt-4 bg-yellow-500/10 border border-yellow-500/30 rounded-lg p-4">
+                <p className="text-yellow-400 text-sm">
+                  <Crown className="w-4 h-4 inline mr-2" />
+                  Pro Mode requires a one-time payment of $1,000. You'll be redirected to complete payment after creating the event.
+                </p>
+              </div>
+            )}
           </div>
 
-          <div className="flex gap-4">
+          <div className="flex gap-4 pt-4">
             <Button
               type="submit"
               disabled={loading}
               className="flex-1 bg-blue-600 hover:bg-blue-700 text-white font-bold py-6 text-lg"
               data-testid="create-event-submit"
             >
-              {loading ? "Creating..." : "Create Event"}
+              {loading ? "Creating..." : formData.streaming_package === "premium" ? "Create & Pay $1,000" : "Create Event"}
             </Button>
             <Button
               type="button"
