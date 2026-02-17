@@ -650,7 +650,7 @@ async def stripe_webhook(request: Request):
     api_key = os.environ.get("STRIPE_API_KEY")
     stripe_checkout = StripeCheckout(api_key=api_key, webhook_url="")
     
-    webhook_response = await stripe_checkout.handle_webhook(body, signature)
+    await stripe_checkout.handle_webhook(body, signature)
     return {"status": "received"}
 
 # Creator Earnings
