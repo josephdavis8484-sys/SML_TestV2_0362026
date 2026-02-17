@@ -132,8 +132,9 @@ const AdminDashboard = () => {
     const reason = prompt("Enter refund reason:");
     if (!reason) return;
     
+    const adminAxios = getAdminAxios();
     try {
-      const res = await axiosInstance.post(`/admin/refund/${ticketId}?reason=${encodeURIComponent(reason)}`);
+      const res = await adminAxios.post(`/admin/refund/${ticketId}?reason=${encodeURIComponent(reason)}`);
       toast.success(`Refund processed: $${res.data.amount}`);
       fetchAdminData();
     } catch (error) {
