@@ -120,7 +120,10 @@ class Ticket(BaseModel):
     event_id: str
     user_id: str
     quantity: int
-    amount_paid: float
+    amount_paid: float = 0.0
+    refunded: bool = False
+    refund_reason: Optional[str] = None
+    refund_date: Optional[datetime] = None
     purchase_date: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
 
 class TicketCreate(BaseModel):
