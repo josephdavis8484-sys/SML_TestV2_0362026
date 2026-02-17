@@ -8,6 +8,7 @@ import EventDetail from "@/pages/EventDetail";
 import MyTickets from "@/pages/MyTickets";
 import LoadingScreen from "@/components/LoadingScreen";
 import RoleSelection from "@/pages/RoleSelection";
+import SelectRole from "@/pages/SelectRole";
 import CreatorDashboard from "@/pages/CreatorDashboard";
 import CreateEvent from "@/pages/CreateEvent";
 import StreamDevice from "@/pages/StreamDevice";
@@ -42,7 +43,22 @@ function App() {
           const response = await axiosInstance.post("/auth/session", {
             session_id: sessionId,
           });
-          setUser(response.data.user);
+          let userData = response.data.user;
+          
+          // Check if there's a pending role from pre-auth selection
+          const pendingRole = sessionStorage.getItem("pending_role");
+          if (pendingRole && !userData.role) {
+            // Apply the pending role
+            try {
+              const roleResponse = await axiosInstance.post("/auth/role", { role: pendingRole });
+              userData = roleResponse.data;
+            } catch (roleError) {
+              console.error("Error setting role:", roleError);
+            }
+            sessionStorage.removeItem("pending_role");
+          }
+          
+          setUser(userData);
           window.history.replaceState(null, "", window.location.pathname);
         } catch (error) {
           console.error("Auth error:", error);
@@ -104,6 +120,11 @@ function App() {
           } />
           <Route path="/browse" element={<Browse user={user} onLogout={handleLogout} />} />
           <Route path="/event/:id" element={<EventDetail user={user} onLogout={handleLogout} />} />
+          
+          {/* Pre-auth role selection */}
+          <Route path="/select-role" element={
+            user ? <Navigate to="/" /> : <SelectRole />
+          } />
           
           {/* Viewer routes */}
           <Route path="/my-tickets" element={
