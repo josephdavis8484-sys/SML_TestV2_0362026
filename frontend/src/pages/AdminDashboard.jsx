@@ -91,8 +91,9 @@ const AdminDashboard = () => {
       if (!reason) return;
     }
     
+    const adminAxios = getAdminAxios();
     try {
-      await axiosInstance.post(`/admin/users/${userId}/block?reason=${encodeURIComponent(reason)}`);
+      await adminAxios.post(`/admin/users/${userId}/block?reason=${encodeURIComponent(reason)}`);
       toast.success("User blocked successfully");
       fetchAdminData();
     } catch (error) {
@@ -101,8 +102,9 @@ const AdminDashboard = () => {
   };
 
   const handleUnblockUser = async (userId) => {
+    const adminAxios = getAdminAxios();
     try {
-      await axiosInstance.post(`/admin/users/${userId}/unblock`);
+      await adminAxios.post(`/admin/users/${userId}/unblock`);
       toast.success("User unblocked successfully");
       fetchAdminData();
     } catch (error) {
@@ -116,8 +118,9 @@ const AdminDashboard = () => {
       if (!reason) return;
     }
     
+    const adminAxios = getAdminAxios();
     try {
-      await axiosInstance.post(`/admin/events/${eventId}/block?reason=${encodeURIComponent(reason)}`);
+      await adminAxios.post(`/admin/events/${eventId}/block?reason=${encodeURIComponent(reason)}`);
       toast.success("Event blocked successfully");
       fetchAdminData();
     } catch (error) {
