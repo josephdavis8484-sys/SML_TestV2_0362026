@@ -3,7 +3,7 @@ import { useParams, useNavigate } from "react-router-dom";
 import Navbar from "@/components/Navbar";
 import { axiosInstance } from "@/App";
 import { Button } from "@/components/ui/button";
-import { Calendar, MapPin, DollarSign, ArrowLeft } from "lucide-react";
+import { Calendar, MapPin, DollarSign, ArrowLeft, CreditCard, Ticket } from "lucide-react";
 import { toast } from "sonner";
 
 const EMERGENT_AUTH_URL = "https://auth.emergentagent.com";
@@ -32,6 +32,38 @@ const EventDetail = ({ user, onLogout }) => {
 
   const handlePurchase = async () => {
     if (!user) {
+      // Store event ID to return after auth
+      sessionStorage.setItem("pending_purchase_event", id);
+      sessionStorage.setItem("pending_role", "viewer");
+      const redirectUrl = `${window.location.origin}/event/${id}`;
+      window.location.href = `${EMERGENT_AUTH_URL}/?redirect=${encodeURIComponent(redirectUrl)}`;
+      return;
+    }
+
+    setPurchasing(true);
+    try {
+      // Use Stripe checkout for payment
+      const response = await axiosInstance.post("/payments/checkout/session", {
+        payment_type: "ticket",
+        event_id: id,
+        quantity: quantity,
+        origin_url: window.location.origin
+      });
+      
+      // Redirect to Stripe checkout
+      window.location.href = response.data.url;
+    } catch (error) {
+      console.error("Error initiating checkout:", error);
+      toast.error("Failed to initiate payment. Please try again.");
+      setPurchasing(false);
+    }
+  };
+
+  // Quick purchase without Stripe (free events)
+  const handleFreePurchase = async () => {
+    if (!user) {
+      sessionStorage.setItem("pending_purchase_event", id);
+      sessionStorage.setItem("pending_role", "viewer");
       const redirectUrl = `${window.location.origin}/event/${id}`;
       window.location.href = `${EMERGENT_AUTH_URL}/?redirect=${encodeURIComponent(redirectUrl)}`;
       return;
@@ -43,11 +75,11 @@ const EventDetail = ({ user, onLogout }) => {
         event_id: id,
         quantity: quantity
       });
-      toast.success("Tickets purchased successfully!");
+      toast.success("Tickets claimed successfully!");
       navigate("/my-tickets");
     } catch (error) {
-      console.error("Error purchasing tickets:", error);
-      toast.error("Failed to purchase tickets");
+      console.error("Error claiming tickets:", error);
+      toast.error("Failed to claim tickets");
     } finally {
       setPurchasing(false);
     }
@@ -60,6 +92,9 @@ const EventDetail = ({ user, onLogout }) => {
       </div>
     );
   }
+
+  const isFreeEvent = event.price === 0;
+  const totalPrice = (event.price * quantity).toFixed(2);
 
   return (
     <div className="min-h-screen bg-[#0f0f0f]" data-testid="event-detail-page">
@@ -93,7 +128,7 @@ const EventDetail = ({ user, onLogout }) => {
               <div className="flex flex-wrap gap-6 mb-8">
                 <div className="flex items-center gap-2 text-gray-300">
                   <Calendar className="w-5 h-5" />
-                  <span data-testid="event-date">{event.date}</span>
+                  <span data-testid="event-date">{event.date} at {event.time}</span>
                 </div>
                 <div className="flex items-center gap-2 text-gray-300">
                   <MapPin className="w-5 h-5" />
@@ -117,9 +152,11 @@ const EventDetail = ({ user, onLogout }) => {
                 <div className="flex items-center justify-between mb-6">
                   <div className="flex items-center gap-2">
                     <DollarSign className="w-6 h-6 text-green-500" />
-                    <span className="text-white text-3xl font-bold" data-testid="event-price">${event.price}</span>
+                    <span className="text-white text-3xl font-bold" data-testid="event-price">
+                      {isFreeEvent ? "FREE" : `$${event.price}`}
+                    </span>
                   </div>
-                  <span className="text-gray-400">per ticket</span>
+                  {!isFreeEvent && <span className="text-gray-400">per ticket</span>}
                 </div>
 
                 <div className="mb-6">
@@ -146,18 +183,44 @@ const EventDetail = ({ user, onLogout }) => {
                 <div className="border-t border-gray-700 pt-4 mb-6">
                   <div className="flex items-center justify-between text-lg">
                     <span className="text-gray-300">Total</span>
-                    <span className="text-white font-bold text-2xl" data-testid="total-price">${(event.price * quantity).toFixed(2)}</span>
+                    <span className="text-white font-bold text-2xl" data-testid="total-price">
+                      {isFreeEvent ? "FREE" : `$${totalPrice}`}
+                    </span>
                   </div>
                 </div>
 
                 <Button
-                  onClick={handlePurchase}
+                  onClick={isFreeEvent ? handleFreePurchase : handlePurchase}
                   disabled={purchasing}
-                  className="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold text-lg py-6 transition-colors"
+                  className="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold text-lg py-6 transition-colors flex items-center justify-center gap-2"
                   data-testid="purchase-button"
                 >
-                  {purchasing ? "Processing..." : user ? "Purchase Tickets" : "Sign in to Purchase"}
+                  {purchasing ? (
+                    "Processing..."
+                  ) : user ? (
+                    <>
+                      {isFreeEvent ? (
+                        <>
+                          <Ticket className="w-5 h-5" />
+                          Claim Free Tickets
+                        </>
+                      ) : (
+                        <>
+                          <CreditCard className="w-5 h-5" />
+                          Pay ${totalPrice}
+                        </>
+                      )}
+                    </>
+                  ) : (
+                    "Sign in to Purchase"
+                  )}
                 </Button>
+                
+                {!isFreeEvent && (
+                  <p className="text-gray-500 text-xs text-center mt-3">
+                    Secure payment powered by Stripe
+                  </p>
+                )}
               </div>
             </div>
           </div>
