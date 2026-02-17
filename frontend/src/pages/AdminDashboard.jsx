@@ -1,9 +1,23 @@
 import React, { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
-import { axiosInstance } from "@/App";
+import axios from "axios";
 import { Button } from "@/components/ui/button";
 import { Shield, Users, Calendar, Ticket, DollarSign, AlertTriangle, Activity } from "lucide-react";
 import { toast } from "sonner";
+
+const BACKEND_URL = process.env.REACT_APP_BACKEND_URL;
+const API = `${BACKEND_URL}/api`;
+
+// Create admin-specific axios instance that uses the admin token
+const getAdminAxios = () => {
+  const token = localStorage.getItem("admin_session");
+  return axios.create({
+    baseURL: API,
+    headers: {
+      Authorization: `Bearer ${token}`
+    }
+  });
+};
 
 const AdminDashboard = () => {
   const [stats, setStats] = useState(null);
@@ -17,6 +31,13 @@ const AdminDashboard = () => {
   const navigate = useNavigate();
 
   useEffect(() => {
+    // Check if admin is logged in
+    const token = localStorage.getItem("admin_session");
+    if (!token) {
+      navigate("/admin/login");
+      return;
+    }
+    
     fetchAdminData();
     const interval = setInterval(() => {
       if (activeTab === "live") {
@@ -24,16 +45,17 @@ const AdminDashboard = () => {
       }
     }, 5000);
     return () => clearInterval(interval);
-  }, [activeTab]);
+  }, [activeTab, navigate]);
 
   const fetchAdminData = async () => {
+    const adminAxios = getAdminAxios();
     try {
       const [statsRes, usersRes, eventsRes, ticketsRes, bankRes] = await Promise.all([
-        axiosInstance.get("/admin/dashboard"),
-        axiosInstance.get("/admin/users"),
-        axiosInstance.get("/admin/events"),
-        axiosInstance.get("/admin/tickets"),
-        axiosInstance.get("/admin/bank-info")
+        adminAxios.get("/admin/dashboard"),
+        adminAxios.get("/admin/users"),
+        adminAxios.get("/admin/events"),
+        adminAxios.get("/admin/tickets"),
+        adminAxios.get("/admin/bank-info")
       ]);
       
       setStats(statsRes.data);
@@ -43,8 +65,9 @@ const AdminDashboard = () => {
       setBankInfo(bankRes.data);
     } catch (error) {
       console.error("Error fetching admin data:", error);
-      if (error.response?.status === 403) {
+      if (error.response?.status === 403 || error.response?.status === 401) {
         toast.error("Admin access required");
+        localStorage.removeItem("admin_session");
         navigate("/admin/login");
       }
     } finally {
@@ -53,8 +76,9 @@ const AdminDashboard = () => {
   };
 
   const fetchLiveMonitoring = async () => {
+    const adminAxios = getAdminAxios();
     try {
-      const res = await axiosInstance.get("/admin/live-monitoring");
+      const res = await adminAxios.get("/admin/live-monitoring");
       setLiveMonitoring(res.data);
     } catch (error) {
       console.error("Error fetching live monitoring:", error);
