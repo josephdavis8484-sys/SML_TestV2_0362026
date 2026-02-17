@@ -84,6 +84,8 @@ class Event(BaseModel):
     qr_code: Optional[str] = None
     share_link: Optional[str] = None
     status: str = "upcoming"  # "upcoming", "live", "completed"
+    is_blocked: bool = False
+    block_reason: Optional[str] = None
     total_revenue: float = 0.0
     payout_processed: bool = False
     payout_date: Optional[datetime] = None
