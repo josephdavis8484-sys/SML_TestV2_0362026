@@ -679,6 +679,270 @@ async def get_creator_earnings(current_user: User = Depends(get_current_user)):
         "events": events
     }
 
+# Admin Helper
+async def get_admin_user(request: Request) -> User:
+    user = await get_current_user(request)
+    if user.role != "admin":
+        raise HTTPException(status_code=403, detail="Admin access required")
+    return user
+
+# Admin Routes
+@api_router.post("/admin/login")
+async def admin_login(email: str, password: str):
+    """Admin login with email/password"""
+    # Hardcoded admin credentials (should be in env variables in production)
+    ADMIN_EMAIL = os.environ.get("ADMIN_EMAIL", "admin@showmelive.com")
+    ADMIN_PASSWORD = os.environ.get("ADMIN_PASSWORD", "admin123")
+    
+    if email != ADMIN_EMAIL or password != ADMIN_PASSWORD:
+        raise HTTPException(status_code=401, detail="Invalid credentials")
+    
+    # Check if admin user exists
+    admin_user = await db.users.find_one({"email": ADMIN_EMAIL}, {"_id": 0})
+    
+    if not admin_user:
+        # Create admin user
+        admin = User(
+            id="admin-" + str(uuid.uuid4()),
+            email=ADMIN_EMAIL,
+            name="Admin",
+            role="admin"
+        )
+        admin_doc = admin.model_dump()
+        admin_doc['created_at'] = admin_doc['created_at'].isoformat()
+        await db.users.insert_one(admin_doc)
+        admin_user = admin_doc
+    
+    # Create session token
+    session_token = "admin_" + str(uuid.uuid4())
+    expires_at = datetime.now(timezone.utc) + timedelta(days=7)
+    
+    session = UserSession(
+        user_id=admin_user["id"],
+        session_token=session_token,
+        expires_at=expires_at
+    )
+    
+    session_doc = session.model_dump()
+    session_doc['expires_at'] = session_doc['expires_at'].isoformat()
+    session_doc['created_at'] = session_doc['created_at'].isoformat()
+    
+    await db.user_sessions.insert_one(session_doc)
+    
+    return {"session_token": session_token, "user": admin_user}
+
+@api_router.get("/admin/dashboard")
+async def get_admin_dashboard(current_user: User = Depends(get_admin_user)):
+    """Get admin dashboard statistics"""
+    # Count statistics
+    total_users = await db.users.count_documents({})
+    total_creators = await db.users.count_documents({"role": "creator"})
+    total_viewers = await db.users.count_documents({"role": "viewer"})
+    blocked_users = await db.users.count_documents({"is_blocked": True})
+    
+    total_events = await db.events.count_documents({})
+    live_events = await db.events.count_documents({"status": "live"})
+    blocked_events = await db.events.count_documents({"is_blocked": True})
+    
+    total_tickets = await db.tickets.count_documents({})
+    
+    # Revenue statistics
+    events = await db.events.find({}, {"_id": 0, "total_revenue": 1}).to_list(10000)
+    total_revenue = sum(e.get("total_revenue", 0.0) for e in events)
+    platform_earnings = total_revenue * (PLATFORM_FEE_PERCENTAGE / 100)
+    
+    return {
+        "users": {
+            "total": total_users,
+            "creators": total_creators,
+            "viewers": total_viewers,
+            "blocked": blocked_users
+        },
+        "events": {
+            "total": total_events,
+            "live": live_events,
+            "blocked": blocked_events
+        },
+        "tickets": {
+            "total": total_tickets
+        },
+        "revenue": {
+            "total": total_revenue,
+            "platform_earnings": platform_earnings
+        }
+    }
+
+@api_router.get("/admin/users")
+async def get_all_users(current_user: User = Depends(get_admin_user)):
+    """Get all users"""
+    users = await db.users.find({}, {"_id": 0}).to_list(10000)
+    for user in users:
+        if isinstance(user.get('created_at'), str):
+            user['created_at'] = datetime.fromisoformat(user['created_at'])
+    return users
+
+@api_router.post("/admin/users/{user_id}/block")
+async def block_user(user_id: str, reason: str, current_user: User = Depends(get_admin_user)):
+    """Block a user"""
+    result = await db.users.update_one(
+        {"id": user_id},
+        {"$set": {
+            "is_blocked": True,
+            "block_reason": reason,
+            "blocked_at": datetime.now(timezone.utc).isoformat()
+        }}
+    )
+    
+    if result.modified_count == 0:
+        raise HTTPException(status_code=404, detail="User not found")
+    
+    # Invalidate all user sessions
+    await db.user_sessions.delete_many({"user_id": user_id})
+    
+    return {"message": "User blocked successfully"}
+
+@api_router.post("/admin/users/{user_id}/unblock")
+async def unblock_user(user_id: str, current_user: User = Depends(get_admin_user)):
+    """Unblock a user"""
+    result = await db.users.update_one(
+        {"id": user_id},
+        {"$set": {"is_blocked": False}, "$unset": {"block_reason": "", "blocked_at": ""}}
+    )
+    
+    if result.modified_count == 0:
+        raise HTTPException(status_code=404, detail="User not found")
+    
+    return {"message": "User unblocked successfully"}
+
+@api_router.get("/admin/events")
+async def get_all_events_admin(current_user: User = Depends(get_admin_user)):
+    """Get all events for admin"""
+    events = await db.events.find({}, {"_id": 0}).to_list(10000)
+    for event in events:
+        if isinstance(event.get('created_at'), str):
+            event['created_at'] = datetime.fromisoformat(event['created_at'])
+    return events
+
+@api_router.post("/admin/events/{event_id}/block")
+async def block_event(event_id: str, reason: str, current_user: User = Depends(get_admin_user)):
+    """Block an event"""
+    result = await db.events.update_one(
+        {"id": event_id},
+        {"$set": {
+            "is_blocked": True,
+            "block_reason": reason,
+            "status": "cancelled"
+        }}
+    )
+    
+    if result.modified_count == 0:
+        raise HTTPException(status_code=404, detail="Event not found")
+    
+    return {"message": "Event blocked successfully"}
+
+@api_router.post("/admin/events/{event_id}/unblock")
+async def unblock_event(event_id: str, current_user: User = Depends(get_admin_user)):
+    """Unblock an event"""
+    result = await db.events.update_one(
+        {"id": event_id},
+        {"$set": {"is_blocked": False}, "$unset": {"block_reason": ""}}
+    )
+    
+    if result.modified_count == 0:
+        raise HTTPException(status_code=404, detail="Event not found")
+    
+    return {"message": "Event unblocked successfully"}
+
+@api_router.get("/admin/tickets")
+async def get_all_tickets(current_user: User = Depends(get_admin_user)):
+    """Get all tickets"""
+    tickets = await db.tickets.find({}, {"_id": 0}).to_list(10000)
+    for ticket in tickets:
+        if isinstance(ticket.get('purchase_date'), str):
+            ticket['purchase_date'] = datetime.fromisoformat(ticket['purchase_date'])
+    return tickets
+
+@api_router.post("/admin/refund/{ticket_id}")
+async def process_refund(ticket_id: str, reason: str, current_user: User = Depends(get_admin_user)):
+    """Process refund for a ticket"""
+    ticket = await db.tickets.find_one({"id": ticket_id}, {"_id": 0})
+    
+    if not ticket:
+        raise HTTPException(status_code=404, detail="Ticket not found")
+    
+    # Mark ticket as refunded
+    await db.tickets.update_one(
+        {"id": ticket_id},
+        {"$set": {
+            "refunded": True,
+            "refund_reason": reason,
+            "refund_date": datetime.now(timezone.utc).isoformat()
+        }}
+    )
+    
+    # Update event revenue
+    event = await db.events.find_one({"id": ticket["event_id"]})
+    if event:
+        await db.events.update_one(
+            {"id": ticket["event_id"]},
+            {"$inc": {"total_revenue": -ticket["amount_paid"]}}
+        )
+    
+    return {"message": "Refund processed successfully", "amount": ticket["amount_paid"]}
+
+class PlatformBankInfo(BaseModel):
+    account_name: str
+    account_number: str
+    routing_number: str
+    bank_name: str
+    updated_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
+    updated_by: str
+
+@api_router.get("/admin/bank-info")
+async def get_bank_info(current_user: User = Depends(get_admin_user)):
+    """Get platform bank account info"""
+    bank_info = await db.platform_settings.find_one({"type": "bank_info"}, {"_id": 0})
+    return bank_info or {}
+
+@api_router.post("/admin/bank-info")
+async def update_bank_info(bank_info: PlatformBankInfo, current_user: User = Depends(get_admin_user)):
+    """Update platform bank account info"""
+    bank_info.updated_by = current_user.id
+    bank_doc = bank_info.model_dump()
+    bank_doc['updated_at'] = bank_doc['updated_at'].isoformat()
+    bank_doc['type'] = 'bank_info'
+    
+    await db.platform_settings.update_one(
+        {"type": "bank_info"},
+        {"$set": bank_doc},
+        upsert=True
+    )
+    
+    return {"message": "Bank info updated successfully"}
+
+@api_router.get("/admin/live-monitoring")
+async def get_live_monitoring(current_user: User = Depends(get_admin_user)):
+    """Monitor live events and viewer connections"""
+    live_events = await db.events.find({"status": "live"}, {"_id": 0}).to_list(100)
+    
+    monitoring_data = []
+    for event in live_events:
+        # Count tickets for this event
+        ticket_count = await db.tickets.count_documents({"event_id": event["id"]})
+        
+        # Get streaming devices
+        devices = await db.streaming_devices.find({"event_id": event["id"]}, {"_id": 0}).to_list(100)
+        active_devices = [d for d in devices if d.get("is_active")]
+        
+        monitoring_data.append({
+            "event": event,
+            "ticket_sales": ticket_count,
+            "active_cameras": len(active_devices),
+            "total_cameras": len(devices)
+        })
+    
+    return monitoring_data
+
 app.include_router(api_router)
 
 app.add_middleware(
