@@ -50,9 +50,12 @@ class User(BaseModel):
     email: str
     name: str
     picture: Optional[str] = None
-    role: Optional[str] = None  # "viewer" or "creator"
+    role: Optional[str] = None  # "viewer", "creator", or "admin"
     stripe_account_id: Optional[str] = None
     bank_linked: bool = False
+    is_blocked: bool = False
+    block_reason: Optional[str] = None
+    blocked_at: Optional[datetime] = None
     created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
 
 class UserSession(BaseModel):
