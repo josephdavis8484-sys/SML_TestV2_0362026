@@ -13,6 +13,7 @@ import CreateEvent from "@/pages/CreateEvent";
 import StreamDevice from "@/pages/StreamDevice";
 import ControlPanel from "@/pages/ControlPanel";
 import PaymentSuccess from "@/pages/PaymentSuccess";
+import PaymentCancel from "@/pages/PaymentCancel";
 import AdminLogin from "@/pages/AdminLogin";
 import AdminDashboard from "@/pages/AdminDashboard";
 
