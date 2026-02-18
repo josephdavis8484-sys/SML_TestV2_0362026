@@ -53,6 +53,10 @@ class User(BaseModel):
     role: Optional[str] = None  # "viewer", "creator", or "admin"
     stripe_account_id: Optional[str] = None
     bank_linked: bool = False
+    bank_account_mask: Optional[str] = None  # Last 4 digits
+    bank_account_name: Optional[str] = None
+    bank_institution: Optional[str] = None
+    onboarding_completed: bool = False
     is_blocked: bool = False
     block_reason: Optional[str] = None
     blocked_at: Optional[datetime] = None
