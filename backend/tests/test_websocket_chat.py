@@ -200,7 +200,9 @@ class TestWebSocketChat:
         ws_url = f"wss://livestream-hub-76.preview.emergentagent.com/api/ws/chat/{EVENT_ID}"
         
         async with websockets.connect(ws_url) as websocket:
-            # Skip initial message
+            # Skip initial connected message
+            await websocket.recv()
+            # Skip viewer_count broadcast
             await websocket.recv()
             
             # Send ping
