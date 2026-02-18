@@ -1673,7 +1673,7 @@ async def create_stripe_connect_account(current_user: User = Depends(get_current
             "already_exists": False
         }
         
-    except stripe.error.StripeError as e:
+    except stripe.StripeError as e:
         raise HTTPException(status_code=400, detail=str(e))
 
 @api_router.post("/stripe/connect/onboarding-link")
@@ -1707,7 +1707,7 @@ async def create_stripe_onboarding_link(
             "expires_at": account_link.expires_at
         }
         
-    except stripe.error.StripeError as e:
+    except stripe.StripeError as e:
         raise HTTPException(status_code=400, detail=str(e))
 
 @api_router.get("/stripe/connect/status")
@@ -1754,7 +1754,7 @@ async def get_stripe_connect_status(current_user: User = Depends(get_current_use
             "country": account.country
         }
         
-    except stripe.error.StripeError as e:
+    except stripe.StripeError as e:
         raise HTTPException(status_code=400, detail=str(e))
 
 @api_router.post("/stripe/connect/payout")
@@ -1824,7 +1824,7 @@ async def create_stripe_payout(
             "status": "completed"
         }
         
-    except stripe.error.StripeError as e:
+    except stripe.StripeError as e:
         raise HTTPException(status_code=400, detail=str(e))
 
 @api_router.get("/stripe/connect/balance")
