@@ -1229,6 +1229,217 @@ async def complete_onboarding(current_user: User = Depends(get_current_user)):
     
     return {"success": True, "message": "Onboarding completed!"}
 
+# ==================== LIVE CHAT & REACTIONS ====================
+
+class ChatMessage(BaseModel):
+    model_config = ConfigDict(extra="ignore")
+    
+    id: str = Field(default_factory=lambda: str(uuid.uuid4()))
+    event_id: str
+    user_id: str
+    user_name: str
+    user_picture: Optional[str] = None
+    message: str
+    message_type: str = "chat"  # "chat", "question", "announcement"
+    is_pinned: bool = False
+    is_hidden: bool = False
+    created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
+
+class Reaction(BaseModel):
+    model_config = ConfigDict(extra="ignore")
+    
+    id: str = Field(default_factory=lambda: str(uuid.uuid4()))
+    event_id: str
+    user_id: str
+    reaction_type: str  # "heart", "clap", "fire", "laugh", "wow"
+    created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
+
+class SendMessage(BaseModel):
+    message: str
+    message_type: str = "chat"
+
+class SendReaction(BaseModel):
+    reaction_type: str
+
+@api_router.get("/events/{event_id}/chat")
+async def get_chat_messages(event_id: str, limit: int = 100):
+    """Get chat messages for an event"""
+    event = await db.events.find_one({"id": event_id}, {"_id": 0})
+    if not event:
+        raise HTTPException(status_code=404, detail="Event not found")
+    
+    if not event.get("chat_enabled", False):
+        return {"enabled": False, "messages": []}
+    
+    messages = await db.chat_messages.find(
+        {"event_id": event_id, "is_hidden": False},
+        {"_id": 0}
+    ).sort("created_at", -1).limit(limit).to_list(limit)
+    
+    # Reverse to show oldest first
+    messages.reverse()
+    
+    # Convert datetime to string
+    for msg in messages:
+        if isinstance(msg.get("created_at"), datetime):
+            msg["created_at"] = msg["created_at"].isoformat()
+    
+    return {
+        "enabled": True,
+        "chat_mode": event.get("chat_mode", "open"),
+        "reactions_enabled": event.get("reactions_enabled", False),
+        "messages": messages
+    }
+
+@api_router.post("/events/{event_id}/chat")
+async def send_chat_message(event_id: str, msg: SendMessage, current_user: User = Depends(get_current_user)):
+    """Send a chat message"""
+    event = await db.events.find_one({"id": event_id}, {"_id": 0})
+    if not event:
+        raise HTTPException(status_code=404, detail="Event not found")
+    
+    if not event.get("chat_enabled", False):
+        raise HTTPException(status_code=400, detail="Chat is not enabled for this event")
+    
+    # Check chat mode restrictions
+    chat_mode = event.get("chat_mode", "open")
+    if chat_mode == "questions_only" and msg.message_type != "question":
+        raise HTTPException(status_code=400, detail="Only questions are allowed in this chat")
+    
+    # Create message
+    chat_message = ChatMessage(
+        event_id=event_id,
+        user_id=current_user.id,
+        user_name=current_user.name,
+        user_picture=current_user.picture,
+        message=msg.message,
+        message_type=msg.message_type
+    )
+    
+    msg_doc = chat_message.model_dump()
+    msg_doc['created_at'] = msg_doc['created_at'].isoformat()
+    await db.chat_messages.insert_one(msg_doc)
+    
+    return {
+        "success": True,
+        "message": {
+            "id": chat_message.id,
+            "user_name": current_user.name,
+            "user_picture": current_user.picture,
+            "message": msg.message,
+            "message_type": msg.message_type,
+            "created_at": msg_doc['created_at']
+        }
+    }
+
+@api_router.post("/events/{event_id}/reactions")
+async def send_reaction(event_id: str, reaction: SendReaction, current_user: User = Depends(get_current_user)):
+    """Send a reaction"""
+    event = await db.events.find_one({"id": event_id}, {"_id": 0})
+    if not event:
+        raise HTTPException(status_code=404, detail="Event not found")
+    
+    if not event.get("reactions_enabled", False):
+        raise HTTPException(status_code=400, detail="Reactions are not enabled for this event")
+    
+    valid_reactions = ["heart", "clap", "fire", "laugh", "wow"]
+    if reaction.reaction_type not in valid_reactions:
+        raise HTTPException(status_code=400, detail=f"Invalid reaction. Use one of: {valid_reactions}")
+    
+    # Create reaction
+    reaction_doc = Reaction(
+        event_id=event_id,
+        user_id=current_user.id,
+        reaction_type=reaction.reaction_type
+    )
+    
+    doc = reaction_doc.model_dump()
+    doc['created_at'] = doc['created_at'].isoformat()
+    await db.reactions.insert_one(doc)
+    
+    return {"success": True, "reaction_type": reaction.reaction_type}
+
+@api_router.get("/events/{event_id}/reactions/count")
+async def get_reaction_counts(event_id: str):
+    """Get reaction counts for an event"""
+    event = await db.events.find_one({"id": event_id}, {"_id": 0})
+    if not event:
+        raise HTTPException(status_code=404, detail="Event not found")
+    
+    # Count reactions by type
+    pipeline = [
+        {"$match": {"event_id": event_id}},
+        {"$group": {"_id": "$reaction_type", "count": {"$sum": 1}}}
+    ]
+    
+    counts_cursor = db.reactions.aggregate(pipeline)
+    counts = {item["_id"]: item["count"] async for item in counts_cursor}
+    
+    return {
+        "reactions_enabled": event.get("reactions_enabled", False),
+        "counts": counts
+    }
+
+@api_router.post("/events/{event_id}/chat/{message_id}/pin")
+async def pin_message(event_id: str, message_id: str, current_user: User = Depends(get_current_user)):
+    """Pin a chat message (creator only)"""
+    event = await db.events.find_one({"id": event_id}, {"_id": 0})
+    if not event:
+        raise HTTPException(status_code=404, detail="Event not found")
+    
+    if event.get("creator_id") != current_user.id:
+        raise HTTPException(status_code=403, detail="Only event creator can pin messages")
+    
+    await db.chat_messages.update_one(
+        {"id": message_id, "event_id": event_id},
+        {"$set": {"is_pinned": True}}
+    )
+    
+    return {"success": True}
+
+@api_router.post("/events/{event_id}/chat/{message_id}/hide")
+async def hide_message(event_id: str, message_id: str, current_user: User = Depends(get_current_user)):
+    """Hide a chat message (creator only - for moderation)"""
+    event = await db.events.find_one({"id": event_id}, {"_id": 0})
+    if not event:
+        raise HTTPException(status_code=404, detail="Event not found")
+    
+    if event.get("creator_id") != current_user.id:
+        raise HTTPException(status_code=403, detail="Only event creator can moderate messages")
+    
+    await db.chat_messages.update_one(
+        {"id": message_id, "event_id": event_id},
+        {"$set": {"is_hidden": True}}
+    )
+    
+    return {"success": True}
+
+@api_router.post("/events/{event_id}/announcement")
+async def send_announcement(event_id: str, msg: SendMessage, current_user: User = Depends(get_current_user)):
+    """Send an announcement (creator only)"""
+    event = await db.events.find_one({"id": event_id}, {"_id": 0})
+    if not event:
+        raise HTTPException(status_code=404, detail="Event not found")
+    
+    if event.get("creator_id") != current_user.id:
+        raise HTTPException(status_code=403, detail="Only event creator can send announcements")
+    
+    chat_message = ChatMessage(
+        event_id=event_id,
+        user_id=current_user.id,
+        user_name=current_user.name,
+        user_picture=current_user.picture,
+        message=msg.message,
+        message_type="announcement",
+        is_pinned=True
+    )
+    
+    msg_doc = chat_message.model_dump()
+    msg_doc['created_at'] = msg_doc['created_at'].isoformat()
+    await db.chat_messages.insert_one(msg_doc)
+    
+    return {"success": True, "message_id": chat_message.id}
+
 app.include_router(api_router)
 
 app.add_middleware(
