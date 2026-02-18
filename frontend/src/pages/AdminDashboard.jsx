@@ -295,18 +295,19 @@ const AdminDashboard = () => {
       {/* Navigation Tabs */}
       <div className="bg-gray-900 border-b border-gray-800">
         <div className="max-w-7xl mx-auto px-6">
-          <div className="flex gap-6">
-            {["overview", "users", "events", "tickets", "live", "bank"].map((tab) => (
+          <div className="flex gap-6 overflow-x-auto">
+            {["overview", "users", "events", "tickets", "live", "promos", "bank"].map((tab) => (
               <button
                 key={tab}
                 onClick={() => setActiveTab(tab)}
-                className={`py-4 px-2 font-medium capitalize ${
+                className={`py-4 px-2 font-medium capitalize whitespace-nowrap ${
                   activeTab === tab
                     ? "text-blue-500 border-b-2 border-blue-500"
                     : "text-gray-400 hover:text-white"
                 }`}
+                data-testid={`admin-tab-${tab}`}
               >
-                {tab}
+                {tab === "promos" ? "Promo Codes" : tab}
               </button>
             ))}
           </div>
