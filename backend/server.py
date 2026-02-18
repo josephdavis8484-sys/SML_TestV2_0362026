@@ -1091,62 +1091,94 @@ async def get_payout_history(current_user: User = Depends(get_current_user)):
     
     return payouts
 
-# ==================== MULTI-IMAGE UPLOAD ====================
+# ==================== CREATOR ANALYTICS ====================
 
-@api_router.post("/events/upload-gallery")
-async def upload_gallery_images(
-    files: List[UploadFile] = File(...),
-    current_user: User = Depends(get_current_user)
-):
-    """Upload multiple images for event gallery"""
+@api_router.get("/creator/analytics")
+async def get_creator_analytics(current_user: User = Depends(get_current_user)):
+    """Get creator analytics with ticket sales trends, revenue over time, and audience data"""
     if current_user.role != "creator":
-        raise HTTPException(status_code=403, detail="Only creators can upload images")
+        raise HTTPException(status_code=403, detail="Only creators can view analytics")
     
-    if len(files) > 10:
-        raise HTTPException(status_code=400, detail="Maximum 10 images allowed")
+    # Get all creator's events
+    events = await db.events.find({"creator_id": current_user.id}, {"_id": 0}).to_list(1000)
+    event_ids = [e["id"] for e in events]
     
-    uploaded_urls = []
+    # Get all tickets for these events
+    tickets = await db.tickets.find({"event_id": {"$in": event_ids}}, {"_id": 0}).to_list(10000)
     
-    for file in files:
-        if not file.content_type.startswith("image/"):
-            continue
-            
-        file_extension = file.filename.split(".")[-1] if file.filename else "jpg"
-        file_name = f"{uuid.uuid4()}.{file_extension}"
-        file_path = UPLOAD_DIR / file_name
-        
-        content = await file.read()
-        with open(file_path, "wb") as f:
-            f.write(content)
-        
-        uploaded_urls.append(f"/api/uploads/{file_name}")
+    # Calculate revenue by month (last 6 months)
+    from collections import defaultdict
+    revenue_by_month = defaultdict(float)
+    tickets_by_month = defaultdict(int)
+    
+    for ticket in tickets:
+        if not ticket.get("refunded", False):
+            purchase_date = ticket.get("purchase_date")
+            if isinstance(purchase_date, str):
+                purchase_date = datetime.fromisoformat(purchase_date.replace("Z", "+00:00"))
+            if purchase_date:
+                month_key = purchase_date.strftime("%Y-%m")
+                revenue_by_month[month_key] += ticket.get("amount_paid", 0)
+                tickets_by_month[month_key] += ticket.get("quantity", 1)
+    
+    # Sort by month and get last 6
+    sorted_months = sorted(revenue_by_month.keys())[-6:]
+    
+    revenue_trend = [
+        {"month": m, "revenue": revenue_by_month[m], "tickets": tickets_by_month[m]}
+        for m in sorted_months
+    ]
+    
+    # Category breakdown
+    category_revenue = defaultdict(float)
+    category_tickets = defaultdict(int)
+    for event in events:
+        event_tickets = [t for t in tickets if t["event_id"] == event["id"] and not t.get("refunded")]
+        total = sum(t.get("amount_paid", 0) for t in event_tickets)
+        count = sum(t.get("quantity", 1) for t in event_tickets)
+        category_revenue[event.get("category", "Other")] += total
+        category_tickets[event.get("category", "Other")] += count
+    
+    category_breakdown = [
+        {"category": cat, "revenue": category_revenue[cat], "tickets": category_tickets[cat]}
+        for cat in category_revenue.keys()
+    ]
+    
+    # Event performance
+    event_performance = []
+    for event in events:
+        event_tickets = [t for t in tickets if t["event_id"] == event["id"] and not t.get("refunded")]
+        event_performance.append({
+            "event_id": event["id"],
+            "title": event.get("title", ""),
+            "date": event.get("date", ""),
+            "tickets_sold": sum(t.get("quantity", 1) for t in event_tickets),
+            "revenue": sum(t.get("amount_paid", 0) for t in event_tickets),
+            "status": event.get("status", "upcoming")
+        })
+    
+    # Sort by revenue
+    event_performance.sort(key=lambda x: x["revenue"], reverse=True)
+    
+    # Summary stats
+    total_revenue = sum(t.get("amount_paid", 0) for t in tickets if not t.get("refunded"))
+    total_tickets = sum(t.get("quantity", 1) for t in tickets if not t.get("refunded"))
+    total_events = len(events)
+    avg_ticket_price = total_revenue / total_tickets if total_tickets > 0 else 0
     
     return {
-        "success": True,
-        "uploaded_count": len(uploaded_urls),
-        "image_urls": uploaded_urls
+        "summary": {
+            "total_revenue": total_revenue,
+            "total_tickets_sold": total_tickets,
+            "total_events": total_events,
+            "avg_ticket_price": avg_ticket_price,
+            "creator_share": total_revenue * 0.8  # 80% after platform fee
+        },
+        "revenue_trend": revenue_trend,
+        "category_breakdown": category_breakdown,
+        "top_events": event_performance[:5],
+        "all_events": event_performance
     }
-
-@api_router.put("/events/{event_id}/gallery")
-async def update_event_gallery(
-    event_id: str,
-    gallery_images: List[str],
-    current_user: User = Depends(get_current_user)
-):
-    """Update event gallery images"""
-    if current_user.role != "creator":
-        raise HTTPException(status_code=403, detail="Only creators can update events")
-    
-    event = await db.events.find_one({"id": event_id, "creator_id": current_user.id})
-    if not event:
-        raise HTTPException(status_code=404, detail="Event not found")
-    
-    await db.events.update_one(
-        {"id": event_id},
-        {"$set": {"gallery_images": gallery_images}}
-    )
-    
-    return {"success": True, "gallery_images": gallery_images}
 
 # ==================== CREATOR ONBOARDING ====================
 
