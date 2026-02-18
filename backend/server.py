@@ -20,6 +20,7 @@ from datetime import timedelta as td
 from dateutil import parser
 import jwt
 from livekit import api as livekit_api
+import stripe
 
 ROOT_DIR = Path(__file__).parent
 load_dotenv(ROOT_DIR / '.env')
@@ -28,6 +29,9 @@ load_dotenv(ROOT_DIR / '.env')
 mongo_url = os.environ['MONGO_URL']
 client = AsyncIOMotorClient(mongo_url)
 db = client[os.environ['DB_NAME']]
+
+# Initialize Stripe
+stripe.api_key = os.environ.get('STRIPE_API_KEY', 'sk_test_emergent')
 
 # Create the main app
 app = FastAPI()
