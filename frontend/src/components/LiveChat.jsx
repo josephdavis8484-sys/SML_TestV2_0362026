@@ -1,14 +1,16 @@
-import React, { useState, useEffect, useRef } from "react";
+import React, { useState, useEffect, useRef, useCallback } from "react";
 import { axiosInstance } from "@/App";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { 
   MessageCircle, 
   Send, 
-  Heart,
   HelpCircle,
   Pin,
-  X
+  X,
+  Users,
+  Wifi,
+  WifiOff
 } from "lucide-react";
 import { toast } from "sonner";
 
@@ -26,26 +28,166 @@ const LiveChat = ({ eventId, user, chatEnabled, reactionsEnabled, chatMode, isCr
   const [sending, setSending] = useState(false);
   const [floatingReactions, setFloatingReactions] = useState([]);
   const [reactionCounts, setReactionCounts] = useState({});
+  const [viewerCount, setViewerCount] = useState(0);
+  const [isConnected, setIsConnected] = useState(false);
+  const [typingUser, setTypingUser] = useState(null);
   const messagesEndRef = useRef(null);
-  const pollInterval = useRef(null);
+  const wsRef = useRef(null);
+  const reconnectTimeoutRef = useRef(null);
+  const typingTimeoutRef = useRef(null);
 
+  // Get WebSocket URL from environment
+  const getWebSocketUrl = useCallback(() => {
+    const backendUrl = process.env.REACT_APP_BACKEND_URL || window.location.origin;
+    // Convert http(s) to ws(s)
+    const wsProtocol = backendUrl.startsWith('https') ? 'wss' : 'ws';
+    const wsHost = backendUrl.replace(/^https?:\/\//, '');
+    return `${wsProtocol}://${wsHost}/ws/chat/${eventId}`;
+  }, [eventId]);
+
+  // Connect to WebSocket
+  const connectWebSocket = useCallback(() => {
+    if (wsRef.current?.readyState === WebSocket.OPEN) return;
+    
+    const wsUrl = getWebSocketUrl();
+    console.log('Connecting to WebSocket:', wsUrl);
+    
+    try {
+      wsRef.current = new WebSocket(wsUrl);
+      
+      wsRef.current.onopen = () => {
+        console.log('WebSocket connected');
+        setIsConnected(true);
+        // Clear any reconnect timeout
+        if (reconnectTimeoutRef.current) {
+          clearTimeout(reconnectTimeoutRef.current);
+          reconnectTimeoutRef.current = null;
+        }
+      };
+      
+      wsRef.current.onmessage = (event) => {
+        try {
+          const data = JSON.parse(event.data);
+          handleWebSocketMessage(data);
+        } catch (e) {
+          console.error('Error parsing WebSocket message:', e);
+        }
+      };
+      
+      wsRef.current.onclose = (event) => {
+        console.log('WebSocket closed:', event.code, event.reason);
+        setIsConnected(false);
+        
+        // Attempt to reconnect after 3 seconds (unless intentionally closed)
+        if (event.code !== 1000) {
+          reconnectTimeoutRef.current = setTimeout(() => {
+            console.log('Attempting to reconnect...');
+            connectWebSocket();
+          }, 3000);
+        }
+      };
+      
+      wsRef.current.onerror = (error) => {
+        console.error('WebSocket error:', error);
+        setIsConnected(false);
+      };
+    } catch (error) {
+      console.error('Failed to create WebSocket:', error);
+      setIsConnected(false);
+    }
+  }, [getWebSocketUrl]);
+
+  // Handle incoming WebSocket messages
+  const handleWebSocketMessage = useCallback((data) => {
+    switch (data.type) {
+      case 'connected':
+        setViewerCount(data.viewer_count);
+        break;
+        
+      case 'new_message':
+      case 'announcement':
+        setMessages(prev => [...prev, data.message]);
+        break;
+        
+      case 'reaction':
+        // Add floating reaction animation
+        const id = Date.now();
+        const left = Math.random() * 80 + 10;
+        setFloatingReactions(prev => [...prev, { id, type: data.reaction_type, left }]);
+        setTimeout(() => {
+          setFloatingReactions(prev => prev.filter(r => r.id !== id));
+        }, 3000);
+        // Update count
+        setReactionCounts(prev => ({
+          ...prev,
+          [data.reaction_type]: (prev[data.reaction_type] || 0) + 1
+        }));
+        break;
+        
+      case 'viewer_count':
+        setViewerCount(data.count);
+        break;
+        
+      case 'typing':
+        if (data.user_name !== user?.name) {
+          setTypingUser(data.user_name);
+          if (typingTimeoutRef.current) {
+            clearTimeout(typingTimeoutRef.current);
+          }
+          typingTimeoutRef.current = setTimeout(() => {
+            setTypingUser(null);
+          }, 2000);
+        }
+        break;
+        
+      case 'message_pinned':
+        setMessages(prev => prev.map(msg => 
+          msg.id === data.message_id ? { ...msg, is_pinned: true } : msg
+        ));
+        break;
+        
+      case 'message_hidden':
+        setMessages(prev => prev.filter(msg => msg.id !== data.message_id));
+        break;
+        
+      default:
+        console.log('Unknown message type:', data.type);
+    }
+  }, [user?.name]);
+
+  // Initialize WebSocket and fetch initial data
   useEffect(() => {
     if (chatEnabled) {
+      // Fetch initial messages
       fetchMessages();
-      // Poll for new messages every 2 seconds
-      pollInterval.current = setInterval(fetchMessages, 2000);
+      // Connect to WebSocket
+      connectWebSocket();
+      
+      // Set up ping interval to keep connection alive
+      const pingInterval = setInterval(() => {
+        if (wsRef.current?.readyState === WebSocket.OPEN) {
+          wsRef.current.send('ping');
+        }
+      }, 30000);
+      
+      return () => {
+        clearInterval(pingInterval);
+        if (reconnectTimeoutRef.current) {
+          clearTimeout(reconnectTimeoutRef.current);
+        }
+        if (typingTimeoutRef.current) {
+          clearTimeout(typingTimeoutRef.current);
+        }
+        if (wsRef.current) {
+          wsRef.current.close(1000, 'Component unmounting');
+        }
+      };
     }
     
     if (reactionsEnabled) {
       fetchReactionCounts();
     }
-    
-    return () => {
-      if (pollInterval.current) {
-        clearInterval(pollInterval.current);
-      }
-    };
-  }, [eventId, chatEnabled]);
+  }, [eventId, chatEnabled, connectWebSocket, reactionsEnabled]);
 
   useEffect(() => {
     scrollToBottom();
@@ -75,6 +217,16 @@ const LiveChat = ({ eventId, user, chatEnabled, reactionsEnabled, chatMode, isCr
     }
   };
 
+  // Send typing indicator
+  const sendTypingIndicator = useCallback(() => {
+    if (wsRef.current?.readyState === WebSocket.OPEN && user) {
+      wsRef.current.send(JSON.stringify({
+        type: 'typing',
+        user_name: user.name
+      }));
+    }
+  }, [user]);
+
   const handleSendMessage = async (e) => {
     e.preventDefault();
     if (!newMessage.trim() || !user) return;
@@ -87,9 +239,11 @@ const LiveChat = ({ eventId, user, chatEnabled, reactionsEnabled, chatMode, isCr
         message_type: messageType
       });
       setNewMessage("");
-      fetchMessages();
+      // Note: Message will be added via WebSocket broadcast
     } catch (error) {
       toast.error(error.response?.data?.detail || "Failed to send message");
+      // Fallback: fetch messages if WebSocket fails
+      fetchMessages();
     } finally {
       setSending(false);
     }
@@ -105,18 +259,7 @@ const LiveChat = ({ eventId, user, chatEnabled, reactionsEnabled, chatMode, isCr
       await axiosInstance.post(`/events/${eventId}/reactions`, {
         reaction_type: type
       });
-      
-      // Add floating reaction animation
-      const id = Date.now();
-      const left = Math.random() * 80 + 10; // 10-90%
-      setFloatingReactions(prev => [...prev, { id, type, left }]);
-      
-      // Remove after animation
-      setTimeout(() => {
-        setFloatingReactions(prev => prev.filter(r => r.id !== id));
-      }, 3000);
-      
-      fetchReactionCounts();
+      // Note: Reaction will be broadcast via WebSocket
     } catch (error) {
       toast.error("Failed to send reaction");
     }
@@ -126,7 +269,10 @@ const LiveChat = ({ eventId, user, chatEnabled, reactionsEnabled, chatMode, isCr
     try {
       await axiosInstance.post(`/events/${eventId}/chat/${messageId}/pin`);
       toast.success("Message pinned");
-      fetchMessages();
+      // Update local state
+      setMessages(prev => prev.map(msg => 
+        msg.id === messageId ? { ...msg, is_pinned: true } : msg
+      ));
     } catch (error) {
       toast.error("Failed to pin message");
     }
@@ -136,10 +282,16 @@ const LiveChat = ({ eventId, user, chatEnabled, reactionsEnabled, chatMode, isCr
     try {
       await axiosInstance.post(`/events/${eventId}/chat/${messageId}/hide`);
       toast.success("Message hidden");
-      fetchMessages();
+      // Update local state
+      setMessages(prev => prev.filter(msg => msg.id !== messageId));
     } catch (error) {
       toast.error("Failed to hide message");
     }
+  };
+
+  const handleInputChange = (e) => {
+    setNewMessage(e.target.value);
+    sendTypingIndicator();
   };
 
   if (!chatEnabled && !reactionsEnabled) {
@@ -147,7 +299,7 @@ const LiveChat = ({ eventId, user, chatEnabled, reactionsEnabled, chatMode, isCr
   }
 
   return (
-    <div className="h-full flex flex-col bg-gray-900/80 rounded-lg border border-gray-700 overflow-hidden" data-testid="live-chat">
+    <div className="h-full flex flex-col bg-gray-900/80 rounded-lg border border-gray-700 overflow-hidden relative" data-testid="live-chat">
       {/* Floating Reactions */}
       <div className="absolute inset-0 pointer-events-none overflow-hidden">
         {floatingReactions.map((reaction) => (
@@ -174,7 +326,21 @@ const LiveChat = ({ eventId, user, chatEnabled, reactionsEnabled, chatMode, isCr
             <span className="text-xs bg-blue-600/20 text-blue-400 px-2 py-0.5 rounded">Q&A Mode</span>
           )}
         </div>
-        <span className="text-gray-500 text-sm">{messages.length} messages</span>
+        <div className="flex items-center gap-3">
+          {/* Connection Status */}
+          <div className="flex items-center gap-1" title={isConnected ? "Connected" : "Reconnecting..."}>
+            {isConnected ? (
+              <Wifi className="w-4 h-4 text-green-500" />
+            ) : (
+              <WifiOff className="w-4 h-4 text-red-500 animate-pulse" />
+            )}
+          </div>
+          {/* Viewer Count */}
+          <div className="flex items-center gap-1 text-gray-400 text-sm" data-testid="viewer-count">
+            <Users className="w-4 h-4" />
+            <span>{viewerCount}</span>
+          </div>
+        </div>
       </div>
 
       {/* Messages */}
@@ -190,7 +356,7 @@ const LiveChat = ({ eventId, user, chatEnabled, reactionsEnabled, chatMode, isCr
             messages.map((msg) => (
               <div
                 key={msg.id}
-                className={`flex gap-3 ${msg.message_type === "announcement" ? "bg-blue-600/20 p-3 rounded-lg" : ""} ${msg.is_pinned ? "border-l-2 border-yellow-500 pl-2" : ""}`}
+                className={`group flex gap-3 ${msg.message_type === "announcement" ? "bg-blue-600/20 p-3 rounded-lg" : ""} ${msg.is_pinned ? "border-l-2 border-yellow-500 pl-2" : ""}`}
               >
                 {msg.user_picture ? (
                   <img 
@@ -254,6 +420,13 @@ const LiveChat = ({ eventId, user, chatEnabled, reactionsEnabled, chatMode, isCr
         </div>
       )}
 
+      {/* Typing Indicator */}
+      {typingUser && (
+        <div className="px-4 py-1 text-gray-500 text-xs italic">
+          {typingUser} is typing...
+        </div>
+      )}
+
       {/* Reaction Buttons */}
       {reactionsEnabled && (
         <div className="px-4 py-2 border-t border-gray-700 flex items-center gap-2">
@@ -264,6 +437,7 @@ const LiveChat = ({ eventId, user, chatEnabled, reactionsEnabled, chatMode, isCr
               onClick={() => handleSendReaction(type)}
               className="text-2xl hover:scale-125 transition-transform relative"
               title={type}
+              data-testid={`reaction-${type}`}
             >
               {emoji}
               {reactionCounts[type] > 0 && (
@@ -285,7 +459,7 @@ const LiveChat = ({ eventId, user, chatEnabled, reactionsEnabled, chatMode, isCr
             <div className="flex gap-2">
               <Input
                 value={newMessage}
-                onChange={(e) => setNewMessage(e.target.value)}
+                onChange={handleInputChange}
                 placeholder={chatMode === "questions_only" ? "Ask a question..." : "Type a message..."}
                 className="flex-1 bg-gray-800 border-gray-700 text-white text-sm"
                 disabled={sending}
