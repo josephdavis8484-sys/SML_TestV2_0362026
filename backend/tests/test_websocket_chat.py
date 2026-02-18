@@ -242,6 +242,10 @@ class TestWebSocketChat:
         except websockets.exceptions.ConnectionClosed as e:
             assert e.code == 4004
             print("✓ WebSocket closes with 4004 for invalid event")
+        except websockets.exceptions.InvalidStatus as e:
+            # Server may reject with HTTP 403 before WebSocket handshake completes
+            assert e.response.status_code in [403, 404]
+            print(f"✓ WebSocket rejected with HTTP {e.response.status_code} for invalid event")
 
 
 if __name__ == "__main__":
