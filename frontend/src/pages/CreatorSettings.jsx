@@ -240,71 +240,12 @@ const CreatorSettings = ({ user, onLogout }) => {
         </div>
       </div>
 
-      {/* Link Bank Modal */}
-      {showLinkModal && (
-        <div className="fixed inset-0 bg-black/80 flex items-center justify-center z-50 p-4">
-          <div className="bg-gray-900 rounded-lg p-6 max-w-md w-full">
-            <h3 className="text-white text-2xl font-bold mb-6">Link Bank Account</h3>
-            
-            <form onSubmit={handleLinkBank} className="space-y-4">
-              <div>
-                <label className="text-gray-300 text-sm mb-2 block">Bank Name</label>
-                <Input
-                  value={bankForm.institution_name}
-                  onChange={(e) => setBankForm({...bankForm, institution_name: e.target.value})}
-                  placeholder="e.g., Chase Bank"
-                  required
-                  className="bg-gray-800 border-gray-700 text-white"
-                />
-              </div>
-              
-              <div>
-                <label className="text-gray-300 text-sm mb-2 block">Account Name</label>
-                <Input
-                  value={bankForm.account_name}
-                  onChange={(e) => setBankForm({...bankForm, account_name: e.target.value})}
-                  placeholder="e.g., Checking Account"
-                  required
-                  className="bg-gray-800 border-gray-700 text-white"
-                />
-              </div>
-              
-              <div>
-                <label className="text-gray-300 text-sm mb-2 block">Last 4 Digits</label>
-                <Input
-                  value={bankForm.account_mask}
-                  onChange={(e) => setBankForm({...bankForm, account_mask: e.target.value.slice(0, 4)})}
-                  placeholder="1234"
-                  maxLength={4}
-                  required
-                  className="bg-gray-800 border-gray-700 text-white"
-                />
-              </div>
-              
-              <div className="flex gap-3 pt-4">
-                <Button
-                  type="button"
-                  onClick={() => setShowLinkModal(false)}
-                  className="flex-1 bg-gray-700 hover:bg-gray-600"
-                >
-                  Cancel
-                </Button>
-                <Button
-                  type="submit"
-                  disabled={linkingBank}
-                  className="flex-1 bg-blue-600 hover:bg-blue-700"
-                >
-                  {linkingBank ? "Linking..." : "Link Account"}
-                </Button>
-              </div>
-            </form>
-            
-            <p className="text-gray-500 text-xs mt-4 text-center">
-              Note: Full Plaid integration requires API keys. This is a demo implementation.
-            </p>
-          </div>
-        </div>
-      )}
+      {/* Mock Plaid Link */}
+      <MockPlaidLink
+        isOpen={showPlaidLink}
+        onSuccess={handlePlaidSuccess}
+        onExit={() => setShowPlaidLink(false)}
+      />
 
       {/* Withdraw Modal */}
       {showWithdrawModal && (
