@@ -1534,7 +1534,7 @@ async def send_announcement(event_id: str, msg: SendMessage, current_user: User 
 
 # ==================== WEBSOCKET CHAT ====================
 
-@app.websocket("/ws/chat/{event_id}")
+@app.websocket("/api/ws/chat/{event_id}")
 async def websocket_chat(websocket: WebSocket, event_id: str):
     """WebSocket endpoint for real-time chat"""
     # Verify event exists and chat is enabled
