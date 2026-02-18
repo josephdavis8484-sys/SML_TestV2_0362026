@@ -78,6 +78,14 @@ const CreatorDashboard = ({ user, onLogout }) => {
           <h1 className="text-white text-4xl md:text-5xl font-black" data-testid="dashboard-title">Creator Dashboard</h1>
           <div className="flex gap-3">
             <Button
+              onClick={() => navigate("/creator/analytics")}
+              className="bg-purple-600 hover:bg-purple-700 text-white font-bold px-4 py-3 flex items-center gap-2"
+              data-testid="analytics-button"
+            >
+              <BarChart3 className="w-5 h-5" />
+              Analytics
+            </Button>
+            <Button
               onClick={() => navigate("/creator/settings")}
               className="bg-gray-700 hover:bg-gray-600 text-white font-bold px-4 py-3 flex items-center gap-2"
               data-testid="settings-button"
