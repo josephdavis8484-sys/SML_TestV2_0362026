@@ -165,11 +165,12 @@ English
 7. Creator Onboarding Flow - 3-step wizard (Profile, Bank, Event)
 8. Bank Account Linking - Mock Plaid implementation
 9. Payout/Withdrawal System - Balance tracking, withdrawal requests
-10. **NEW: Creator Analytics Dashboard** - Revenue trends, category breakdown, top events
-11. **NEW: Professional WebRTC Control Panel** - Multi-camera interface with:
-    - Camera switching grid (5 cameras for Premium)
-    - Audio mixer (Mic volume, Speaker, Treble, Bass)
-    - Video transitions (Cut, Fade, Crossfade)
-    - Camera preview sidebar
-    - Live stream indicator
-12. **REMOVED: Multi-image upload** - Single image per event
+10. Creator Analytics Dashboard - Revenue trends, charts, top events
+11. Professional WebRTC Control Panel - Multi-camera interface with audio mixer
+12. **NEW: Live Chat & Reactions** for viewers with creator controls:
+    - Toggle chat on/off during event setup
+    - Chat modes: Open, Questions Only (for education), Moderated
+    - Live reactions: ❤️ 👏 🔥 😂 😮 with floating animations
+    - Creator moderation: Pin/hide messages, send announcements
+    - Educational tip for Q&A sessions
+13. REMOVED: Multi-image upload (single image per event)
