@@ -142,9 +142,42 @@ const EventDetail = ({ user, onLogout }) => {
                 <p className="text-gray-300 text-lg leading-relaxed" data-testid="event-description">{event.description}</p>
               </div>
 
+              {/* Interaction Features Badge */}
+              {(event.chat_enabled || event.reactions_enabled) && (
+                <div className="flex gap-2 mb-6">
+                  {event.chat_enabled && (
+                    <div className="inline-flex items-center gap-2 bg-blue-600/20 border border-blue-600 rounded-lg px-3 py-2">
+                      <MessageCircle className="w-4 h-4 text-blue-400" />
+                      <span className="text-blue-400 text-sm font-medium">
+                        {event.chat_mode === "questions_only" ? "Live Q&A" : "Live Chat"}
+                      </span>
+                    </div>
+                  )}
+                  {event.reactions_enabled && (
+                    <div className="inline-flex items-center gap-2 bg-pink-600/20 border border-pink-600 rounded-lg px-3 py-2">
+                      <span className="text-lg">❤️</span>
+                      <span className="text-pink-400 text-sm font-medium">Live Reactions</span>
+                    </div>
+                  )}
+                </div>
+              )}
+
               <div className="inline-block bg-blue-600/20 border border-blue-600 rounded-lg px-4 py-2">
                 <span className="text-blue-400 font-medium">{event.category}</span>
               </div>
+
+              {/* Live Chat for Live Events */}
+              {event.status === "live" && (event.chat_enabled || event.reactions_enabled) && (
+                <div className="mt-6">
+                  <LiveChat
+                    eventId={event.id}
+                    user={user}
+                    chatEnabled={event.chat_enabled}
+                    reactionsEnabled={event.reactions_enabled}
+                    chatMode={event.chat_mode}
+                  />
+                </div>
+              )}
             </div>
 
             {/* Purchase Card */}
