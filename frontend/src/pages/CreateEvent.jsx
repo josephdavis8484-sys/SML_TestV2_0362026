@@ -5,7 +5,8 @@ import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
-import { Upload, Crown, Check, Zap } from "lucide-react";
+import { Switch } from "@/components/ui/switch";
+import { Upload, Crown, Check, Zap, MessageCircle, Heart, HelpCircle } from "lucide-react";
 import { toast } from "sonner";
 
 const CreateEvent = ({ user, onLogout }) => {
@@ -21,7 +22,10 @@ const CreateEvent = ({ user, onLogout }) => {
     description: "",
     venue: "",
     price: "",
-    streaming_package: "free"
+    streaming_package: "free",
+    chat_enabled: false,
+    reactions_enabled: false,
+    chat_mode: "open"
   });
 
   const handleImageChange = (e) => {
