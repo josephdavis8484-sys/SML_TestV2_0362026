@@ -951,6 +951,249 @@ async def get_live_monitoring(current_user: User = Depends(get_admin_user)):
     
     return monitoring_data
 
+# ==================== CREATOR BANK ACCOUNT & PAYOUTS ====================
+
+class BankAccountLink(BaseModel):
+    account_mask: str  # Last 4 digits
+    account_name: str
+    institution_name: str
+
+class WithdrawalRequest(BaseModel):
+    amount: float
+
+class PayoutRecord(BaseModel):
+    model_config = ConfigDict(extra="ignore")
+    
+    id: str = Field(default_factory=lambda: str(uuid.uuid4()))
+    creator_id: str
+    amount: float
+    platform_fee: float
+    net_amount: float
+    status: str = "pending"  # "pending", "processing", "completed", "failed"
+    initiated_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
+    completed_at: Optional[datetime] = None
+
+@api_router.post("/creator/link-bank")
+async def link_bank_account(bank_info: BankAccountLink, current_user: User = Depends(get_current_user)):
+    """Link a bank account for payouts (mock implementation - real Plaid requires API keys)"""
+    if current_user.role != "creator":
+        raise HTTPException(status_code=403, detail="Only creators can link bank accounts")
+    
+    # Update user with bank info
+    await db.users.update_one(
+        {"id": current_user.id},
+        {"$set": {
+            "bank_linked": True,
+            "bank_account_mask": bank_info.account_mask,
+            "bank_account_name": bank_info.account_name,
+            "bank_institution": bank_info.institution_name
+        }}
+    )
+    
+    return {
+        "success": True,
+        "message": "Bank account linked successfully",
+        "bank_account": {
+            "mask": bank_info.account_mask,
+            "name": bank_info.account_name,
+            "institution": bank_info.institution_name
+        }
+    }
+
+@api_router.get("/creator/bank-status")
+async def get_bank_status(current_user: User = Depends(get_current_user)):
+    """Get creator's bank account status"""
+    if current_user.role != "creator":
+        raise HTTPException(status_code=403, detail="Only creators can view bank status")
+    
+    user_doc = await db.users.find_one({"id": current_user.id}, {"_id": 0})
+    
+    return {
+        "bank_linked": user_doc.get("bank_linked", False),
+        "bank_account": {
+            "mask": user_doc.get("bank_account_mask"),
+            "name": user_doc.get("bank_account_name"),
+            "institution": user_doc.get("bank_institution")
+        } if user_doc.get("bank_linked") else None
+    }
+
+@api_router.post("/creator/withdraw")
+async def request_withdrawal(withdrawal: WithdrawalRequest, current_user: User = Depends(get_current_user)):
+    """Request a withdrawal of earnings"""
+    if current_user.role != "creator":
+        raise HTTPException(status_code=403, detail="Only creators can request withdrawals")
+    
+    # Check if bank is linked
+    user_doc = await db.users.find_one({"id": current_user.id}, {"_id": 0})
+    if not user_doc.get("bank_linked"):
+        raise HTTPException(status_code=400, detail="Please link a bank account first")
+    
+    # Get available balance
+    events = await db.events.find({"creator_id": current_user.id}, {"_id": 0}).to_list(1000)
+    total_revenue = sum(e.get("total_revenue", 0.0) for e in events)
+    platform_fee = total_revenue * (PLATFORM_FEE_PERCENTAGE / 100)
+    available_balance = total_revenue - platform_fee
+    
+    # Check for pending payouts
+    pending_payouts = await db.payouts.find({
+        "creator_id": current_user.id,
+        "status": {"$in": ["pending", "processing"]}
+    }).to_list(100)
+    pending_amount = sum(p.get("net_amount", 0) for p in pending_payouts)
+    
+    withdrawable = available_balance - pending_amount
+    
+    if withdrawal.amount > withdrawable:
+        raise HTTPException(
+            status_code=400, 
+            detail=f"Insufficient balance. Available: ${withdrawable:.2f}"
+        )
+    
+    if withdrawal.amount < 10:
+        raise HTTPException(status_code=400, detail="Minimum withdrawal is $10")
+    
+    # Calculate fees
+    withdrawal_fee = withdrawal.amount * 0.02  # 2% withdrawal fee
+    net_amount = withdrawal.amount - withdrawal_fee
+    
+    # Create payout record
+    payout = PayoutRecord(
+        creator_id=current_user.id,
+        amount=withdrawal.amount,
+        platform_fee=withdrawal_fee,
+        net_amount=net_amount
+    )
+    
+    payout_doc = payout.model_dump()
+    payout_doc['initiated_at'] = payout_doc['initiated_at'].isoformat()
+    await db.payouts.insert_one(payout_doc)
+    
+    return {
+        "success": True,
+        "payout_id": payout.id,
+        "amount_requested": withdrawal.amount,
+        "withdrawal_fee": withdrawal_fee,
+        "net_amount": net_amount,
+        "estimated_arrival": "2-3 business days",
+        "status": "pending"
+    }
+
+@api_router.get("/creator/payouts")
+async def get_payout_history(current_user: User = Depends(get_current_user)):
+    """Get creator's payout history"""
+    if current_user.role != "creator":
+        raise HTTPException(status_code=403, detail="Only creators can view payouts")
+    
+    payouts = await db.payouts.find(
+        {"creator_id": current_user.id}, 
+        {"_id": 0}
+    ).sort("initiated_at", -1).to_list(100)
+    
+    return payouts
+
+# ==================== MULTI-IMAGE UPLOAD ====================
+
+@api_router.post("/events/upload-gallery")
+async def upload_gallery_images(
+    files: List[UploadFile] = File(...),
+    current_user: User = Depends(get_current_user)
+):
+    """Upload multiple images for event gallery"""
+    if current_user.role != "creator":
+        raise HTTPException(status_code=403, detail="Only creators can upload images")
+    
+    if len(files) > 10:
+        raise HTTPException(status_code=400, detail="Maximum 10 images allowed")
+    
+    uploaded_urls = []
+    
+    for file in files:
+        if not file.content_type.startswith("image/"):
+            continue
+            
+        file_extension = file.filename.split(".")[-1] if file.filename else "jpg"
+        file_name = f"{uuid.uuid4()}.{file_extension}"
+        file_path = UPLOAD_DIR / file_name
+        
+        content = await file.read()
+        with open(file_path, "wb") as f:
+            f.write(content)
+        
+        uploaded_urls.append(f"/api/uploads/{file_name}")
+    
+    return {
+        "success": True,
+        "uploaded_count": len(uploaded_urls),
+        "image_urls": uploaded_urls
+    }
+
+@api_router.put("/events/{event_id}/gallery")
+async def update_event_gallery(
+    event_id: str,
+    gallery_images: List[str],
+    current_user: User = Depends(get_current_user)
+):
+    """Update event gallery images"""
+    if current_user.role != "creator":
+        raise HTTPException(status_code=403, detail="Only creators can update events")
+    
+    event = await db.events.find_one({"id": event_id, "creator_id": current_user.id})
+    if not event:
+        raise HTTPException(status_code=404, detail="Event not found")
+    
+    await db.events.update_one(
+        {"id": event_id},
+        {"$set": {"gallery_images": gallery_images}}
+    )
+    
+    return {"success": True, "gallery_images": gallery_images}
+
+# ==================== CREATOR ONBOARDING ====================
+
+class OnboardingProgress(BaseModel):
+    step: int
+    completed_steps: List[str]
+
+@api_router.get("/creator/onboarding-status")
+async def get_onboarding_status(current_user: User = Depends(get_current_user)):
+    """Get creator's onboarding progress"""
+    if current_user.role != "creator":
+        raise HTTPException(status_code=403, detail="Only creators can view onboarding")
+    
+    user_doc = await db.users.find_one({"id": current_user.id}, {"_id": 0})
+    events_count = await db.events.count_documents({"creator_id": current_user.id})
+    
+    steps = {
+        "profile_complete": bool(user_doc.get("name") and user_doc.get("email")),
+        "bank_linked": user_doc.get("bank_linked", False),
+        "first_event_created": events_count > 0,
+        "onboarding_completed": user_doc.get("onboarding_completed", False)
+    }
+    
+    completed_steps = [step for step, done in steps.items() if done]
+    current_step = len(completed_steps)
+    
+    return {
+        "current_step": current_step,
+        "total_steps": 3,
+        "steps": steps,
+        "completed_steps": completed_steps,
+        "is_complete": len(completed_steps) >= 3
+    }
+
+@api_router.post("/creator/complete-onboarding")
+async def complete_onboarding(current_user: User = Depends(get_current_user)):
+    """Mark onboarding as complete"""
+    if current_user.role != "creator":
+        raise HTTPException(status_code=403, detail="Only creators can complete onboarding")
+    
+    await db.users.update_one(
+        {"id": current_user.id},
+        {"$set": {"onboarding_completed": True}}
+    )
+    
+    return {"success": True, "message": "Onboarding completed!"}
+
 app.include_router(api_router)
 
 app.add_middleware(
