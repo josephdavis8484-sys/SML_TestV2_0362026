@@ -205,3 +205,12 @@ English
     - `GET /api/stripe/connect/balance` - Get available balance
     - Frontend CreatorSettings.jsx updated with Stripe Connect UI
     - Deleted obsolete MockPlaidLink.jsx
+    - Added Stripe Dashboard link for connected accounts
+16. **NEW (Feb 2026): WebSocket Live Chat** - Real-time chat replaces polling:
+    - WebSocket endpoint: `/api/ws/chat/{event_id}`
+    - Real-time message broadcast to all viewers
+    - Real-time reaction broadcast with floating animations
+    - Live viewer count tracking and display
+    - Typing indicators
+    - Auto-reconnection with 3-second retry
+    - Ping/pong keepalive for connection health
