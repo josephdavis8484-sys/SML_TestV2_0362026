@@ -376,11 +376,83 @@ const CreateEvent = ({ user, onLogout }) => {
             </div>
             
             {formData.streaming_package === "premium" && (
-              <div className="mt-4 bg-yellow-500/10 border border-yellow-500/30 rounded-lg p-4">
-                <p className="text-yellow-400 text-sm">
-                  <Crown className="w-4 h-4 inline mr-2" />
-                  Pro Mode requires a one-time payment of $1,000. You'll be redirected to complete payment after creating the event.
-                </p>
+              <div className="mt-4 space-y-4">
+                <div className="bg-yellow-500/10 border border-yellow-500/30 rounded-lg p-4">
+                  <p className="text-yellow-400 text-sm">
+                    <Crown className="w-4 h-4 inline mr-2" />
+                    Pro Mode requires a one-time payment. You'll be redirected to complete payment after creating the event.
+                  </p>
+                </div>
+                
+                {/* Promo Code Input */}
+                <div className="bg-gray-900/50 border border-gray-700 rounded-lg p-4">
+                  <label className="text-white text-sm font-medium mb-3 flex items-center gap-2">
+                    <Tag className="w-4 h-4 text-green-400" />
+                    Have a promo code?
+                  </label>
+                  
+                  {promoDiscount ? (
+                    <div className="bg-green-900/30 border border-green-600/50 rounded-lg p-3">
+                      <div className="flex items-center justify-between">
+                        <div>
+                          <p className="text-green-400 font-semibold flex items-center gap-2">
+                            <Check className="w-4 h-4" />
+                            {promoDiscount.code} applied
+                          </p>
+                          <p className="text-green-300/70 text-sm mt-1">
+                            {promoDiscount.description || `${promoDiscount.discount_type === 'percentage' ? promoDiscount.discount_value + '%' : '$' + promoDiscount.discount_value} off`}
+                          </p>
+                        </div>
+                        <button
+                          type="button"
+                          onClick={removePromoCode}
+                          className="text-gray-400 hover:text-red-400 p-1"
+                        >
+                          <X className="w-5 h-5" />
+                        </button>
+                      </div>
+                      <div className="mt-3 pt-3 border-t border-green-600/30">
+                        <div className="flex justify-between text-sm">
+                          <span className="text-gray-400">Original price:</span>
+                          <span className="text-gray-400 line-through">${PRO_MODE_PRICE}</span>
+                        </div>
+                        <div className="flex justify-between text-sm text-green-400">
+                          <span>Discount:</span>
+                          <span>-${promoDiscount.discount_amount}</span>
+                        </div>
+                        <div className="flex justify-between text-lg font-bold mt-1">
+                          <span className="text-white">Final price:</span>
+                          <span className="text-yellow-400">
+                            {promoDiscount.final_price === 0 ? 'FREE' : `$${promoDiscount.final_price}`}
+                          </span>
+                        </div>
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="flex gap-2">
+                      <Input
+                        value={promoCode}
+                        onChange={(e) => setPromoCode(e.target.value.toUpperCase())}
+                        placeholder="Enter promo code"
+                        className="bg-gray-800 border-gray-700 text-white uppercase"
+                        data-testid="promo-code-input"
+                      />
+                      <Button
+                        type="button"
+                        onClick={validatePromoCode}
+                        disabled={promoValidating || !promoCode.trim()}
+                        className="bg-green-600 hover:bg-green-700 whitespace-nowrap"
+                        data-testid="apply-promo-button"
+                      >
+                        {promoValidating ? (
+                          <Loader2 className="w-4 h-4 animate-spin" />
+                        ) : (
+                          "Apply"
+                        )}
+                      </Button>
+                    </div>
+                  )}
+                </div>
               </div>
             )}
           </div>
