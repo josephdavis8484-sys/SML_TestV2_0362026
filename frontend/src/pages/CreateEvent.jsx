@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Switch } from "@/components/ui/switch";
-import { Upload, Crown, Check, Zap, MessageCircle, Heart, HelpCircle } from "lucide-react";
+import { Upload, Crown, Check, Zap, MessageCircle, Heart, HelpCircle, Tag, Loader2, X } from "lucide-react";
 import { toast } from "sonner";
 
 const CreateEvent = ({ user, onLogout }) => {
@@ -14,6 +14,9 @@ const CreateEvent = ({ user, onLogout }) => {
   const [loading, setLoading] = useState(false);
   const [imageFile, setImageFile] = useState(null);
   const [imagePreview, setImagePreview] = useState(null);
+  const [promoCode, setPromoCode] = useState("");
+  const [promoValidating, setPromoValidating] = useState(false);
+  const [promoDiscount, setPromoDiscount] = useState(null);
   const [formData, setFormData] = useState({
     title: "",
     category: "Music",
@@ -28,6 +31,8 @@ const CreateEvent = ({ user, onLogout }) => {
     chat_mode: "open"
   });
 
+  const PRO_MODE_PRICE = 1000;
+
   const handleImageChange = (e) => {
     const file = e.target.files[0];
     if (file) {
@@ -38,6 +43,35 @@ const CreateEvent = ({ user, onLogout }) => {
       };
       reader.readAsDataURL(file);
     }
+  };
+
+  const validatePromoCode = async () => {
+    if (!promoCode.trim()) {
+      toast.error("Please enter a promo code");
+      return;
+    }
+
+    setPromoValidating(true);
+    try {
+      const response = await axiosInstance.post("/promo-codes/validate", {
+        code: promoCode,
+        purchase_type: "pro_mode",
+        purchase_amount: PRO_MODE_PRICE
+      });
+      
+      setPromoDiscount(response.data);
+      toast.success(`Promo code applied! You save $${response.data.discount_amount}`);
+    } catch (error) {
+      setPromoDiscount(null);
+      toast.error(error.response?.data?.detail || "Invalid promo code");
+    } finally {
+      setPromoValidating(false);
+    }
+  };
+
+  const removePromoCode = () => {
+    setPromoCode("");
+    setPromoDiscount(null);
   };
 
   const handleSubmit = async (e) => {
@@ -67,14 +101,33 @@ const CreateEvent = ({ user, onLogout }) => {
       const response = await axiosInstance.post("/events", eventData);
       const eventId = response.data.id;
       
-      // If premium package selected, redirect to Stripe checkout
+      // If premium package selected, handle payment
       if (formData.streaming_package === "premium") {
+        const finalPrice = promoDiscount ? promoDiscount.final_price : PRO_MODE_PRICE;
+        
+        // If promo code makes it free, skip payment
+        if (finalPrice === 0) {
+          // Apply promo code usage
+          if (promoDiscount) {
+            await axiosInstance.post("/promo-codes/apply", {
+              code: promoCode,
+              purchase_type: "pro_mode",
+              purchase_amount: PRO_MODE_PRICE
+            });
+          }
+          toast.success("Event created with Pro Mode (100% discount applied)!");
+          navigate("/creator/dashboard");
+          return;
+        }
+        
         try {
           const checkoutRes = await axiosInstance.post("/payments/checkout/session", {
             payment_type: "streaming_package",
             package: "premium",
             event_id: eventId,
-            origin_url: window.location.origin
+            origin_url: window.location.origin,
+            promo_code: promoDiscount ? promoCode : null,
+            discount_amount: promoDiscount ? promoDiscount.discount_amount : 0
           });
           
           toast.success("Event created! Redirecting to payment...");
