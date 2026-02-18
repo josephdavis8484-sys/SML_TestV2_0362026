@@ -81,6 +81,11 @@ English
 - [x] Premium ($1000) Pro Mode package
 - [x] Visual package selection with checkmarks
 - [x] Pro Mode warning message
+- [x] **Creator Onboarding Flow** - 3-step wizard
+- [x] **Payout Settings Page** - `/creator/settings`
+- [x] **Bank Account Linking** - Mock Plaid (demo)
+- [x] **Withdrawal/Payout System** - Balance & history
+- [x] **Multi-image Upload Endpoint** - Backend ready
 
 #### Admin Panel
 - [x] Admin Login page at `/admin/login`
