@@ -3,7 +3,8 @@ import { Link, useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
-import { User, Ticket, LogOut } from "lucide-react";
+import { User, Ticket, LogOut, Settings } from "lucide-react";
+import NotificationBell from "./NotificationBell";
 
 const EMERGENT_AUTH_URL = "https://auth.emergentagent.com";
 
