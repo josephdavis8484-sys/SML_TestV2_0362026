@@ -85,8 +85,13 @@ English
 - [x] Payout Settings Page - `/creator/settings`
 - [x] Bank Account Linking - Mock Plaid (demo)
 - [x] Withdrawal/Payout System - Balance & history
-- [x] **Creator Analytics Dashboard** - Revenue trends, charts, top events
-- [x] **Professional WebRTC Control Panel** - Multi-camera interface with audio mixer
+- [x] Creator Analytics Dashboard - Revenue trends, charts, top events
+- [x] Professional WebRTC Control Panel - Multi-camera interface with audio mixer
+- [x] **Live Chat & Reactions** - Creator-controlled audience engagement:
+  - Toggle chat/reactions during event setup
+  - Chat modes: Open, Questions Only, Moderated
+  - Live emoji reactions with floating animations
+  - Pin/hide messages for moderation
 
 #### Admin Panel
 - [x] Admin Login page at `/admin/login`
