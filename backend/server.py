@@ -88,6 +88,10 @@ class Event(BaseModel):
     qr_code: Optional[str] = None
     share_link: Optional[str] = None
     status: str = "upcoming"  # "upcoming", "live", "completed"
+    # Chat & Interaction settings
+    chat_enabled: bool = False
+    reactions_enabled: bool = False
+    chat_mode: str = "open"  # "open", "moderated", "questions_only"
     is_blocked: bool = False
     block_reason: Optional[str] = None
     total_revenue: float = 0.0
