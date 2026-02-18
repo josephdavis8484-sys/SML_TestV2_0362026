@@ -567,6 +567,260 @@ const AdminDashboard = () => {
             </div>
           </div>
         )}
+
+        {/* Promo Codes Tab */}
+        {activeTab === "promos" && (
+          <div className="space-y-6" data-testid="promo-codes-tab">
+            <div className="flex justify-between items-center">
+              <h2 className="text-white text-3xl font-bold">Promo Codes</h2>
+              <Button
+                onClick={() => {
+                  resetPromoForm();
+                  setShowPromoForm(true);
+                }}
+                className="bg-green-600 hover:bg-green-700"
+                data-testid="create-promo-button"
+              >
+                <Plus className="w-4 h-4 mr-2" />
+                Create Promo Code
+              </Button>
+            </div>
+
+            {/* Create/Edit Form */}
+            {showPromoForm && (
+              <div className="bg-gray-900/50 border border-gray-700 rounded-lg p-6">
+                <h3 className="text-white text-xl font-bold mb-4">
+                  {editingPromo ? "Edit Promo Code" : "Create New Promo Code"}
+                </h3>
+                
+                <div className="grid md:grid-cols-2 gap-4">
+                  <div>
+                    <label className="text-gray-300 text-sm block mb-1">Code *</label>
+                    <Input
+                      value={promoForm.code}
+                      onChange={(e) => setPromoForm({...promoForm, code: e.target.value.toUpperCase()})}
+                      placeholder="e.g., LAUNCH50"
+                      className="bg-gray-800 border-gray-700 text-white uppercase"
+                      disabled={!!editingPromo}
+                      data-testid="promo-code-input"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="text-gray-300 text-sm block mb-1">Description</label>
+                    <Input
+                      value={promoForm.description}
+                      onChange={(e) => setPromoForm({...promoForm, description: e.target.value})}
+                      placeholder="Launch discount"
+                      className="bg-gray-800 border-gray-700 text-white"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="text-gray-300 text-sm block mb-1">Discount Type</label>
+                    <select
+                      value={promoForm.discount_type}
+                      onChange={(e) => setPromoForm({...promoForm, discount_type: e.target.value})}
+                      className="w-full bg-gray-800 border border-gray-700 text-white rounded-md px-3 py-2"
+                    >
+                      <option value="percentage">Percentage (%)</option>
+                      <option value="fixed">Fixed Amount ($)</option>
+                    </select>
+                  </div>
+
+                  <div>
+                    <label className="text-gray-300 text-sm block mb-1">Discount Value *</label>
+                    <Input
+                      type="number"
+                      value={promoForm.discount_value}
+                      onChange={(e) => setPromoForm({...promoForm, discount_value: e.target.value})}
+                      placeholder={promoForm.discount_type === "percentage" ? "50" : "500"}
+                      className="bg-gray-800 border-gray-700 text-white"
+                      data-testid="promo-discount-input"
+                    />
+                    <p className="text-gray-500 text-xs mt-1">
+                      {promoForm.discount_type === "percentage" ? "Enter percentage (0-100)" : "Enter dollar amount"}
+                    </p>
+                  </div>
+
+                  <div>
+                    <label className="text-gray-300 text-sm block mb-1">Applies To</label>
+                    <select
+                      value={promoForm.applies_to}
+                      onChange={(e) => setPromoForm({...promoForm, applies_to: e.target.value})}
+                      className="w-full bg-gray-800 border border-gray-700 text-white rounded-md px-3 py-2"
+                    >
+                      <option value="pro_mode">Pro Mode Only</option>
+                      <option value="ticket">Tickets Only</option>
+                      <option value="all">All Purchases</option>
+                    </select>
+                  </div>
+
+                  <div>
+                    <label className="text-gray-300 text-sm block mb-1">Max Uses</label>
+                    <Input
+                      type="number"
+                      value={promoForm.max_uses}
+                      onChange={(e) => setPromoForm({...promoForm, max_uses: e.target.value})}
+                      placeholder="Leave empty for unlimited"
+                      className="bg-gray-800 border-gray-700 text-white"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="text-gray-300 text-sm block mb-1">Start Date</label>
+                    <Input
+                      type="date"
+                      value={promoForm.start_date}
+                      onChange={(e) => setPromoForm({...promoForm, start_date: e.target.value})}
+                      className="bg-gray-800 border-gray-700 text-white"
+                      data-testid="promo-start-date"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="text-gray-300 text-sm block mb-1">Expiration Date</label>
+                    <Input
+                      type="date"
+                      value={promoForm.expiration_date}
+                      onChange={(e) => setPromoForm({...promoForm, expiration_date: e.target.value})}
+                      className="bg-gray-800 border-gray-700 text-white"
+                      data-testid="promo-expiration-date"
+                    />
+                  </div>
+                </div>
+
+                <div className="flex gap-3 mt-6">
+                  <Button
+                    onClick={editingPromo ? handleUpdatePromoCode : handleCreatePromoCode}
+                    className="bg-green-600 hover:bg-green-700"
+                    data-testid="save-promo-button"
+                  >
+                    <Check className="w-4 h-4 mr-2" />
+                    {editingPromo ? "Update" : "Create"} Promo Code
+                  </Button>
+                  <Button
+                    onClick={resetPromoForm}
+                    variant="outline"
+                    className="border-gray-600 text-gray-300"
+                  >
+                    Cancel
+                  </Button>
+                </div>
+              </div>
+            )}
+
+            {/* Promo Codes List */}
+            <div className="bg-gray-900/50 rounded-lg overflow-hidden">
+              <table className="w-full">
+                <thead className="bg-gray-800">
+                  <tr>
+                    <th className="text-left text-gray-300 px-4 py-3 text-sm">Code</th>
+                    <th className="text-left text-gray-300 px-4 py-3 text-sm">Discount</th>
+                    <th className="text-left text-gray-300 px-4 py-3 text-sm">Applies To</th>
+                    <th className="text-left text-gray-300 px-4 py-3 text-sm">Uses</th>
+                    <th className="text-left text-gray-300 px-4 py-3 text-sm">Valid Period</th>
+                    <th className="text-left text-gray-300 px-4 py-3 text-sm">Status</th>
+                    <th className="text-left text-gray-300 px-4 py-3 text-sm">Actions</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {promoCodes.length === 0 ? (
+                    <tr>
+                      <td colSpan="7" className="text-center py-8 text-gray-500">
+                        No promo codes yet. Create your first one!
+                      </td>
+                    </tr>
+                  ) : (
+                    promoCodes.map((promo) => {
+                      const now = new Date();
+                      const startDate = promo.start_date ? new Date(promo.start_date) : null;
+                      const expirationDate = promo.expiration_date ? new Date(promo.expiration_date) : null;
+                      const isExpired = expirationDate && now > expirationDate;
+                      const isNotStarted = startDate && now < startDate;
+                      const isMaxUsesReached = promo.max_uses && promo.current_uses >= promo.max_uses;
+
+                      return (
+                        <tr key={promo.id} className="border-t border-gray-800 hover:bg-gray-800/50">
+                          <td className="px-4 py-3">
+                            <div className="flex items-center gap-2">
+                              <Tag className="w-4 h-4 text-green-400" />
+                              <span className="text-white font-mono font-bold">{promo.code}</span>
+                            </div>
+                            {promo.description && (
+                              <p className="text-gray-500 text-xs mt-1">{promo.description}</p>
+                            )}
+                          </td>
+                          <td className="px-4 py-3">
+                            <span className="text-yellow-400 font-bold">
+                              {promo.discount_type === "percentage" 
+                                ? `${promo.discount_value}%` 
+                                : `$${promo.discount_value}`}
+                            </span>
+                          </td>
+                          <td className="px-4 py-3 text-gray-300 capitalize">
+                            {promo.applies_to === "pro_mode" ? "Pro Mode" : promo.applies_to}
+                          </td>
+                          <td className="px-4 py-3 text-gray-300">
+                            {promo.current_uses || 0} / {promo.max_uses || "∞"}
+                          </td>
+                          <td className="px-4 py-3 text-gray-400 text-sm">
+                            {startDate || expirationDate ? (
+                              <>
+                                {startDate && <div>From: {startDate.toLocaleDateString()}</div>}
+                                {expirationDate && <div>Until: {expirationDate.toLocaleDateString()}</div>}
+                              </>
+                            ) : (
+                              "Always valid"
+                            )}
+                          </td>
+                          <td className="px-4 py-3">
+                            {!promo.is_active ? (
+                              <span className="bg-gray-600/20 text-gray-400 px-2 py-1 rounded text-xs">Inactive</span>
+                            ) : isExpired ? (
+                              <span className="bg-red-600/20 text-red-400 px-2 py-1 rounded text-xs">Expired</span>
+                            ) : isNotStarted ? (
+                              <span className="bg-yellow-600/20 text-yellow-400 px-2 py-1 rounded text-xs">Scheduled</span>
+                            ) : isMaxUsesReached ? (
+                              <span className="bg-orange-600/20 text-orange-400 px-2 py-1 rounded text-xs">Max Used</span>
+                            ) : (
+                              <span className="bg-green-600/20 text-green-400 px-2 py-1 rounded text-xs">Active</span>
+                            )}
+                          </td>
+                          <td className="px-4 py-3">
+                            <div className="flex gap-2">
+                              <button
+                                onClick={() => startEditPromo(promo)}
+                                className="text-blue-400 hover:text-blue-300 p-1"
+                                title="Edit"
+                              >
+                                <Edit className="w-4 h-4" />
+                              </button>
+                              <button
+                                onClick={() => handleTogglePromoActive(promo)}
+                                className={`p-1 ${promo.is_active ? "text-yellow-400 hover:text-yellow-300" : "text-green-400 hover:text-green-300"}`}
+                                title={promo.is_active ? "Deactivate" : "Activate"}
+                              >
+                                {promo.is_active ? <X className="w-4 h-4" /> : <Check className="w-4 h-4" />}
+                              </button>
+                              <button
+                                onClick={() => handleDeletePromoCode(promo.id)}
+                                className="text-red-400 hover:text-red-300 p-1"
+                                title="Delete"
+                              >
+                                <Trash2 className="w-4 h-4" />
+                              </button>
+                            </div>
+                          </td>
+                        </tr>
+                      );
+                    })
+                  )}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        )}
       </div>
     </div>
   );
