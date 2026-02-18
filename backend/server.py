@@ -60,6 +60,47 @@ PLAID_ENV = os.environ.get('PLAID_ENV', 'sandbox')  # sandbox, development, prod
 UPLOAD_DIR = Path("/app/backend/uploads")
 UPLOAD_DIR.mkdir(exist_ok=True)
 
+# WebSocket Connection Manager for Live Chat
+class ChatConnectionManager:
+    def __init__(self):
+        # Dictionary mapping event_id -> list of connected WebSockets
+        self.active_connections: Dict[str, List[WebSocket]] = {}
+    
+    async def connect(self, websocket: WebSocket, event_id: str):
+        await websocket.accept()
+        if event_id not in self.active_connections:
+            self.active_connections[event_id] = []
+        self.active_connections[event_id].append(websocket)
+        logging.info(f"WebSocket connected to event {event_id}. Total connections: {len(self.active_connections[event_id])}")
+    
+    def disconnect(self, websocket: WebSocket, event_id: str):
+        if event_id in self.active_connections:
+            if websocket in self.active_connections[event_id]:
+                self.active_connections[event_id].remove(websocket)
+            if not self.active_connections[event_id]:
+                del self.active_connections[event_id]
+        logging.info(f"WebSocket disconnected from event {event_id}")
+    
+    async def broadcast_to_event(self, event_id: str, message: dict):
+        """Broadcast a message to all connections for an event"""
+        if event_id in self.active_connections:
+            disconnected = []
+            for connection in self.active_connections[event_id]:
+                try:
+                    await connection.send_json(message)
+                except Exception as e:
+                    logging.error(f"Error sending to WebSocket: {e}")
+                    disconnected.append(connection)
+            # Clean up disconnected sockets
+            for conn in disconnected:
+                self.disconnect(conn, event_id)
+    
+    def get_connection_count(self, event_id: str) -> int:
+        return len(self.active_connections.get(event_id, []))
+
+# Initialize the chat manager
+chat_manager = ChatConnectionManager()
+
 # Models
 class User(BaseModel):
     model_config = ConfigDict(extra="ignore", populate_by_name=True)
