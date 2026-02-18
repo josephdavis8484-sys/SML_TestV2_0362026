@@ -143,6 +143,11 @@ function App() {
             <CreateEvent user={user} onLogout={handleLogout} /> : 
             <Navigate to="/" />
           } />
+          <Route path="/creator/settings" element={
+            user?.role === "creator" ? 
+            <CreatorSettings user={user} onLogout={handleLogout} /> : 
+            <Navigate to="/" />
+          } />
           
           {/* Streaming routes */}
           <Route path="/stream/:deviceToken" element={<StreamDevice />} />
