@@ -13,9 +13,11 @@ import {
   ArrowRight,
   DollarSign,
   Clock,
-  ChevronRight
+  ChevronRight,
+  Link as LinkIcon
 } from "lucide-react";
 import { toast } from "sonner";
+import MockPlaidLink from "@/components/MockPlaidLink";
 
 const CreatorSettings = ({ user, onLogout }) => {
   const navigate = useNavigate();
@@ -23,18 +25,10 @@ const CreatorSettings = ({ user, onLogout }) => {
   const [bankStatus, setBankStatus] = useState(null);
   const [earnings, setEarnings] = useState(null);
   const [payouts, setPayouts] = useState([]);
-  const [showLinkModal, setShowLinkModal] = useState(false);
+  const [showPlaidLink, setShowPlaidLink] = useState(false);
   const [showWithdrawModal, setShowWithdrawModal] = useState(false);
   const [withdrawAmount, setWithdrawAmount] = useState("");
-  const [linkingBank, setLinkingBank] = useState(false);
   const [withdrawing, setWithdrawing] = useState(false);
-  
-  // Bank linking form
-  const [bankForm, setBankForm] = useState({
-    account_mask: "",
-    account_name: "",
-    institution_name: ""
-  });
 
   useEffect(() => {
     fetchData();
