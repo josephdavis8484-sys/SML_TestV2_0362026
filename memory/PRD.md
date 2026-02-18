@@ -156,3 +156,8 @@ English
 4. Added Stripe checkout to EventDetail page
 5. Enhanced CreateEvent with visual Pro Mode selection
 6. Added payment flow for Pro Mode ($1000)
+7. **NEW: Creator Onboarding Flow** - 3-step wizard (Profile, Bank, Event)
+8. **NEW: Bank Account Linking** - Mock Plaid implementation (full Plaid requires API keys)
+9. **NEW: Payout/Withdrawal System** - Balance tracking, withdrawal requests, payout history
+10. **NEW: Multi-image Upload** - Gallery support for events (backend endpoint)
+11. **NEW: Creator Settings Page** - `/creator/settings` for payout management
