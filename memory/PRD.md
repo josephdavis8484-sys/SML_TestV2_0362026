@@ -130,18 +130,25 @@ English
   - ✅ Hosted onboarding flow (no bank integration needed)
   - ✅ Direct payouts to creator's Stripe account
   - ✅ Deleted obsolete MockPlaidLink.jsx
+  - ✅ Stripe Dashboard link on Creator Settings page
 - [x] ~~Real WebRTC Streaming~~ → **FULLY CONFIGURED** with LiveKit Cloud
   - URL: `wss://showmelive-4y2wqa4p.livekit.cloud`
   - Real JWT token generation working
   - Multi-camera streaming ready
+- [x] ~~Implement WebSocket for Live Chat~~ → **FULLY IMPLEMENTED** (Feb 2026)
+  - WebSocket endpoint: `/api/ws/chat/{event_id}`
+  - Real-time message broadcast
+  - Real-time reaction broadcast
+  - Live viewer count tracking
+  - Typing indicators
+  - Auto-reconnection with 3-second retry
 - [ ] Real-time withdrawal status updates (WebSocket)
-- [ ] Implement WebSocket for Live Chat (currently polling)
 
 ### P2 (Lower Priority - Future)
-- [ ] Multi-camera streaming control panel (WebRTC)
 - [ ] Anti-piracy measures (screen recording prevention)
 - [ ] Coins/Diamond virtual currency system
 - [ ] Social logins (Facebook, Instagram, Twitter)
+- [ ] Push notifications for live events
 
 ---
 
