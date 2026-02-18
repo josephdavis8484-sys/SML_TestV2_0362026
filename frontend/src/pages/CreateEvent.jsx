@@ -332,6 +332,129 @@ const CreateEvent = ({ user, onLogout }) => {
             )}
           </div>
 
+          {/* Audience Interaction Settings */}
+          <div>
+            <label className="text-white text-lg font-semibold mb-4 block flex items-center gap-2">
+              <MessageCircle className="w-5 h-5 text-blue-400" />
+              Audience Interaction
+            </label>
+            <p className="text-gray-400 text-sm mb-4">
+              Enable live chat and reactions for your viewers. Great for Q&A sessions, educational content, and audience engagement.
+            </p>
+            
+            <div className="bg-gray-900/50 rounded-lg p-6 space-y-6 border border-gray-700">
+              {/* Live Chat Toggle */}
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 bg-blue-600/20 rounded-lg flex items-center justify-center">
+                    <MessageCircle className="w-5 h-5 text-blue-400" />
+                  </div>
+                  <div>
+                    <h4 className="text-white font-medium">Live Chat</h4>
+                    <p className="text-gray-400 text-sm">Allow viewers to send messages during the stream</p>
+                  </div>
+                </div>
+                <Switch
+                  checked={formData.chat_enabled}
+                  onCheckedChange={(checked) => setFormData({...formData, chat_enabled: checked})}
+                  data-testid="chat-toggle"
+                />
+              </div>
+
+              {/* Chat Mode Selection (only show if chat is enabled) */}
+              {formData.chat_enabled && (
+                <div className="pl-13 ml-10 border-l-2 border-gray-700 space-y-3">
+                  <p className="text-gray-300 text-sm font-medium">Chat Mode</p>
+                  <div className="flex gap-3 flex-wrap">
+                    <button
+                      type="button"
+                      onClick={() => setFormData({...formData, chat_mode: "open"})}
+                      className={`px-4 py-2 rounded-lg text-sm font-medium transition-all flex items-center gap-2 ${
+                        formData.chat_mode === "open"
+                          ? "bg-blue-600 text-white"
+                          : "bg-gray-800 text-gray-300 hover:bg-gray-700"
+                      }`}
+                      data-testid="chat-mode-open"
+                    >
+                      <MessageCircle className="w-4 h-4" />
+                      Open Chat
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setFormData({...formData, chat_mode: "questions_only"})}
+                      className={`px-4 py-2 rounded-lg text-sm font-medium transition-all flex items-center gap-2 ${
+                        formData.chat_mode === "questions_only"
+                          ? "bg-blue-600 text-white"
+                          : "bg-gray-800 text-gray-300 hover:bg-gray-700"
+                      }`}
+                      data-testid="chat-mode-questions"
+                    >
+                      <HelpCircle className="w-4 h-4" />
+                      Questions Only
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setFormData({...formData, chat_mode: "moderated"})}
+                      className={`px-4 py-2 rounded-lg text-sm font-medium transition-all flex items-center gap-2 ${
+                        formData.chat_mode === "moderated"
+                          ? "bg-blue-600 text-white"
+                          : "bg-gray-800 text-gray-300 hover:bg-gray-700"
+                      }`}
+                      data-testid="chat-mode-moderated"
+                    >
+                      Moderated
+                    </button>
+                  </div>
+                  <p className="text-gray-500 text-xs">
+                    {formData.chat_mode === "open" && "Anyone can chat freely during the stream"}
+                    {formData.chat_mode === "questions_only" && "Viewers can only submit questions - perfect for educational sessions"}
+                    {formData.chat_mode === "moderated" && "All messages require approval before appearing"}
+                  </p>
+                </div>
+              )}
+
+              {/* Reactions Toggle */}
+              <div className="flex items-center justify-between pt-4 border-t border-gray-700">
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 bg-pink-600/20 rounded-lg flex items-center justify-center">
+                    <Heart className="w-5 h-5 text-pink-400" />
+                  </div>
+                  <div>
+                    <h4 className="text-white font-medium">Live Reactions</h4>
+                    <p className="text-gray-400 text-sm">Let viewers send floating reactions during the stream</p>
+                  </div>
+                </div>
+                <Switch
+                  checked={formData.reactions_enabled}
+                  onCheckedChange={(checked) => setFormData({...formData, reactions_enabled: checked})}
+                  data-testid="reactions-toggle"
+                />
+              </div>
+
+              {/* Reactions Preview */}
+              {formData.reactions_enabled && (
+                <div className="flex items-center gap-4 pl-13 ml-10">
+                  <span className="text-gray-400 text-sm">Available reactions:</span>
+                  <div className="flex gap-2">
+                    {["❤️", "👏", "🔥", "😂", "😮"].map((emoji, i) => (
+                      <span key={i} className="text-2xl">{emoji}</span>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
+
+            {/* Educational Tip */}
+            {(formData.chat_enabled || formData.reactions_enabled) && (
+              <div className="mt-4 bg-blue-500/10 border border-blue-500/30 rounded-lg p-4">
+                <p className="text-blue-400 text-sm">
+                  💡 <strong>Tip for Educators:</strong> Use "Questions Only" mode for lectures and Q&A sessions. 
+                  This keeps the chat focused and allows you to address viewer questions directly during your presentation.
+                </p>
+              </div>
+            )}
+          </div>
+
           <div className="flex gap-4 pt-4">
             <Button
               type="submit"
