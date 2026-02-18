@@ -3,17 +3,21 @@ import Navbar from "@/components/Navbar";
 import { axiosInstance } from "@/App";
 import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
-import { Plus, Calendar, DollarSign, Users, Video } from "lucide-react";
+import { Plus, Calendar, DollarSign, Users, Video, Settings, Wallet } from "lucide-react";
 import { toast } from "sonner";
+import CreatorOnboarding from "@/components/CreatorOnboarding";
 
 const CreatorDashboard = ({ user, onLogout }) => {
   const [events, setEvents] = useState([]);
   const [earnings, setEarnings] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [showOnboarding, setShowOnboarding] = useState(false);
+  const [onboardingStatus, setOnboardingStatus] = useState(null);
   const navigate = useNavigate();
 
   useEffect(() => {
     fetchData();
+    checkOnboarding();
   }, []);
 
   const fetchData = async () => {
@@ -32,6 +36,19 @@ const CreatorDashboard = ({ user, onLogout }) => {
     }
   };
 
+  const checkOnboarding = async () => {
+    try {
+      const response = await axiosInstance.get("/creator/onboarding-status");
+      setOnboardingStatus(response.data);
+      // Show onboarding if not complete
+      if (!response.data.steps?.onboarding_completed) {
+        setShowOnboarding(true);
+      }
+    } catch (error) {
+      console.error("Error checking onboarding:", error);
+    }
+  };
+
   if (loading) {
     return (
       <div className="min-h-screen bg-[#0f0f0f] flex items-center justify-center">
@@ -44,18 +61,60 @@ const CreatorDashboard = ({ user, onLogout }) => {
     <div className="min-h-screen bg-[#0f0f0f]" data-testid="creator-dashboard">
       <Navbar user={user} onLogout={onLogout} isCreator={true} />
       
+      {/* Onboarding Modal */}
+      {showOnboarding && (
+        <CreatorOnboarding 
+          user={user}
+          onClose={() => setShowOnboarding(false)}
+          onComplete={() => {
+            setShowOnboarding(false);
+            checkOnboarding();
+          }}
+        />
+      )}
+      
       <div className="pt-24 px-4 sm:px-6 lg:px-8 max-w-7xl mx-auto pb-20">
         <div className="flex justify-between items-center mb-8">
           <h1 className="text-white text-4xl md:text-5xl font-black" data-testid="dashboard-title">Creator Dashboard</h1>
-          <Button
-            onClick={() => navigate("/creator/create-event")}
-            className="bg-blue-600 hover:bg-blue-700 text-white font-bold px-6 py-3 flex items-center gap-2"
-            data-testid="create-event-button"
-          >
-            <Plus className="w-5 h-5" />
-            Create Event
-          </Button>
+          <div className="flex gap-3">
+            <Button
+              onClick={() => navigate("/creator/settings")}
+              className="bg-gray-700 hover:bg-gray-600 text-white font-bold px-4 py-3 flex items-center gap-2"
+              data-testid="settings-button"
+            >
+              <Wallet className="w-5 h-5" />
+              Payouts
+            </Button>
+            <Button
+              onClick={() => navigate("/creator/create-event")}
+              className="bg-blue-600 hover:bg-blue-700 text-white font-bold px-6 py-3 flex items-center gap-2"
+              data-testid="create-event-button"
+            >
+              <Plus className="w-5 h-5" />
+              Create Event
+            </Button>
+          </div>
         </div>
+
+        {/* Onboarding Progress Banner */}
+        {onboardingStatus && !onboardingStatus.steps?.onboarding_completed && (
+          <button
+            onClick={() => setShowOnboarding(true)}
+            className="w-full bg-gradient-to-r from-blue-600/20 to-purple-600/20 border border-blue-500/30 rounded-lg p-4 mb-8 flex items-center justify-between hover:from-blue-600/30 hover:to-purple-600/30 transition-all"
+            data-testid="onboarding-banner"
+          >
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 bg-blue-600 rounded-full flex items-center justify-center">
+                <span className="text-white font-bold">{onboardingStatus.current_step}/{onboardingStatus.total_steps}</span>
+              </div>
+              <div className="text-left">
+                <p className="text-white font-semibold">Complete your setup</p>
+                <p className="text-gray-400 text-sm">Finish setting up your creator account to start earning</p>
+              </div>
+            </div>
+            <span className="text-blue-400 font-medium">Continue →</span>
+          </button>
+        )}
 
         {/* Earnings Overview */}
         <div className="grid md:grid-cols-4 gap-4 mb-12">
