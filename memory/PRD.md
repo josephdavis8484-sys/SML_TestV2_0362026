@@ -157,7 +157,9 @@ English
 - **Backend**: FastAPI, Python
 - **Database**: MongoDB
 - **Auth**: Google OAuth 2.0 (Emergent Auth), JWT for Admin
-- **Payments**: Stripe (fully integrated)
+- **Payments**: Stripe (fully integrated), Stripe Connect (creator payouts)
+- **Streaming**: LiveKit (WebRTC)
+- **Real-time**: WebSocket (live chat)
 - **Calendar**: iCalendar library
 
 ---
