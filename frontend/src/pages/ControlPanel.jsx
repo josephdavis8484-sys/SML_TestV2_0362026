@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useCallback } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { axiosInstance } from "@/App";
 import { Button } from "@/components/ui/button";
@@ -13,14 +13,27 @@ import {
   Settings, 
   Play,
   Pause,
-  ChevronLeft,
-  ChevronRight,
   Monitor,
   X,
   Minimize2,
-  Maximize2
+  Maximize2,
+  Video,
+  VideoOff,
+  Users,
+  AlertCircle
 } from "lucide-react";
 import { toast } from "sonner";
+import {
+  LiveKitRoom,
+  VideoTrack,
+  AudioTrack,
+  useLocalParticipant,
+  useParticipants,
+  useTracks,
+  RoomAudioRenderer,
+} from "@livekit/components-react";
+import "@livekit/components-styles";
+import { Track, createLocalTracks, LocalVideoTrack, LocalAudioTrack } from "livekit-client";
 
 const ControlPanel = ({ user, onLogout }) => {
   const { eventId } = useParams();
@@ -30,6 +43,10 @@ const ControlPanel = ({ user, onLogout }) => {
   const [showQR, setShowQR] = useState(null);
   const [activeCamera, setActiveCamera] = useState(0);
   const [isStreaming, setIsStreaming] = useState(false);
+  const [liveKitToken, setLiveKitToken] = useState(null);
+  const [liveKitUrl, setLiveKitUrl] = useState(null);
+  const [roomName, setRoomName] = useState(null);
+  const [streamStatus, setStreamStatus] = useState(null);
   
   // Audio controls
   const [micVolume, setMicVolume] = useState(75);
@@ -37,24 +54,43 @@ const ControlPanel = ({ user, onLogout }) => {
   const [speakerVolume, setSpeakerVolume] = useState(80);
   const [treble, setTreble] = useState(50);
   const [bass, setBass] = useState(50);
-  const [audioBalance, setAudioBalance] = useState(50);
   
   // Video transition
   const [transitionType, setTransitionType] = useState("cut");
   const [fadeSpeed, setFadeSpeed] = useState(50);
 
+  // Available cameras
+  const [availableCameras, setAvailableCameras] = useState([]);
+  const [selectedCameraId, setSelectedCameraId] = useState(null);
+
   useEffect(() => {
     fetchData();
+    enumerateCameras();
   }, [eventId]);
+
+  const enumerateCameras = async () => {
+    try {
+      const devices = await navigator.mediaDevices.enumerateDevices();
+      const cameras = devices.filter(d => d.kind === 'videoinput');
+      setAvailableCameras(cameras);
+      if (cameras.length > 0 && !selectedCameraId) {
+        setSelectedCameraId(cameras[0].deviceId);
+      }
+    } catch (error) {
+      console.error("Error enumerating cameras:", error);
+    }
+  };
 
   const fetchData = async () => {
     try {
-      const [eventRes, devicesRes] = await Promise.all([
+      const [eventRes, devicesRes, statusRes] = await Promise.all([
         axiosInstance.get(`/events/${eventId}`),
-        axiosInstance.get(`/streaming/devices/${eventId}`)
+        axiosInstance.get(`/streaming/devices/${eventId}`),
+        axiosInstance.get(`/livekit/stream-status/${eventId}`)
       ]);
       setEvent(eventRes.data);
       setDevices(devicesRes.data);
+      setStreamStatus(statusRes.data);
     } catch (error) {
       console.error("Error fetching data:", error);
       toast.error("Failed to load control panel");
@@ -81,13 +117,43 @@ const ControlPanel = ({ user, onLogout }) => {
     }
   };
 
-  const handleStartStream = () => {
-    setIsStreaming(!isStreaming);
-    toast.success(isStreaming ? "Stream stopped" : "Stream started!");
+  const handleStartStream = async () => {
+    if (isStreaming) {
+      // Stop stream
+      try {
+        await axiosInstance.post(`/livekit/end-stream/${eventId}`);
+        setIsStreaming(false);
+        setLiveKitToken(null);
+        toast.success("Stream ended");
+      } catch (error) {
+        toast.error("Failed to end stream");
+      }
+    } else {
+      // Start stream - get LiveKit token
+      try {
+        const response = await axiosInstance.post("/livekit/join-as-creator", {
+          event_id: eventId,
+          device_name: `Camera ${activeCamera + 1}`,
+          is_publisher: true
+        });
+        
+        setLiveKitToken(response.data.token);
+        setLiveKitUrl(response.data.url);
+        setRoomName(response.data.room_name);
+        setIsStreaming(true);
+        toast.success("Stream started!");
+        fetchData(); // Refresh status
+      } catch (error) {
+        toast.error("Failed to start stream");
+      }
+    }
   };
 
   const switchCamera = (index) => {
     setActiveCamera(index);
+    if (availableCameras[index]) {
+      setSelectedCameraId(availableCameras[index].deviceId);
+    }
     toast.success(`Switched to Camera ${index + 1}`);
   };
 
@@ -104,11 +170,11 @@ const ControlPanel = ({ user, onLogout }) => {
   const isPremium = event.streaming_package === "premium";
 
   // Generate placeholder cameras for demo
-  const cameras = Array.from({ length: Math.max(streamDevices.length, isPremium ? 5 : 1) }, (_, i) => ({
+  const cameras = Array.from({ length: Math.max(availableCameras.length, isPremium ? 5 : 1) }, (_, i) => ({
     id: i,
-    name: `Camera ${i + 1}`,
-    connected: i < streamDevices.length,
-    device: streamDevices[i]
+    name: availableCameras[i]?.label || `Camera ${i + 1}`,
+    connected: i < availableCameras.length,
+    deviceId: availableCameras[i]?.deviceId
   }));
 
   return (
@@ -128,55 +194,96 @@ const ControlPanel = ({ user, onLogout }) => {
               PRO
             </span>
           )}
+          {streamStatus?.is_live && (
+            <div className="flex items-center gap-2 bg-red-600 px-2 py-0.5 rounded text-xs">
+              <div className="w-2 h-2 bg-white rounded-full animate-pulse" />
+              <span className="text-white font-medium">LIVE</span>
+            </div>
+          )}
         </div>
-        <div className="flex items-center gap-2">
-          <button className="text-gray-400 hover:text-white p-1"><Minimize2 className="w-4 h-4" /></button>
-          <button className="text-gray-400 hover:text-white p-1"><Maximize2 className="w-4 h-4" /></button>
-          <button 
-            onClick={() => navigate("/creator/dashboard")}
-            className="text-gray-400 hover:text-red-500 p-1"
-          >
-            <X className="w-4 h-4" />
-          </button>
+        <div className="flex items-center gap-4">
+          {streamStatus?.is_live && (
+            <div className="flex items-center gap-2 text-gray-400 text-sm">
+              <Users className="w-4 h-4" />
+              <span>{streamStatus?.viewer_count || 0} viewers</span>
+            </div>
+          )}
+          <div className="flex items-center gap-2">
+            <button className="text-gray-400 hover:text-white p-1"><Minimize2 className="w-4 h-4" /></button>
+            <button className="text-gray-400 hover:text-white p-1"><Maximize2 className="w-4 h-4" /></button>
+            <button 
+              onClick={() => navigate("/creator/dashboard")}
+              className="text-gray-400 hover:text-red-500 p-1"
+            >
+              <X className="w-4 h-4" />
+            </button>
+          </div>
         </div>
       </div>
+
+      {/* LiveKit Configuration Status */}
+      {!streamStatus?.livekit_configured && (
+        <div className="bg-yellow-500/10 border-b border-yellow-500/30 px-4 py-2 flex items-center gap-2">
+          <AlertCircle className="w-4 h-4 text-yellow-400" />
+          <span className="text-yellow-400 text-sm">
+            LiveKit not configured. Add LIVEKIT_URL, LIVEKIT_API_KEY, and LIVEKIT_API_SECRET to .env for real streaming.
+          </span>
+        </div>
+      )}
 
       <div className="flex h-[calc(100vh-48px)]">
         {/* Main Content Area */}
         <div className="flex-1 p-4 flex flex-col">
           {/* Main Camera View */}
           <div className="flex-1 bg-black rounded-lg overflow-hidden relative mb-4">
-            <div className="absolute top-4 left-4 bg-black/60 px-3 py-1 rounded text-white text-sm font-medium">
+            <div className="absolute top-4 left-4 bg-black/60 px-3 py-1 rounded text-white text-sm font-medium z-10">
               Camera {activeCamera + 1}
             </div>
             {isStreaming && (
-              <div className="absolute top-4 right-4 flex items-center gap-2 bg-red-600 px-3 py-1 rounded">
+              <div className="absolute top-4 right-4 flex items-center gap-2 bg-red-600 px-3 py-1 rounded z-10">
                 <div className="w-2 h-2 bg-white rounded-full animate-pulse" />
                 <span className="text-white text-sm font-medium">LIVE</span>
               </div>
             )}
-            <div className="w-full h-full flex items-center justify-center bg-gradient-to-br from-gray-900 to-black">
-              {cameras[activeCamera]?.connected ? (
-                <div className="text-center">
-                  <Radio className="w-20 h-20 text-blue-500 mx-auto mb-4 animate-pulse" />
-                  <p className="text-white text-lg">Camera {activeCamera + 1} Active</p>
-                  <p className="text-gray-500 text-sm mt-1">Ready for streaming</p>
-                </div>
-              ) : (
-                <div className="text-center">
-                  <Monitor className="w-20 h-20 text-gray-600 mx-auto mb-4" />
-                  <p className="text-gray-400 text-lg">Camera {activeCamera + 1}</p>
-                  <p className="text-gray-500 text-sm mt-1">Not connected</p>
-                  <Button
-                    onClick={generateDevice}
-                    className="mt-4 bg-blue-600 hover:bg-blue-700"
-                  >
-                    <Plus className="w-4 h-4 mr-2" />
-                    Connect Device
-                  </Button>
-                </div>
-              )}
-            </div>
+            
+            {/* LiveKit Room or Preview */}
+            {isStreaming && liveKitToken && liveKitUrl ? (
+              <LiveKitRoom
+                video={true}
+                audio={true}
+                token={liveKitToken}
+                serverUrl={liveKitUrl}
+                connectOptions={{ autoSubscribe: true }}
+                className="w-full h-full"
+              >
+                <StreamView micMuted={micMuted} />
+                <RoomAudioRenderer />
+              </LiveKitRoom>
+            ) : (
+              <div className="w-full h-full flex items-center justify-center bg-gradient-to-br from-gray-900 to-black">
+                {cameras[activeCamera]?.connected ? (
+                  <div className="text-center">
+                    <Video className="w-20 h-20 text-blue-500 mx-auto mb-4" />
+                    <p className="text-white text-lg">Camera {activeCamera + 1} Ready</p>
+                    <p className="text-gray-500 text-sm mt-1">{cameras[activeCamera]?.name}</p>
+                    <p className="text-gray-600 text-xs mt-2">Click "Start Stream" to go live</p>
+                  </div>
+                ) : (
+                  <div className="text-center">
+                    <Monitor className="w-20 h-20 text-gray-600 mx-auto mb-4" />
+                    <p className="text-gray-400 text-lg">Camera {activeCamera + 1}</p>
+                    <p className="text-gray-500 text-sm mt-1">Not connected</p>
+                    <Button
+                      onClick={generateDevice}
+                      className="mt-4 bg-blue-600 hover:bg-blue-700"
+                    >
+                      <Plus className="w-4 h-4 mr-2" />
+                      Connect Device
+                    </Button>
+                  </div>
+                )}
+              </div>
+            )}
           </div>
 
           {/* Bottom Controls */}
@@ -366,9 +473,9 @@ const ControlPanel = ({ user, onLogout }) => {
                 <div className="aspect-video bg-black flex items-center justify-center relative">
                   {cam.connected ? (
                     <>
-                      <Radio className={`w-8 h-8 ${activeCamera === index ? "text-blue-500" : "text-gray-500"}`} />
-                      {cam.device?.is_active && (
-                        <div className="absolute top-1 right-1 w-2 h-2 bg-green-500 rounded-full" />
+                      <Video className={`w-8 h-8 ${activeCamera === index ? "text-blue-500" : "text-gray-500"}`} />
+                      {activeCamera === index && isStreaming && (
+                        <div className="absolute top-1 right-1 w-2 h-2 bg-red-500 rounded-full animate-pulse" />
                       )}
                     </>
                   ) : (
@@ -376,7 +483,7 @@ const ControlPanel = ({ user, onLogout }) => {
                   )}
                 </div>
                 <div className="bg-gray-800 px-2 py-1">
-                  <p className="text-white text-xs font-medium">Camera {index + 1}</p>
+                  <p className="text-white text-xs font-medium truncate">{cam.name}</p>
                   <p className={`text-xs ${cam.connected ? "text-green-400" : "text-gray-500"}`}>
                     {cam.connected ? "Connected" : "Not connected"}
                   </p>
@@ -402,7 +509,7 @@ const ControlPanel = ({ user, onLogout }) => {
               {isPremium ? "Premium" : "Free"} Package
             </p>
             <p className="text-white text-sm font-medium">
-              {streamDevices.length}/{maxDevices} cameras
+              {availableCameras.length}/{maxDevices} cameras
             </p>
             {!isPremium && (
               <Button
@@ -446,6 +553,32 @@ const ControlPanel = ({ user, onLogout }) => {
             </div>
           </div>
         </div>
+      )}
+    </div>
+  );
+};
+
+// Stream View Component (inside LiveKitRoom)
+const StreamView = ({ micMuted }) => {
+  const { localParticipant } = useLocalParticipant();
+  const tracks = useTracks([Track.Source.Camera, Track.Source.Microphone]);
+  
+  useEffect(() => {
+    if (localParticipant) {
+      // Mute/unmute based on state
+      const audioTrack = localParticipant.getTrackPublication(Track.Source.Microphone);
+      if (audioTrack) {
+        audioTrack.setEnabled(!micMuted);
+      }
+    }
+  }, [micMuted, localParticipant]);
+
+  const videoTrack = tracks.find(t => t.source === Track.Source.Camera);
+
+  return (
+    <div className="w-full h-full">
+      {videoTrack && (
+        <VideoTrack trackRef={videoTrack} className="w-full h-full object-cover" />
       )}
     </div>
   );
