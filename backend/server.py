@@ -1516,7 +1516,95 @@ async def send_announcement(event_id: str, msg: SendMessage, current_user: User 
     msg_doc['created_at'] = msg_doc['created_at'].isoformat()
     await db.chat_messages.insert_one(msg_doc)
     
+    # Broadcast announcement via WebSocket
+    await chat_manager.broadcast_to_event(event_id, {
+        "type": "announcement",
+        "message": {
+            "id": chat_message.id,
+            "user_name": current_user.name,
+            "user_picture": current_user.picture,
+            "message": msg.message,
+            "message_type": "announcement",
+            "created_at": msg_doc['created_at'],
+            "is_pinned": True
+        }
+    })
+    
     return {"success": True, "message_id": chat_message.id}
+
+# ==================== WEBSOCKET CHAT ====================
+
+@app.websocket("/ws/chat/{event_id}")
+async def websocket_chat(websocket: WebSocket, event_id: str):
+    """WebSocket endpoint for real-time chat"""
+    # Verify event exists and chat is enabled
+    event = await db.events.find_one({"id": event_id}, {"_id": 0})
+    if not event:
+        await websocket.close(code=4004, reason="Event not found")
+        return
+    
+    if not event.get("chat_enabled", False):
+        await websocket.close(code=4003, reason="Chat not enabled for this event")
+        return
+    
+    # Connect to the chat room
+    await chat_manager.connect(websocket, event_id)
+    
+    try:
+        # Send initial connection success and viewer count
+        await websocket.send_json({
+            "type": "connected",
+            "event_id": event_id,
+            "viewer_count": chat_manager.get_connection_count(event_id),
+            "chat_mode": event.get("chat_mode", "open"),
+            "reactions_enabled": event.get("reactions_enabled", False)
+        })
+        
+        # Broadcast updated viewer count to all
+        await chat_manager.broadcast_to_event(event_id, {
+            "type": "viewer_count",
+            "count": chat_manager.get_connection_count(event_id)
+        })
+        
+        # Keep connection alive and listen for messages
+        while True:
+            # Wait for any message (ping/pong or other)
+            data = await websocket.receive_text()
+            
+            # Handle ping
+            if data == "ping":
+                await websocket.send_text("pong")
+            else:
+                # Parse JSON messages for potential future features
+                try:
+                    message_data = json.loads(data)
+                    # Handle typing indicators or other real-time features here
+                    if message_data.get("type") == "typing":
+                        await chat_manager.broadcast_to_event(event_id, {
+                            "type": "typing",
+                            "user_name": message_data.get("user_name", "Someone")
+                        })
+                except json.JSONDecodeError:
+                    pass
+                    
+    except WebSocketDisconnect:
+        chat_manager.disconnect(websocket, event_id)
+        # Broadcast updated viewer count
+        await chat_manager.broadcast_to_event(event_id, {
+            "type": "viewer_count",
+            "count": chat_manager.get_connection_count(event_id)
+        })
+    except Exception as e:
+        logging.error(f"WebSocket error: {e}")
+        chat_manager.disconnect(websocket, event_id)
+
+@api_router.get("/events/{event_id}/chat/viewers")
+async def get_chat_viewer_count(event_id: str):
+    """Get the number of viewers connected to the chat"""
+    return {
+        "event_id": event_id,
+        "viewer_count": chat_manager.get_connection_count(event_id)
+    }
 
 # ==================== LIVEKIT STREAMING ====================
 
