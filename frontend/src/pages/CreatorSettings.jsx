@@ -164,7 +164,7 @@ const CreatorSettings = ({ user, onLogout }) => {
                 </div>
               </div>
               <Button
-                onClick={() => setShowLinkModal(true)}
+                onClick={() => setShowPlaidLink(true)}
                 variant="outline"
                 className="border-gray-600 text-gray-300 hover:bg-gray-800"
               >
@@ -183,10 +183,12 @@ const CreatorSettings = ({ user, onLogout }) => {
                 </div>
               </div>
               <Button
-                onClick={() => setShowLinkModal(true)}
-                className="bg-blue-600 hover:bg-blue-700"
+                onClick={() => setShowPlaidLink(true)}
+                className="bg-blue-600 hover:bg-blue-700 flex items-center gap-2"
+                data-testid="link-bank-button"
               >
-                Link Bank Account
+                <LinkIcon className="w-4 h-4" />
+                Link with Plaid
               </Button>
             </div>
           )}
