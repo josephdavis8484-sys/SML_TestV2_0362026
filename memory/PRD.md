@@ -214,3 +214,13 @@ English
     - Typing indicators
     - Auto-reconnection with 3-second retry
     - Ping/pong keepalive for connection health
+17. **NEW (Feb 2026): Push Notifications for Live Events** - Viewers notified when events go live:
+    - Notification model and database collection
+    - REST API endpoints for CRUD operations on notifications
+    - WebSocket endpoint `/api/ws/notifications` for real-time push (with REST fallback)
+    - NotificationBell component in Navbar with unread badge
+    - `POST /api/events/{event_id}/go-live` - Sets event live & notifies ticket holders
+    - `POST /api/events/{event_id}/end` - Marks event as completed
+    - Toast notifications for live event alerts
+    - Notification types: event_live, event_reminder, ticket_purchased, payout_completed
+
