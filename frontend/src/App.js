@@ -10,6 +10,7 @@ import LoadingScreen from "@/components/LoadingScreen";
 import RoleSelection from "@/pages/RoleSelection";
 import SelectRole from "@/pages/SelectRole";
 import CreatorDashboard from "@/pages/CreatorDashboard";
+import CreatorSettings from "@/pages/CreatorSettings";
 import CreateEvent from "@/pages/CreateEvent";
 import StreamDevice from "@/pages/StreamDevice";
 import ControlPanel from "@/pages/ControlPanel";
