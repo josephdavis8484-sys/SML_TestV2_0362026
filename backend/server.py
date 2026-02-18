@@ -1428,6 +1428,13 @@ async def send_reaction(event_id: str, reaction: SendReaction, current_user: Use
     doc['created_at'] = doc['created_at'].isoformat()
     await db.reactions.insert_one(doc)
     
+    # Broadcast reaction to WebSocket connections
+    await chat_manager.broadcast_to_event(event_id, {
+        "type": "reaction",
+        "reaction_type": reaction.reaction_type,
+        "user_name": current_user.name
+    })
+    
     return {"success": True, "reaction_type": reaction.reaction_type}
 
 @api_router.get("/events/{event_id}/reactions/count")
