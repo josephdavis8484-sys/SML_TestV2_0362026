@@ -6,7 +6,7 @@ import pytest
 import requests
 import os
 
-BASE_URL = os.environ.get('REACT_APP_BACKEND_URL', 'https://showlive-1.preview.emergentagent.com').rstrip('/')
+BASE_URL = os.environ.get('REACT_APP_BACKEND_URL', 'https://livestream-hub-76.preview.emergentagent.com').rstrip('/')
 
 # Test session token created in MongoDB
 CREATOR_SESSION_TOKEN = "test_session_creator_1771383294679"
