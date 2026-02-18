@@ -142,13 +142,17 @@ English
   - Live viewer count tracking
   - Typing indicators
   - Auto-reconnection with 3-second retry
+- [x] ~~Push notifications for live events~~ → **FULLY IMPLEMENTED** (Feb 2026)
+  - NotificationBell component in Navbar
+  - REST API + WebSocket for real-time notifications
+  - Viewers notified when purchased events go live
+  - Toast alerts for live event notifications
 - [ ] Real-time withdrawal status updates (WebSocket)
 
 ### P2 (Lower Priority - Future)
 - [ ] Anti-piracy measures (screen recording prevention)
 - [ ] Coins/Diamond virtual currency system
 - [ ] Social logins (Facebook, Instagram, Twitter)
-- [ ] Push notifications for live events
 
 ---
 
@@ -159,7 +163,7 @@ English
 - **Auth**: Google OAuth 2.0 (Emergent Auth), JWT for Admin
 - **Payments**: Stripe (fully integrated), Stripe Connect (creator payouts)
 - **Streaming**: LiveKit (WebRTC)
-- **Real-time**: WebSocket (live chat)
+- **Real-time**: WebSocket (live chat, notifications)
 - **Calendar**: iCalendar library
 
 ---
