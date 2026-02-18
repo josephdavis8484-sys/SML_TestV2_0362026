@@ -211,6 +211,50 @@ class PaymentTransaction(BaseModel):
     metadata: Dict = {}
     created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
 
+class PromoCode(BaseModel):
+    model_config = ConfigDict(extra="ignore")
+    
+    id: str = Field(default_factory=lambda: str(uuid.uuid4()))
+    code: str  # The actual promo code string (e.g., "LAUNCH50")
+    description: str = ""
+    discount_type: str = "percentage"  # "percentage" or "fixed"
+    discount_value: float  # e.g., 50 for 50% off or 500 for $500 off
+    applies_to: str = "pro_mode"  # "pro_mode", "ticket", "all"
+    max_uses: Optional[int] = None  # None means unlimited
+    current_uses: int = 0
+    min_purchase: float = 0.0  # Minimum purchase amount to apply
+    start_date: Optional[str] = None  # ISO format date string
+    expiration_date: Optional[str] = None  # ISO format date string
+    is_active: bool = True
+    created_by: str  # Admin user ID
+    created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
+
+class PromoCodeCreate(BaseModel):
+    code: str
+    description: str = ""
+    discount_type: str = "percentage"
+    discount_value: float
+    applies_to: str = "pro_mode"
+    max_uses: Optional[int] = None
+    min_purchase: float = 0.0
+    start_date: Optional[str] = None
+    expiration_date: Optional[str] = None
+
+class PromoCodeUpdate(BaseModel):
+    description: Optional[str] = None
+    discount_type: Optional[str] = None
+    discount_value: Optional[float] = None
+    max_uses: Optional[int] = None
+    min_purchase: Optional[float] = None
+    start_date: Optional[str] = None
+    expiration_date: Optional[str] = None
+    is_active: Optional[bool] = None
+
+class PromoCodeValidate(BaseModel):
+    code: str
+    purchase_type: str = "pro_mode"  # "pro_mode" or "ticket"
+    purchase_amount: float = 1000.0
+
 class Notification(BaseModel):
     model_config = ConfigDict(extra="ignore")
     
