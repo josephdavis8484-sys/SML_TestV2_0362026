@@ -1668,6 +1668,238 @@ async def get_chat_viewer_count(event_id: str):
         "viewer_count": chat_manager.get_connection_count(event_id)
     }
 
+# ==================== NOTIFICATIONS ====================
+
+@api_router.get("/notifications")
+async def get_notifications(current_user: User = Depends(get_current_user), limit: int = 50):
+    """Get user's notifications"""
+    notifications = await db.notifications.find(
+        {"user_id": current_user.id},
+        {"_id": 0}
+    ).sort("created_at", -1).limit(limit).to_list(limit)
+    
+    # Convert datetime to string if needed
+    for notif in notifications:
+        if isinstance(notif.get("created_at"), datetime):
+            notif["created_at"] = notif["created_at"].isoformat()
+    
+    # Count unread
+    unread_count = await db.notifications.count_documents({
+        "user_id": current_user.id,
+        "read": False
+    })
+    
+    return {
+        "notifications": notifications,
+        "unread_count": unread_count
+    }
+
+@api_router.get("/notifications/unread-count")
+async def get_unread_count(current_user: User = Depends(get_current_user)):
+    """Get count of unread notifications"""
+    count = await db.notifications.count_documents({
+        "user_id": current_user.id,
+        "read": False
+    })
+    return {"unread_count": count}
+
+@api_router.post("/notifications/{notification_id}/read")
+async def mark_notification_read(notification_id: str, current_user: User = Depends(get_current_user)):
+    """Mark a notification as read"""
+    result = await db.notifications.update_one(
+        {"id": notification_id, "user_id": current_user.id},
+        {"$set": {"read": True}}
+    )
+    if result.matched_count == 0:
+        raise HTTPException(status_code=404, detail="Notification not found")
+    return {"success": True}
+
+@api_router.post("/notifications/read-all")
+async def mark_all_notifications_read(current_user: User = Depends(get_current_user)):
+    """Mark all notifications as read"""
+    await db.notifications.update_many(
+        {"user_id": current_user.id, "read": False},
+        {"$set": {"read": True}}
+    )
+    return {"success": True}
+
+@api_router.delete("/notifications/{notification_id}")
+async def delete_notification(notification_id: str, current_user: User = Depends(get_current_user)):
+    """Delete a notification"""
+    result = await db.notifications.delete_one({
+        "id": notification_id,
+        "user_id": current_user.id
+    })
+    if result.deleted_count == 0:
+        raise HTTPException(status_code=404, detail="Notification not found")
+    return {"success": True}
+
+# Helper function to create and send notification
+async def create_notification(
+    user_id: str,
+    notification_type: str,
+    title: str,
+    message: str,
+    event_id: Optional[str] = None,
+    data: Dict = {}
+):
+    """Create a notification and send via WebSocket if user is connected"""
+    notification = Notification(
+        user_id=user_id,
+        type=notification_type,
+        title=title,
+        message=message,
+        event_id=event_id,
+        data=data
+    )
+    
+    notif_doc = notification.model_dump()
+    notif_doc["created_at"] = notif_doc["created_at"].isoformat()
+    await db.notifications.insert_one(notif_doc)
+    
+    # Send via WebSocket if user is connected
+    await notification_manager.send_to_user(user_id, {
+        "type": "new_notification",
+        "notification": {
+            "id": notification.id,
+            "type": notification_type,
+            "title": title,
+            "message": message,
+            "event_id": event_id,
+            "data": data,
+            "read": False,
+            "created_at": notif_doc["created_at"]
+        }
+    })
+    
+    return notification
+
+# WebSocket for real-time notifications
+@app.websocket("/api/ws/notifications")
+async def websocket_notifications(websocket: WebSocket):
+    """WebSocket endpoint for real-time notifications"""
+    # Get session token from query params
+    session_token = websocket.query_params.get("token")
+    
+    if not session_token:
+        await websocket.close(code=4001, reason="Missing authentication token")
+        return
+    
+    # Verify session
+    session_doc = await db.user_sessions.find_one({
+        "session_token": session_token,
+        "expires_at": {"$gt": datetime.now(timezone.utc).isoformat()}
+    })
+    
+    if not session_doc:
+        await websocket.close(code=4001, reason="Invalid or expired session")
+        return
+    
+    user_id = session_doc["user_id"]
+    
+    # Connect
+    await notification_manager.connect(websocket, user_id)
+    
+    try:
+        # Send initial unread count
+        unread_count = await db.notifications.count_documents({
+            "user_id": user_id,
+            "read": False
+        })
+        
+        await websocket.send_json({
+            "type": "connected",
+            "unread_count": unread_count
+        })
+        
+        # Keep connection alive
+        while True:
+            data = await websocket.receive_text()
+            if data == "ping":
+                await websocket.send_text("pong")
+                
+    except WebSocketDisconnect:
+        notification_manager.disconnect(websocket, user_id)
+    except Exception as e:
+        logging.error(f"Notification WebSocket error: {e}")
+        notification_manager.disconnect(websocket, user_id)
+
+# Endpoint to set event live and notify ticket holders
+@api_router.post("/events/{event_id}/go-live")
+async def set_event_live(event_id: str, current_user: User = Depends(get_current_user)):
+    """Set an event to live status and notify all ticket holders"""
+    event = await db.events.find_one({"id": event_id}, {"_id": 0})
+    if not event:
+        raise HTTPException(status_code=404, detail="Event not found")
+    
+    if event.get("creator_id") != current_user.id:
+        raise HTTPException(status_code=403, detail="Only the event creator can start the event")
+    
+    if event.get("status") == "live":
+        return {"success": True, "message": "Event is already live"}
+    
+    # Update event status
+    await db.events.update_one(
+        {"id": event_id},
+        {"$set": {"status": "live"}}
+    )
+    
+    # Get all ticket holders for this event
+    tickets = await db.tickets.find(
+        {"event_id": event_id, "refunded": False},
+        {"_id": 0, "user_id": 1}
+    ).to_list(10000)
+    
+    # Get unique user IDs
+    user_ids = list(set(ticket["user_id"] for ticket in tickets))
+    
+    # Create notifications for all ticket holders
+    notification_tasks = []
+    for uid in user_ids:
+        notification_tasks.append(
+            create_notification(
+                user_id=uid,
+                notification_type="event_live",
+                title="🎬 Your event is now LIVE!",
+                message=f"{event['title']} has started! Join now to watch.",
+                event_id=event_id,
+                data={
+                    "event_title": event["title"],
+                    "event_image": event.get("image_url"),
+                    "action_url": f"/event/{event_id}"
+                }
+            )
+        )
+    
+    # Execute all notification tasks
+    if notification_tasks:
+        await asyncio.gather(*notification_tasks)
+    
+    logging.info(f"Event {event_id} went live. Notified {len(user_ids)} ticket holders.")
+    
+    return {
+        "success": True,
+        "message": f"Event is now live. {len(user_ids)} viewers notified.",
+        "notified_count": len(user_ids)
+    }
+
+@api_router.post("/events/{event_id}/end")
+async def end_event(event_id: str, current_user: User = Depends(get_current_user)):
+    """End a live event"""
+    event = await db.events.find_one({"id": event_id}, {"_id": 0})
+    if not event:
+        raise HTTPException(status_code=404, detail="Event not found")
+    
+    if event.get("creator_id") != current_user.id:
+        raise HTTPException(status_code=403, detail="Only the event creator can end the event")
+    
+    await db.events.update_one(
+        {"id": event_id},
+        {"$set": {"status": "completed"}}
+    )
+    
+    return {"success": True, "message": "Event has ended"}
+
 # ==================== LIVEKIT STREAMING ====================
 
 class LiveKitTokenRequest(BaseModel):
