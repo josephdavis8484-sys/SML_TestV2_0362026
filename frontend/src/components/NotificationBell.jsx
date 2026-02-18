@@ -10,19 +10,40 @@ const NotificationBell = ({ user }) => {
   const [unreadCount, setUnreadCount] = useState(0);
   const [isOpen, setIsOpen] = useState(false);
   const [loading, setLoading] = useState(false);
+  const [wsConnected, setWsConnected] = useState(false);
   const wsRef = useRef(null);
   const dropdownRef = useRef(null);
+  const pollIntervalRef = useRef(null);
 
-  // Get WebSocket URL
+  // Fetch notifications via REST API
+  const fetchNotifications = useCallback(async () => {
+    if (!user) return;
+    try {
+      const response = await axiosInstance.get('/notifications');
+      setNotifications(response.data.notifications);
+      setUnreadCount(response.data.unread_count);
+    } catch (error) {
+      console.error('Error fetching notifications:', error);
+    }
+  }, [user]);
+
+  // Get WebSocket URL - try to use a stored token or skip WS
   const getWebSocketUrl = useCallback(() => {
     const backendUrl = process.env.REACT_APP_BACKEND_URL || window.location.origin;
     const wsProtocol = backendUrl.startsWith('https') ? 'wss' : 'ws';
     const wsHost = backendUrl.replace(/^https?:\/\//, '');
-    // Get session token from cookie
+    
+    // Try to get session token from various sources
+    // Note: If cookie is httpOnly, JavaScript can't access it
     const sessionToken = document.cookie
       .split('; ')
       .find(row => row.startsWith('session_token='))
       ?.split('=')[1];
+    
+    if (!sessionToken || sessionToken === 'undefined') {
+      return null; // Can't connect without token
+    }
+    
     return `${wsProtocol}://${wsHost}/api/ws/notifications?token=${sessionToken}`;
   }, []);
 
@@ -33,11 +54,23 @@ const NotificationBell = ({ user }) => {
 
     const wsUrl = getWebSocketUrl();
     
+    if (!wsUrl) {
+      console.log('No session token available for WebSocket, using REST polling');
+      setWsConnected(false);
+      return;
+    }
+
     try {
       wsRef.current = new WebSocket(wsUrl);
 
       wsRef.current.onopen = () => {
         console.log('Notification WebSocket connected');
+        setWsConnected(true);
+        // Stop polling if WS is connected
+        if (pollIntervalRef.current) {
+          clearInterval(pollIntervalRef.current);
+          pollIntervalRef.current = null;
+        }
       };
 
       wsRef.current.onmessage = (event) => {
@@ -50,17 +83,22 @@ const NotificationBell = ({ user }) => {
       };
 
       wsRef.current.onclose = () => {
-        // Reconnect after 5 seconds
+        setWsConnected(false);
+        // Restart polling
+        startPolling();
+        // Reconnect after 10 seconds
         setTimeout(() => {
           if (user) connectWebSocket();
-        }, 5000);
+        }, 10000);
       };
 
       wsRef.current.onerror = (error) => {
         console.error('Notification WebSocket error:', error);
+        setWsConnected(false);
       };
     } catch (error) {
       console.error('Failed to create notification WebSocket:', error);
+      setWsConnected(false);
     }
   }, [user, getWebSocketUrl]);
 
@@ -88,20 +126,15 @@ const NotificationBell = ({ user }) => {
     }
   }, [navigate]);
 
-  // Fetch notifications
-  const fetchNotifications = async () => {
-    if (!user) return;
-    setLoading(true);
-    try {
-      const response = await axiosInstance.get('/notifications');
-      setNotifications(response.data.notifications);
-      setUnreadCount(response.data.unread_count);
-    } catch (error) {
-      console.error('Error fetching notifications:', error);
-    } finally {
-      setLoading(false);
-    }
-  };
+  // Start REST API polling as fallback
+  const startPolling = useCallback(() => {
+    if (pollIntervalRef.current) return; // Already polling
+    if (wsConnected) return; // WebSocket is working
+    
+    pollIntervalRef.current = setInterval(() => {
+      fetchNotifications();
+    }, 30000); // Poll every 30 seconds
+  }, [wsConnected, fetchNotifications]);
 
   // Mark as read
   const markAsRead = async (notificationId) => {
@@ -164,27 +197,43 @@ const NotificationBell = ({ user }) => {
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
 
-  // Connect WebSocket and fetch notifications on mount
+  // Initialize notifications on mount
   useEffect(() => {
     if (user) {
+      // Initial fetch
       fetchNotifications();
+      
+      // Try WebSocket connection
       connectWebSocket();
       
-      // Set up ping interval
+      // Set up ping interval for WebSocket
       const pingInterval = setInterval(() => {
         if (wsRef.current?.readyState === WebSocket.OPEN) {
           wsRef.current.send('ping');
         }
       }, 30000);
+      
+      // Start polling as fallback (will be stopped if WS connects)
+      startPolling();
 
       return () => {
         clearInterval(pingInterval);
+        if (pollIntervalRef.current) {
+          clearInterval(pollIntervalRef.current);
+        }
         if (wsRef.current) {
           wsRef.current.close();
         }
       };
     }
-  }, [user, connectWebSocket]);
+  }, [user, connectWebSocket, fetchNotifications, startPolling]);
+
+  // Refresh notifications when dropdown opens
+  useEffect(() => {
+    if (isOpen && user) {
+      fetchNotifications();
+    }
+  }, [isOpen, user, fetchNotifications]);
 
   if (!user) return null;
 
@@ -238,6 +287,7 @@ const NotificationBell = ({ user }) => {
               <button
                 onClick={markAllAsRead}
                 className="text-blue-400 hover:text-blue-300 text-sm flex items-center gap-1"
+                data-testid="mark-all-read-btn"
               >
                 <Check className="w-4 h-4" />
                 Mark all read
