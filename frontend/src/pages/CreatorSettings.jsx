@@ -52,11 +52,6 @@ const CreatorSettings = ({ user, onLogout }) => {
     }
   };
 
-  const handleLinkBank = async (e) => {
-    e.preventDefault();
-    setLinkingBank(true);
-    
-    try {
   const handlePlaidSuccess = async (bankData) => {
     try {
       await axiosInstance.post("/creator/link-bank", {
