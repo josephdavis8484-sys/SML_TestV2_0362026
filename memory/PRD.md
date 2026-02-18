@@ -121,7 +121,7 @@ English
 
 ### P1 (Medium Priority)
 - [ ] Full Plaid integration (requires API keys)
-- [ ] Event image gallery UI on frontend
+- [ ] Real WebRTC streaming implementation
 - [ ] Real-time withdrawal status updates
 
 ### P2 (Lower Priority - Future)
