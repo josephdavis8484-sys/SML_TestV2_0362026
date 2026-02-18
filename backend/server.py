@@ -18,6 +18,8 @@ from emergentintegrations.payments.stripe.checkout import StripeCheckout, Checko
 from icalendar import Calendar, Event as ICalEvent, Alarm
 from datetime import timedelta as td
 from dateutil import parser
+import jwt
+from livekit import api as livekit_api
 
 ROOT_DIR = Path(__file__).parent
 load_dotenv(ROOT_DIR / '.env')
@@ -37,6 +39,16 @@ EMERGENT_AUTH_URL = "https://demobackend.emergentagent.com/auth/v1/env/oauth/ses
 STREAMING_PACKAGES = {"free": 0.0, "premium": 1000.0}
 PLATFORM_FEE_PERCENTAGE = 20
 PAYOUT_DELAY_HOURS = 24
+
+# LiveKit Configuration (for when keys are provided)
+LIVEKIT_URL = os.environ.get('LIVEKIT_URL', 'http://localhost:7880')
+LIVEKIT_API_KEY = os.environ.get('LIVEKIT_API_KEY', '')
+LIVEKIT_API_SECRET = os.environ.get('LIVEKIT_API_SECRET', '')
+
+# Plaid Configuration (for when keys are provided)
+PLAID_CLIENT_ID = os.environ.get('PLAID_CLIENT_ID', '')
+PLAID_SECRET = os.environ.get('PLAID_SECRET', '')
+PLAID_ENV = os.environ.get('PLAID_ENV', 'sandbox')  # sandbox, development, production
 
 # Upload directory
 UPLOAD_DIR = Path("/app/backend/uploads")
