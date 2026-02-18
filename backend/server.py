@@ -1497,7 +1497,7 @@ def generate_livekit_token(
     ).with_grants(
         grant
     ).with_ttl(
-        int(timedelta(hours=4).total_seconds())
+        timedelta(hours=4)
     )
     
     return token.to_jwt()
