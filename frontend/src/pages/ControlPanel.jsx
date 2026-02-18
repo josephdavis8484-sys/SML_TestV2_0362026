@@ -122,9 +122,12 @@ const ControlPanel = ({ user, onLogout }) => {
       // Stop stream
       try {
         await axiosInstance.post(`/livekit/end-stream/${eventId}`);
+        // Also mark event as completed
+        await axiosInstance.post(`/events/${eventId}/end`);
         setIsStreaming(false);
         setLiveKitToken(null);
         toast.success("Stream ended");
+        fetchData();
       } catch (error) {
         toast.error("Failed to end stream");
       }
@@ -141,7 +144,17 @@ const ControlPanel = ({ user, onLogout }) => {
         setLiveKitUrl(response.data.url);
         setRoomName(response.data.room_name);
         setIsStreaming(true);
-        toast.success("Stream started!");
+        
+        // Set event to live and notify all ticket holders
+        try {
+          const goLiveRes = await axiosInstance.post(`/events/${eventId}/go-live`);
+          toast.success(`Stream started! ${goLiveRes.data.notified_count} viewers notified.`);
+        } catch (err) {
+          // Stream started but notification might have failed
+          toast.success("Stream started!");
+          console.error("Failed to notify viewers:", err);
+        }
+        
         fetchData(); // Refresh status
       } catch (error) {
         toast.error("Failed to start stream");
