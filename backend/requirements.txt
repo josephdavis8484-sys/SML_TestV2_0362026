@@ -126,3 +126,6 @@ yarl==1.22.0
 zipp==3.23.0
 cryptography==46.0.3
 plaid-python==38.2.0
+livekit==1.1.2
+livekit-api==1.1.0
+livekit-protocol==1.1.2
