@@ -1627,70 +1627,231 @@ async def get_stream_status(event_id: str):
         "livekit_configured": bool(LIVEKIT_API_KEY and LIVEKIT_API_SECRET)
     }
 
-# ==================== PLAID INTEGRATION (Ready for API Keys) ====================
+# ==================== STRIPE CONNECT FOR CREATOR PAYOUTS ====================
 
-class PlaidLinkTokenRequest(BaseModel):
-    user_id: str
-
-class PlaidPublicTokenExchange(BaseModel):
-    public_token: str
-
-@api_router.post("/plaid/create-link-token")
-async def create_plaid_link_token(current_user: User = Depends(get_current_user)):
-    """Create a Plaid Link token for bank account linking"""
+@api_router.post("/stripe/connect/create-account")
+async def create_stripe_connect_account(current_user: User = Depends(get_current_user)):
+    """Create a Stripe Connect account for creator payouts"""
     if current_user.role != "creator":
-        raise HTTPException(status_code=403, detail="Only creators can link bank accounts")
+        raise HTTPException(status_code=403, detail="Only creators can connect Stripe")
     
-    if not PLAID_CLIENT_ID or not PLAID_SECRET:
-        # Return mock response when Plaid is not configured
+    try:
+        # Check if user already has a Stripe account
+        user_doc = await db.users.find_one({"id": current_user.id}, {"_id": 0})
+        
+        if user_doc.get("stripe_account_id"):
+            # Return existing account
+            return {
+                "account_id": user_doc["stripe_account_id"],
+                "already_exists": True
+            }
+        
+        # Create a new Stripe Connect Express account
+        account = stripe.Account.create(
+            type="express",
+            country="US",
+            email=current_user.email,
+            capabilities={
+                "card_payments": {"requested": True},
+                "transfers": {"requested": True},
+            },
+            business_type="individual",
+            metadata={
+                "user_id": current_user.id,
+                "platform": "showmelive"
+            }
+        )
+        
+        # Save the account ID to the user
+        await db.users.update_one(
+            {"id": current_user.id},
+            {"$set": {"stripe_account_id": account.id}}
+        )
+        
         return {
-            "link_token": "mock_link_token",
-            "expiration": datetime.now(timezone.utc).isoformat(),
-            "request_id": str(uuid.uuid4()),
-            "configured": False,
-            "message": "Plaid API keys not configured. Please add PLAID_CLIENT_ID and PLAID_SECRET to .env"
+            "account_id": account.id,
+            "already_exists": False
         }
-    
-    # Real Plaid integration would go here
-    # For now, return instructions
-    return {
-        "link_token": None,
-        "configured": False,
-        "message": "Plaid integration ready. Add your API keys to enable bank account linking.",
-        "setup_instructions": {
-            "step1": "Sign up at https://dashboard.plaid.com/signup",
-            "step2": "Get your API keys from the dashboard",
-            "step3": "Add PLAID_CLIENT_ID and PLAID_SECRET to backend/.env",
-            "step4": "Restart the backend server"
-        }
-    }
+        
+    except stripe.error.StripeError as e:
+        raise HTTPException(status_code=400, detail=str(e))
 
-@api_router.post("/plaid/exchange-token")
-async def exchange_plaid_token(
-    exchange: PlaidPublicTokenExchange,
+@api_router.post("/stripe/connect/onboarding-link")
+async def create_stripe_onboarding_link(
+    origin_url: str,
     current_user: User = Depends(get_current_user)
 ):
-    """Exchange Plaid public token for access token"""
+    """Create a Stripe Connect onboarding link"""
     if current_user.role != "creator":
-        raise HTTPException(status_code=403, detail="Only creators can link bank accounts")
+        raise HTTPException(status_code=403, detail="Only creators can onboard to Stripe")
     
-    if not PLAID_CLIENT_ID or not PLAID_SECRET:
-        raise HTTPException(
-            status_code=400, 
-            detail="Plaid not configured. Add PLAID_CLIENT_ID and PLAID_SECRET to .env"
+    try:
+        user_doc = await db.users.find_one({"id": current_user.id}, {"_id": 0})
+        account_id = user_doc.get("stripe_account_id")
+        
+        if not account_id:
+            # Create account first
+            account_response = await create_stripe_connect_account(current_user)
+            account_id = account_response["account_id"]
+        
+        # Create an account link for onboarding
+        account_link = stripe.AccountLink.create(
+            account=account_id,
+            refresh_url=f"{origin_url}/creator/settings?stripe_refresh=true",
+            return_url=f"{origin_url}/creator/settings?stripe_success=true",
+            type="account_onboarding",
         )
-    
-    # Real Plaid token exchange would go here
-    # This is a placeholder for the actual implementation
-    return {"success": False, "message": "Plaid integration pending API keys"}
+        
+        return {
+            "url": account_link.url,
+            "expires_at": account_link.expires_at
+        }
+        
+    except stripe.error.StripeError as e:
+        raise HTTPException(status_code=400, detail=str(e))
 
-@api_router.get("/plaid/status")
-async def get_plaid_status():
-    """Check if Plaid is configured"""
+@api_router.get("/stripe/connect/status")
+async def get_stripe_connect_status(current_user: User = Depends(get_current_user)):
+    """Get Stripe Connect account status"""
+    if current_user.role != "creator":
+        raise HTTPException(status_code=403, detail="Only creators can check Stripe status")
+    
+    try:
+        user_doc = await db.users.find_one({"id": current_user.id}, {"_id": 0})
+        account_id = user_doc.get("stripe_account_id")
+        
+        if not account_id:
+            return {
+                "connected": False,
+                "account_id": None,
+                "payouts_enabled": False,
+                "details_submitted": False
+            }
+        
+        # Get account details from Stripe
+        account = stripe.Account.retrieve(account_id)
+        
+        # Update user's bank_linked status based on Stripe
+        if account.payouts_enabled:
+            await db.users.update_one(
+                {"id": current_user.id},
+                {"$set": {
+                    "bank_linked": True,
+                    "bank_institution": "Stripe Connect",
+                    "bank_account_name": account.business_profile.get("name") or "Connected Account",
+                    "bank_account_mask": account_id[-4:]
+                }}
+            )
+        
+        return {
+            "connected": True,
+            "account_id": account_id,
+            "payouts_enabled": account.payouts_enabled,
+            "charges_enabled": account.charges_enabled,
+            "details_submitted": account.details_submitted,
+            "requirements": account.requirements.currently_due if account.requirements else [],
+            "business_type": account.business_type,
+            "country": account.country
+        }
+        
+    except stripe.error.StripeError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+
+@api_router.post("/stripe/connect/payout")
+async def create_stripe_payout(
+    amount: float,
+    current_user: User = Depends(get_current_user)
+):
+    """Create a payout to the creator's connected Stripe account"""
+    if current_user.role != "creator":
+        raise HTTPException(status_code=403, detail="Only creators can request payouts")
+    
+    if amount < 10:
+        raise HTTPException(status_code=400, detail="Minimum payout is $10")
+    
+    try:
+        user_doc = await db.users.find_one({"id": current_user.id}, {"_id": 0})
+        account_id = user_doc.get("stripe_account_id")
+        
+        if not account_id:
+            raise HTTPException(status_code=400, detail="Please connect your Stripe account first")
+        
+        # Check account status
+        account = stripe.Account.retrieve(account_id)
+        if not account.payouts_enabled:
+            raise HTTPException(status_code=400, detail="Please complete your Stripe account setup to enable payouts")
+        
+        # Get available balance
+        events = await db.events.find({"creator_id": current_user.id}, {"_id": 0}).to_list(1000)
+        total_revenue = sum(e.get("total_revenue", 0.0) for e in events)
+        platform_fee = total_revenue * (PLATFORM_FEE_PERCENTAGE / 100)
+        available_balance = total_revenue - platform_fee
+        
+        if amount > available_balance:
+            raise HTTPException(status_code=400, detail=f"Insufficient balance. Available: ${available_balance:.2f}")
+        
+        # Create a transfer to the connected account
+        # Note: In production, you'd transfer from your platform's Stripe balance
+        transfer = stripe.Transfer.create(
+            amount=int(amount * 100),  # Convert to cents
+            currency="usd",
+            destination=account_id,
+            metadata={
+                "user_id": current_user.id,
+                "platform": "showmelive"
+            }
+        )
+        
+        # Record the payout
+        payout_doc = {
+            "id": str(uuid.uuid4()),
+            "creator_id": current_user.id,
+            "stripe_transfer_id": transfer.id,
+            "amount": amount,
+            "platform_fee": amount * 0.02,  # 2% processing fee
+            "net_amount": amount * 0.98,
+            "status": "completed",
+            "initiated_at": datetime.now(timezone.utc).isoformat(),
+            "completed_at": datetime.now(timezone.utc).isoformat()
+        }
+        await db.payouts.insert_one(payout_doc)
+        
+        return {
+            "success": True,
+            "transfer_id": transfer.id,
+            "amount": amount,
+            "net_amount": amount * 0.98,
+            "status": "completed"
+        }
+        
+    except stripe.error.StripeError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+
+@api_router.get("/stripe/connect/balance")
+async def get_stripe_balance(current_user: User = Depends(get_current_user)):
+    """Get creator's available balance for payout"""
+    if current_user.role != "creator":
+        raise HTTPException(status_code=403, detail="Only creators can check balance")
+    
+    # Get available balance from events
+    events = await db.events.find({"creator_id": current_user.id}, {"_id": 0}).to_list(1000)
+    total_revenue = sum(e.get("total_revenue", 0.0) for e in events)
+    platform_fee = total_revenue * (PLATFORM_FEE_PERCENTAGE / 100)
+    available_balance = total_revenue - platform_fee
+    
+    # Get pending payouts
+    pending_payouts = await db.payouts.find({
+        "creator_id": current_user.id,
+        "status": "pending"
+    }).to_list(100)
+    pending_amount = sum(p.get("amount", 0) for p in pending_payouts)
+    
     return {
-        "configured": bool(PLAID_CLIENT_ID and PLAID_SECRET),
-        "environment": PLAID_ENV,
-        "message": "Add PLAID_CLIENT_ID and PLAID_SECRET to .env to enable bank linking" if not PLAID_CLIENT_ID else "Plaid configured"
+        "total_revenue": total_revenue,
+        "platform_fee": platform_fee,
+        "available_balance": available_balance,
+        "pending_payouts": pending_amount,
+        "withdrawable": available_balance - pending_amount
     }
 
 app.include_router(api_router)
