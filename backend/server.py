@@ -1096,6 +1096,168 @@ async def update_bank_info(bank_info: PlatformBankInfo, current_user: User = Dep
     
     return {"message": "Bank info updated successfully"}
 
+# ==================== PROMO CODES ====================
+
+@api_router.get("/admin/promo-codes")
+async def get_promo_codes(current_user: User = Depends(get_admin_user)):
+    """Get all promo codes"""
+    promo_codes = await db.promo_codes.find({}, {"_id": 0}).to_list(1000)
+    
+    # Convert datetime to string if needed
+    for code in promo_codes:
+        if isinstance(code.get("created_at"), datetime):
+            code["created_at"] = code["created_at"].isoformat()
+    
+    return promo_codes
+
+@api_router.post("/admin/promo-codes")
+async def create_promo_code(promo_data: PromoCodeCreate, current_user: User = Depends(get_admin_user)):
+    """Create a new promo code"""
+    # Check if code already exists
+    existing = await db.promo_codes.find_one({"code": promo_data.code.upper()})
+    if existing:
+        raise HTTPException(status_code=400, detail="Promo code already exists")
+    
+    # Validate discount
+    if promo_data.discount_type == "percentage" and (promo_data.discount_value < 0 or promo_data.discount_value > 100):
+        raise HTTPException(status_code=400, detail="Percentage discount must be between 0 and 100")
+    if promo_data.discount_type == "fixed" and promo_data.discount_value < 0:
+        raise HTTPException(status_code=400, detail="Fixed discount cannot be negative")
+    
+    promo_code = PromoCode(
+        code=promo_data.code.upper(),
+        description=promo_data.description,
+        discount_type=promo_data.discount_type,
+        discount_value=promo_data.discount_value,
+        applies_to=promo_data.applies_to,
+        max_uses=promo_data.max_uses,
+        min_purchase=promo_data.min_purchase,
+        start_date=promo_data.start_date,
+        expiration_date=promo_data.expiration_date,
+        created_by=current_user.id
+    )
+    
+    promo_doc = promo_code.model_dump()
+    promo_doc["created_at"] = promo_doc["created_at"].isoformat()
+    await db.promo_codes.insert_one(promo_doc)
+    
+    return {
+        "success": True,
+        "promo_code": {
+            "id": promo_code.id,
+            "code": promo_code.code,
+            "discount_type": promo_code.discount_type,
+            "discount_value": promo_code.discount_value
+        }
+    }
+
+@api_router.put("/admin/promo-codes/{promo_id}")
+async def update_promo_code(promo_id: str, update_data: PromoCodeUpdate, current_user: User = Depends(get_admin_user)):
+    """Update a promo code"""
+    promo = await db.promo_codes.find_one({"id": promo_id}, {"_id": 0})
+    if not promo:
+        raise HTTPException(status_code=404, detail="Promo code not found")
+    
+    update_fields = {k: v for k, v in update_data.model_dump().items() if v is not None}
+    
+    if not update_fields:
+        raise HTTPException(status_code=400, detail="No fields to update")
+    
+    # Validate discount if being updated
+    if "discount_value" in update_fields:
+        dtype = update_fields.get("discount_type", promo.get("discount_type"))
+        if dtype == "percentage" and (update_fields["discount_value"] < 0 or update_fields["discount_value"] > 100):
+            raise HTTPException(status_code=400, detail="Percentage discount must be between 0 and 100")
+    
+    await db.promo_codes.update_one(
+        {"id": promo_id},
+        {"$set": update_fields}
+    )
+    
+    return {"success": True, "message": "Promo code updated"}
+
+@api_router.delete("/admin/promo-codes/{promo_id}")
+async def delete_promo_code(promo_id: str, current_user: User = Depends(get_admin_user)):
+    """Delete a promo code"""
+    result = await db.promo_codes.delete_one({"id": promo_id})
+    if result.deleted_count == 0:
+        raise HTTPException(status_code=404, detail="Promo code not found")
+    
+    return {"success": True, "message": "Promo code deleted"}
+
+@api_router.post("/promo-codes/validate")
+async def validate_promo_code(validation: PromoCodeValidate, current_user: User = Depends(get_current_user)):
+    """Validate a promo code and calculate discount"""
+    promo = await db.promo_codes.find_one({"code": validation.code.upper()}, {"_id": 0})
+    
+    if not promo:
+        raise HTTPException(status_code=404, detail="Invalid promo code")
+    
+    if not promo.get("is_active", True):
+        raise HTTPException(status_code=400, detail="This promo code is no longer active")
+    
+    # Check if code applies to this purchase type
+    applies_to = promo.get("applies_to", "pro_mode")
+    if applies_to != "all" and applies_to != validation.purchase_type:
+        raise HTTPException(status_code=400, detail=f"This promo code is not valid for {validation.purchase_type}")
+    
+    # Check max uses
+    if promo.get("max_uses") and promo.get("current_uses", 0) >= promo["max_uses"]:
+        raise HTTPException(status_code=400, detail="This promo code has reached its maximum uses")
+    
+    # Check minimum purchase
+    if validation.purchase_amount < promo.get("min_purchase", 0):
+        raise HTTPException(status_code=400, detail=f"Minimum purchase amount of ${promo['min_purchase']} required")
+    
+    # Check date validity
+    now = datetime.now(timezone.utc).isoformat()
+    
+    if promo.get("start_date"):
+        if now < promo["start_date"]:
+            raise HTTPException(status_code=400, detail="This promo code is not yet active")
+    
+    if promo.get("expiration_date"):
+        if now > promo["expiration_date"]:
+            raise HTTPException(status_code=400, detail="This promo code has expired")
+    
+    # Calculate discount
+    discount_type = promo.get("discount_type", "percentage")
+    discount_value = promo.get("discount_value", 0)
+    
+    if discount_type == "percentage":
+        discount_amount = validation.purchase_amount * (discount_value / 100)
+    else:
+        discount_amount = min(discount_value, validation.purchase_amount)
+    
+    final_price = max(0, validation.purchase_amount - discount_amount)
+    
+    return {
+        "valid": True,
+        "code": promo["code"],
+        "description": promo.get("description", ""),
+        "discount_type": discount_type,
+        "discount_value": discount_value,
+        "discount_amount": round(discount_amount, 2),
+        "original_price": validation.purchase_amount,
+        "final_price": round(final_price, 2)
+    }
+
+@api_router.post("/promo-codes/apply")
+async def apply_promo_code(validation: PromoCodeValidate, current_user: User = Depends(get_current_user)):
+    """Apply a promo code (increments usage count)"""
+    promo = await db.promo_codes.find_one({"code": validation.code.upper()}, {"_id": 0})
+    
+    if not promo:
+        raise HTTPException(status_code=404, detail="Invalid promo code")
+    
+    # Increment usage count
+    await db.promo_codes.update_one(
+        {"code": validation.code.upper()},
+        {"$inc": {"current_uses": 1}}
+    )
+    
+    return {"success": True, "message": "Promo code applied"}
+
 @api_router.get("/admin/live-monitoring")
 async def get_live_monitoring(current_user: User = Depends(get_admin_user)):
     """Monitor live events and viewer connections"""
