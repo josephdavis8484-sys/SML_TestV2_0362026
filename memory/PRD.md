@@ -114,9 +114,9 @@ English
 - [x] ~~Creator Pro Mode payment~~ ✅ COMPLETED
 
 ### P1 (Medium Priority)
-- [ ] Plaid integration for creator bank account linking (payouts)
-- [ ] Event image gallery with multiple uploads
-- [ ] Creator earnings withdrawal
+- [ ] Full Plaid integration (requires API keys)
+- [ ] Event image gallery UI on frontend
+- [ ] Real-time withdrawal status updates
 
 ### P2 (Lower Priority - Future)
 - [ ] Multi-camera streaming control panel (WebRTC)
