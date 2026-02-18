@@ -42,7 +42,7 @@ const LiveChat = ({ eventId, user, chatEnabled, reactionsEnabled, chatMode, isCr
     // Convert http(s) to ws(s)
     const wsProtocol = backendUrl.startsWith('https') ? 'wss' : 'ws';
     const wsHost = backendUrl.replace(/^https?:\/\//, '');
-    return `${wsProtocol}://${wsHost}/ws/chat/${eventId}`;
+    return `${wsProtocol}://${wsHost}/api/ws/chat/${eventId}`;
   }, [eventId]);
 
   // Connect to WebSocket
