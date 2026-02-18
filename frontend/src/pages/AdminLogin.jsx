@@ -77,6 +77,7 @@ const AdminLogin = () => {
                 placeholder="Enter admin password"
                 required
                 className="bg-gray-800 border-gray-700 text-white"
+                data-testid="admin-password-input"
               />
             </div>
 
