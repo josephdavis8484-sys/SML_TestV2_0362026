@@ -211,6 +211,68 @@ class PaymentTransaction(BaseModel):
     metadata: Dict = {}
     created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
 
+class Notification(BaseModel):
+    model_config = ConfigDict(extra="ignore")
+    
+    id: str = Field(default_factory=lambda: str(uuid.uuid4()))
+    user_id: str
+    type: str  # "event_live", "event_reminder", "ticket_purchased", "payout_completed"
+    title: str
+    message: str
+    event_id: Optional[str] = None
+    read: bool = False
+    data: Dict = {}  # Additional data like event details
+    created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
+
+class NotificationCreate(BaseModel):
+    type: str
+    title: str
+    message: str
+    event_id: Optional[str] = None
+    data: Dict = {}
+
+# WebSocket Connection Manager for User Notifications
+class NotificationConnectionManager:
+    def __init__(self):
+        # Dictionary mapping user_id -> list of connected WebSockets
+        self.user_connections: Dict[str, List[WebSocket]] = {}
+    
+    async def connect(self, websocket: WebSocket, user_id: str):
+        await websocket.accept()
+        if user_id not in self.user_connections:
+            self.user_connections[user_id] = []
+        self.user_connections[user_id].append(websocket)
+        logging.info(f"Notification WebSocket connected for user {user_id}")
+    
+    def disconnect(self, websocket: WebSocket, user_id: str):
+        if user_id in self.user_connections:
+            if websocket in self.user_connections[user_id]:
+                self.user_connections[user_id].remove(websocket)
+            if not self.user_connections[user_id]:
+                del self.user_connections[user_id]
+        logging.info(f"Notification WebSocket disconnected for user {user_id}")
+    
+    async def send_to_user(self, user_id: str, notification: dict):
+        """Send a notification to a specific user"""
+        if user_id in self.user_connections:
+            disconnected = []
+            for connection in self.user_connections[user_id]:
+                try:
+                    await connection.send_json(notification)
+                except Exception as e:
+                    logging.error(f"Error sending notification: {e}")
+                    disconnected.append(connection)
+            for conn in disconnected:
+                self.disconnect(conn, user_id)
+    
+    async def send_to_multiple_users(self, user_ids: List[str], notification: dict):
+        """Send a notification to multiple users"""
+        for user_id in user_ids:
+            await self.send_to_user(user_id, notification)
+
+# Initialize the notification manager
+notification_manager = NotificationConnectionManager()
+
 class SessionRequest(BaseModel):
     session_id: str
 
