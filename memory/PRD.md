@@ -125,16 +125,17 @@ English
 - [x] ~~Creator Pro Mode payment~~ ✅ COMPLETED
 
 ### P1 (Medium Priority)
-- [x] ~~Full Plaid integration~~ → **Mock Plaid Link** implemented with realistic UI flow
-  - Bank selection with search
-  - Login form (any credentials work)
-  - Account selection (Checking/Savings)
-  - Success confirmation
+- [x] ~~Plaid integration~~ → **MIGRATED TO STRIPE CONNECT** (Feb 2026)
+  - ✅ Stripe Connect Express accounts for creators
+  - ✅ Hosted onboarding flow (no bank integration needed)
+  - ✅ Direct payouts to creator's Stripe account
+  - ✅ Deleted obsolete MockPlaidLink.jsx
 - [x] ~~Real WebRTC Streaming~~ → **FULLY CONFIGURED** with LiveKit Cloud
   - URL: `wss://showmelive-4y2wqa4p.livekit.cloud`
   - Real JWT token generation working
   - Multi-camera streaming ready
 - [ ] Real-time withdrawal status updates (WebSocket)
+- [ ] Implement WebSocket for Live Chat (currently polling)
 
 ### P2 (Lower Priority - Future)
 - [ ] Multi-camera streaming control panel (WebRTC)
