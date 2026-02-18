@@ -1379,16 +1379,28 @@ async def send_chat_message(event_id: str, msg: SendMessage, current_user: User 
     msg_doc['created_at'] = msg_doc['created_at'].isoformat()
     await db.chat_messages.insert_one(msg_doc)
     
+    # Prepare message for response and broadcast
+    message_data = {
+        "id": chat_message.id,
+        "user_id": current_user.id,
+        "user_name": current_user.name,
+        "user_picture": current_user.picture,
+        "message": msg.message,
+        "message_type": msg.message_type,
+        "created_at": msg_doc['created_at'],
+        "is_pinned": False,
+        "is_hidden": False
+    }
+    
+    # Broadcast to WebSocket connections
+    await chat_manager.broadcast_to_event(event_id, {
+        "type": "new_message",
+        "message": message_data
+    })
+    
     return {
         "success": True,
-        "message": {
-            "id": chat_message.id,
-            "user_name": current_user.name,
-            "user_picture": current_user.picture,
-            "message": msg.message,
-            "message_type": msg.message_type,
-            "created_at": msg_doc['created_at']
-        }
+        "message": message_data
     }
 
 @api_router.post("/events/{event_id}/reactions")
