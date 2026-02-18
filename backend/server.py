@@ -1452,6 +1452,243 @@ async def send_announcement(event_id: str, msg: SendMessage, current_user: User 
     
     return {"success": True, "message_id": chat_message.id}
 
+# ==================== LIVEKIT STREAMING ====================
+
+class LiveKitTokenRequest(BaseModel):
+    event_id: str
+    device_name: str = "Camera"
+    is_publisher: bool = True
+
+class LiveKitRoomInfo(BaseModel):
+    room_name: str
+    token: str
+    url: str
+    can_publish: bool
+
+def generate_livekit_token(
+    room_name: str,
+    participant_identity: str,
+    participant_name: str,
+    can_publish: bool = True,
+    can_subscribe: bool = True
+) -> str:
+    """Generate a LiveKit JWT token for room access"""
+    if not LIVEKIT_API_KEY or not LIVEKIT_API_SECRET:
+        # Return mock token for demo when no keys configured
+        return f"mock_token_{room_name}_{participant_identity}"
+    
+    # Create video grant
+    grant = livekit_api.VideoGrants(
+        room_join=True,
+        room=room_name,
+        can_publish=can_publish,
+        can_subscribe=can_subscribe,
+        can_publish_data=True,
+    )
+    
+    # Create access token
+    token = livekit_api.AccessToken(
+        LIVEKIT_API_KEY,
+        LIVEKIT_API_SECRET
+    ).with_identity(
+        participant_identity
+    ).with_name(
+        participant_name
+    ).with_grants(
+        grant
+    ).with_ttl(
+        int(timedelta(hours=4).total_seconds())
+    )
+    
+    return token.to_jwt()
+
+@api_router.post("/livekit/join-as-creator", response_model=LiveKitRoomInfo)
+async def join_room_as_creator(
+    request: LiveKitTokenRequest,
+    current_user: User = Depends(get_current_user)
+):
+    """Get LiveKit token for creator to stream"""
+    if current_user.role != "creator":
+        raise HTTPException(status_code=403, detail="Only creators can stream")
+    
+    event = await db.events.find_one({"id": request.event_id}, {"_id": 0})
+    if not event:
+        raise HTTPException(status_code=404, detail="Event not found")
+    
+    if event.get("creator_id") != current_user.id:
+        raise HTTPException(status_code=403, detail="You are not the creator of this event")
+    
+    room_name = f"event_{request.event_id}"
+    participant_id = f"creator_{current_user.id}_{request.device_name}"
+    
+    token = generate_livekit_token(
+        room_name=room_name,
+        participant_identity=participant_id,
+        participant_name=f"{current_user.name} ({request.device_name})",
+        can_publish=True,
+        can_subscribe=True
+    )
+    
+    # Update event status to live
+    await db.events.update_one(
+        {"id": request.event_id},
+        {"$set": {"status": "live", "started_at": datetime.now(timezone.utc).isoformat()}}
+    )
+    
+    return LiveKitRoomInfo(
+        room_name=room_name,
+        token=token,
+        url=LIVEKIT_URL,
+        can_publish=True
+    )
+
+@api_router.post("/livekit/join-as-viewer", response_model=LiveKitRoomInfo)
+async def join_room_as_viewer(
+    event_id: str,
+    current_user: User = Depends(get_current_user)
+):
+    """Get LiveKit token for viewer to watch stream"""
+    event = await db.events.find_one({"id": event_id}, {"_id": 0})
+    if not event:
+        raise HTTPException(status_code=404, detail="Event not found")
+    
+    # Check if user has a ticket for this event
+    ticket = await db.tickets.find_one({
+        "event_id": event_id,
+        "user_id": current_user.id,
+        "refunded": {"$ne": True}
+    })
+    
+    if not ticket and event.get("price", 0) > 0:
+        raise HTTPException(status_code=403, detail="You need a ticket to watch this event")
+    
+    room_name = f"event_{event_id}"
+    participant_id = f"viewer_{current_user.id}"
+    
+    token = generate_livekit_token(
+        room_name=room_name,
+        participant_identity=participant_id,
+        participant_name=current_user.name,
+        can_publish=False,  # Viewers can't publish
+        can_subscribe=True
+    )
+    
+    return LiveKitRoomInfo(
+        room_name=room_name,
+        token=token,
+        url=LIVEKIT_URL,
+        can_publish=False
+    )
+
+@api_router.post("/livekit/end-stream/{event_id}")
+async def end_stream(event_id: str, current_user: User = Depends(get_current_user)):
+    """End a live stream"""
+    event = await db.events.find_one({"id": event_id}, {"_id": 0})
+    if not event:
+        raise HTTPException(status_code=404, detail="Event not found")
+    
+    if event.get("creator_id") != current_user.id:
+        raise HTTPException(status_code=403, detail="Only event creator can end the stream")
+    
+    await db.events.update_one(
+        {"id": event_id},
+        {"$set": {
+            "status": "completed",
+            "ended_at": datetime.now(timezone.utc).isoformat()
+        }}
+    )
+    
+    return {"success": True, "message": "Stream ended"}
+
+@api_router.get("/livekit/stream-status/{event_id}")
+async def get_stream_status(event_id: str):
+    """Get current stream status and viewer count"""
+    event = await db.events.find_one({"id": event_id}, {"_id": 0})
+    if not event:
+        raise HTTPException(status_code=404, detail="Event not found")
+    
+    # Get viewer count from streaming devices (mock for now)
+    viewer_count = await db.streaming_devices.count_documents({
+        "event_id": event_id,
+        "is_active": True,
+        "is_control_panel": False
+    })
+    
+    return {
+        "event_id": event_id,
+        "status": event.get("status", "upcoming"),
+        "is_live": event.get("status") == "live",
+        "viewer_count": viewer_count,
+        "started_at": event.get("started_at"),
+        "livekit_configured": bool(LIVEKIT_API_KEY and LIVEKIT_API_SECRET)
+    }
+
+# ==================== PLAID INTEGRATION (Ready for API Keys) ====================
+
+class PlaidLinkTokenRequest(BaseModel):
+    user_id: str
+
+class PlaidPublicTokenExchange(BaseModel):
+    public_token: str
+
+@api_router.post("/plaid/create-link-token")
+async def create_plaid_link_token(current_user: User = Depends(get_current_user)):
+    """Create a Plaid Link token for bank account linking"""
+    if current_user.role != "creator":
+        raise HTTPException(status_code=403, detail="Only creators can link bank accounts")
+    
+    if not PLAID_CLIENT_ID or not PLAID_SECRET:
+        # Return mock response when Plaid is not configured
+        return {
+            "link_token": "mock_link_token",
+            "expiration": datetime.now(timezone.utc).isoformat(),
+            "request_id": str(uuid.uuid4()),
+            "configured": False,
+            "message": "Plaid API keys not configured. Please add PLAID_CLIENT_ID and PLAID_SECRET to .env"
+        }
+    
+    # Real Plaid integration would go here
+    # For now, return instructions
+    return {
+        "link_token": None,
+        "configured": False,
+        "message": "Plaid integration ready. Add your API keys to enable bank account linking.",
+        "setup_instructions": {
+            "step1": "Sign up at https://dashboard.plaid.com/signup",
+            "step2": "Get your API keys from the dashboard",
+            "step3": "Add PLAID_CLIENT_ID and PLAID_SECRET to backend/.env",
+            "step4": "Restart the backend server"
+        }
+    }
+
+@api_router.post("/plaid/exchange-token")
+async def exchange_plaid_token(
+    exchange: PlaidPublicTokenExchange,
+    current_user: User = Depends(get_current_user)
+):
+    """Exchange Plaid public token for access token"""
+    if current_user.role != "creator":
+        raise HTTPException(status_code=403, detail="Only creators can link bank accounts")
+    
+    if not PLAID_CLIENT_ID or not PLAID_SECRET:
+        raise HTTPException(
+            status_code=400, 
+            detail="Plaid not configured. Add PLAID_CLIENT_ID and PLAID_SECRET to .env"
+        )
+    
+    # Real Plaid token exchange would go here
+    # This is a placeholder for the actual implementation
+    return {"success": False, "message": "Plaid integration pending API keys"}
+
+@api_router.get("/plaid/status")
+async def get_plaid_status():
+    """Check if Plaid is configured"""
+    return {
+        "configured": bool(PLAID_CLIENT_ID and PLAID_SECRET),
+        "environment": PLAID_ENV,
+        "message": "Add PLAID_CLIENT_ID and PLAID_SECRET to .env to enable bank linking" if not PLAID_CLIENT_ID else "Plaid configured"
+    }
+
 app.include_router(api_router)
 
 app.add_middleware(
