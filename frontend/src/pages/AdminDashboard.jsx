@@ -2,7 +2,8 @@ import React, { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import axios from "axios";
 import { Button } from "@/components/ui/button";
-import { Shield, Users, Calendar, Ticket, DollarSign, AlertTriangle, Activity } from "lucide-react";
+import { Input } from "@/components/ui/input";
+import { Shield, Users, Calendar, Ticket, DollarSign, AlertTriangle, Activity, Tag, Plus, Trash2, Edit, Check, X } from "lucide-react";
 import { toast } from "sonner";
 
 const BACKEND_URL = process.env.REACT_APP_BACKEND_URL;
@@ -26,8 +27,21 @@ const AdminDashboard = () => {
   const [tickets, setTickets] = useState([]);
   const [liveMonitoring, setLiveMonitoring] = useState([]);
   const [bankInfo, setBankInfo] = useState(null);
+  const [promoCodes, setPromoCodes] = useState([]);
   const [activeTab, setActiveTab] = useState("overview");
   const [loading, setLoading] = useState(true);
+  const [showPromoForm, setShowPromoForm] = useState(false);
+  const [editingPromo, setEditingPromo] = useState(null);
+  const [promoForm, setPromoForm] = useState({
+    code: "",
+    description: "",
+    discount_type: "percentage",
+    discount_value: "",
+    applies_to: "pro_mode",
+    max_uses: "",
+    start_date: "",
+    expiration_date: ""
+  });
   const navigate = useNavigate();
 
   useEffect(() => {
