@@ -172,10 +172,15 @@ English
 9. Payout/Withdrawal System - Balance tracking, withdrawal requests
 10. Creator Analytics Dashboard - Revenue trends, charts, top events
 11. Professional WebRTC Control Panel - Multi-camera interface with audio mixer
-12. **NEW: Live Chat & Reactions** for viewers with creator controls:
-    - Toggle chat on/off during event setup
-    - Chat modes: Open, Questions Only (for education), Moderated
-    - Live reactions: ❤️ 👏 🔥 😂 😮 with floating animations
-    - Creator moderation: Pin/hide messages, send announcements
-    - Educational tip for Q&A sessions
-13. REMOVED: Multi-image upload (single image per event)
+12. Live Chat & Reactions for viewers with creator controls
+13. **NEW: LiveKit WebRTC Integration** - Full streaming infrastructure ready:
+    - Join as creator/viewer endpoints
+    - Room management and token generation
+    - Stream status tracking with viewer count
+    - Camera enumeration and switching
+    - Mic/speaker controls with visual levels
+14. **NEW: Plaid Integration Setup** - Bank linking ready for API keys:
+    - Link token creation endpoint
+    - Token exchange endpoint
+    - Status check endpoint
+15. REMOVED: Multi-image upload (single image per event)
