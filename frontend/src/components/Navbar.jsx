@@ -58,38 +58,51 @@ const Navbar = ({ user, onLogout, isCreator = false }) => {
 
           <div className="flex items-center gap-4">
             {user ? (
-              <DropdownMenu>
-                <DropdownMenuTrigger asChild>
-                  <button className="flex items-center gap-2 focus:outline-none" data-testid="user-menu-button">
-                    <Avatar className="h-8 w-8">
-                      <AvatarImage src={user.picture} alt={user.name} />
-                      <AvatarFallback>{user.name.charAt(0)}</AvatarFallback>
-                    </Avatar>
-                  </button>
-                </DropdownMenuTrigger>
-                <DropdownMenuContent align="end" className="w-48 bg-black/95 border-gray-800">
-                  <DropdownMenuItem className="text-gray-300 hover:text-white" data-testid="profile-menu-item">
-                    <User className="mr-2 h-4 w-4" />
-                    <span>{user.name}</span>
-                  </DropdownMenuItem>
-                  <DropdownMenuItem 
-                    onClick={() => navigate("/my-tickets")} 
-                    className="text-gray-300 hover:text-white cursor-pointer"
-                    data-testid="tickets-menu-item"
-                  >
-                    <Ticket className="mr-2 h-4 w-4" />
-                    <span>My Tickets</span>
-                  </DropdownMenuItem>
-                  <DropdownMenuItem 
-                    onClick={onLogout} 
-                    className="text-gray-300 hover:text-white cursor-pointer"
-                    data-testid="logout-button"
-                  >
-                    <LogOut className="mr-2 h-4 w-4" />
-                    <span>Logout</span>
-                  </DropdownMenuItem>
-                </DropdownMenuContent>
-              </DropdownMenu>
+              <>
+                <NotificationBell user={user} />
+                <DropdownMenu>
+                  <DropdownMenuTrigger asChild>
+                    <button className="flex items-center gap-2 focus:outline-none" data-testid="user-menu-button">
+                      <Avatar className="h-8 w-8">
+                        <AvatarImage src={user.picture} alt={user.name} />
+                        <AvatarFallback>{user.name.charAt(0)}</AvatarFallback>
+                      </Avatar>
+                    </button>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent align="end" className="w-48 bg-black/95 border-gray-800">
+                    <DropdownMenuItem className="text-gray-300 hover:text-white" data-testid="profile-menu-item">
+                      <User className="mr-2 h-4 w-4" />
+                      <span>{user.name}</span>
+                    </DropdownMenuItem>
+                    {user.role === "creator" && (
+                      <DropdownMenuItem 
+                        onClick={() => navigate("/creator/settings")} 
+                        className="text-gray-300 hover:text-white cursor-pointer"
+                        data-testid="settings-menu-item"
+                      >
+                        <Settings className="mr-2 h-4 w-4" />
+                        <span>Payout Settings</span>
+                      </DropdownMenuItem>
+                    )}
+                    <DropdownMenuItem 
+                      onClick={() => navigate("/my-tickets")} 
+                      className="text-gray-300 hover:text-white cursor-pointer"
+                      data-testid="tickets-menu-item"
+                    >
+                      <Ticket className="mr-2 h-4 w-4" />
+                      <span>My Tickets</span>
+                    </DropdownMenuItem>
+                    <DropdownMenuItem 
+                      onClick={onLogout} 
+                      className="text-gray-300 hover:text-white cursor-pointer"
+                      data-testid="logout-button"
+                    >
+                      <LogOut className="mr-2 h-4 w-4" />
+                      <span>Logout</span>
+                    </DropdownMenuItem>
+                  </DropdownMenuContent>
+                </DropdownMenu>
+              </>
             ) : (
               <Button 
                 onClick={handleLogin} 
