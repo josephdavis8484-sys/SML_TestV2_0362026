@@ -57,14 +57,18 @@ const CreatorSettings = ({ user, onLogout }) => {
     setLinkingBank(true);
     
     try {
-      await axiosInstance.post("/creator/link-bank", bankForm);
+  const handlePlaidSuccess = async (bankData) => {
+    try {
+      await axiosInstance.post("/creator/link-bank", {
+        account_mask: bankData.account_mask,
+        account_name: bankData.account_name,
+        institution_name: bankData.institution
+      });
       toast.success("Bank account linked successfully!");
-      setShowLinkModal(false);
+      setShowPlaidLink(false);
       fetchData();
     } catch (error) {
       toast.error("Failed to link bank account");
-    } finally {
-      setLinkingBank(false);
     }
   };
 
