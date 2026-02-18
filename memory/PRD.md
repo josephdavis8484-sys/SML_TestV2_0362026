@@ -125,9 +125,9 @@ English
 - [x] ~~Creator Pro Mode payment~~ ✅ COMPLETED
 
 ### P1 (Medium Priority)
-- [ ] Full Plaid integration (requires API keys)
-- [ ] Real WebRTC streaming implementation
-- [ ] Real-time withdrawal status updates
+- [x] ~~Full Plaid integration~~ → Ready for API keys (add PLAID_CLIENT_ID, PLAID_SECRET to .env)
+- [x] ~~Real WebRTC Streaming~~ → LiveKit integration ready (add LIVEKIT_URL, LIVEKIT_API_KEY, LIVEKIT_API_SECRET to .env)
+- [ ] Real-time withdrawal status updates (WebSocket)
 
 ### P2 (Lower Priority - Future)
 - [ ] Multi-camera streaming control panel (WebRTC)
