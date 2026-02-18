@@ -163,6 +163,112 @@ const AdminDashboard = () => {
     navigate("/admin/login");
   };
 
+  // Promo Code Functions
+  const resetPromoForm = () => {
+    setPromoForm({
+      code: "",
+      description: "",
+      discount_type: "percentage",
+      discount_value: "",
+      applies_to: "pro_mode",
+      max_uses: "",
+      start_date: "",
+      expiration_date: ""
+    });
+    setEditingPromo(null);
+    setShowPromoForm(false);
+  };
+
+  const handleCreatePromoCode = async () => {
+    if (!promoForm.code || !promoForm.discount_value) {
+      toast.error("Code and discount value are required");
+      return;
+    }
+
+    const adminAxios = getAdminAxios();
+    try {
+      const data = {
+        ...promoForm,
+        discount_value: parseFloat(promoForm.discount_value),
+        max_uses: promoForm.max_uses ? parseInt(promoForm.max_uses) : null,
+        start_date: promoForm.start_date || null,
+        expiration_date: promoForm.expiration_date || null
+      };
+
+      await adminAxios.post("/admin/promo-codes", data);
+      toast.success("Promo code created successfully");
+      resetPromoForm();
+      fetchAdminData();
+    } catch (error) {
+      toast.error(error.response?.data?.detail || "Failed to create promo code");
+    }
+  };
+
+  const handleUpdatePromoCode = async () => {
+    if (!editingPromo) return;
+
+    const adminAxios = getAdminAxios();
+    try {
+      const data = {
+        description: promoForm.description,
+        discount_type: promoForm.discount_type,
+        discount_value: parseFloat(promoForm.discount_value),
+        max_uses: promoForm.max_uses ? parseInt(promoForm.max_uses) : null,
+        start_date: promoForm.start_date || null,
+        expiration_date: promoForm.expiration_date || null,
+        is_active: editingPromo.is_active
+      };
+
+      await adminAxios.put(`/admin/promo-codes/${editingPromo.id}`, data);
+      toast.success("Promo code updated successfully");
+      resetPromoForm();
+      fetchAdminData();
+    } catch (error) {
+      toast.error(error.response?.data?.detail || "Failed to update promo code");
+    }
+  };
+
+  const handleDeletePromoCode = async (promoId) => {
+    if (!confirm("Are you sure you want to delete this promo code?")) return;
+
+    const adminAxios = getAdminAxios();
+    try {
+      await adminAxios.delete(`/admin/promo-codes/${promoId}`);
+      toast.success("Promo code deleted");
+      fetchAdminData();
+    } catch (error) {
+      toast.error("Failed to delete promo code");
+    }
+  };
+
+  const handleTogglePromoActive = async (promo) => {
+    const adminAxios = getAdminAxios();
+    try {
+      await adminAxios.put(`/admin/promo-codes/${promo.id}`, {
+        is_active: !promo.is_active
+      });
+      toast.success(promo.is_active ? "Promo code deactivated" : "Promo code activated");
+      fetchAdminData();
+    } catch (error) {
+      toast.error("Failed to update promo code");
+    }
+  };
+
+  const startEditPromo = (promo) => {
+    setEditingPromo(promo);
+    setPromoForm({
+      code: promo.code,
+      description: promo.description || "",
+      discount_type: promo.discount_type,
+      discount_value: promo.discount_value.toString(),
+      applies_to: promo.applies_to,
+      max_uses: promo.max_uses?.toString() || "",
+      start_date: promo.start_date?.split("T")[0] || "",
+      expiration_date: promo.expiration_date?.split("T")[0] || ""
+    });
+    setShowPromoForm(true);
+  };
+
   if (loading) {
     return (
       <div className="min-h-screen bg-[#0f0f0f] flex items-center justify-center">
