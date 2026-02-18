@@ -149,6 +149,11 @@ function App() {
             <CreatorSettings user={user} onLogout={handleLogout} /> : 
             <Navigate to="/" />
           } />
+          <Route path="/creator/analytics" element={
+            user?.role === "creator" ? 
+            <CreatorAnalytics user={user} onLogout={handleLogout} /> : 
+            <Navigate to="/" />
+          } />
           
           {/* Streaming routes */}
           <Route path="/stream/:deviceToken" element={<StreamDevice />} />
