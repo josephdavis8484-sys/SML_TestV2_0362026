@@ -151,6 +151,34 @@ const AdminDashboard = () => {
     }
   };
 
+  const handleUnblockEvent = async (eventId) => {
+    const adminAxios = getAdminAxios();
+    try {
+      await adminAxios.post(`/admin/events/${eventId}/unblock`);
+      toast.success("Event unblocked successfully");
+      fetchAdminData();
+    } catch (error) {
+      toast.error("Failed to unblock event");
+    }
+  };
+
+  const handleRefundAllTickets = async (eventId, eventTitle) => {
+    const confirmed = window.confirm(`Are you sure you want to refund ALL tickets for "${eventTitle}"? This action cannot be undone.`);
+    if (!confirmed) return;
+    
+    const reason = prompt("Enter refund reason:", "Event cancelled");
+    if (!reason) return;
+    
+    const adminAxios = getAdminAxios();
+    try {
+      const res = await adminAxios.post(`/admin/events/${eventId}/refund-all?reason=${encodeURIComponent(reason)}`);
+      toast.success(`Refunded ${res.data.refunded_count} tickets totaling $${res.data.total_amount.toFixed(2)}`);
+      fetchAdminData();
+    } catch (error) {
+      toast.error("Failed to process refunds");
+    }
+  };
+
   const handleRefund = async (ticketId) => {
     const reason = prompt("Enter refund reason:");
     if (!reason) return;
