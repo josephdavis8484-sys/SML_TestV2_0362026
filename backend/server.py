@@ -194,7 +194,8 @@ class EventCreate(BaseModel):
     title: str
     category: str
     date: str
-    time: str
+    start_time: str = ""
+    end_time: str = ""
     description: str
     venue: str
     city: str = ""
