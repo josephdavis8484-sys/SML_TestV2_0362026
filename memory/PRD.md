@@ -294,4 +294,26 @@ English
     - "Refund All" button to refund all tickets for an event
     - Block/Unblock event functionality
     - `POST /api/admin/events/{event_id}/refund-all` - Refund all tickets for an event
+23. **NEW (Feb 2026): Geo-Fencing for Events** - Restrict events by country:
+    - Event model extended with: `geo_restricted`, `allowed_countries`, `blocked_countries`
+    - Endpoints:
+      - `POST /api/events/{event_id}/check-geo?country_code=US` - Check access by country
+      - `GET /api/events/{event_id}/geo-settings` - Get geo settings (creator only)
+      - `PUT /api/events/{event_id}/geo-settings` - Update geo settings
+    - CreateEvent page has Geographic Restrictions section:
+      - Enable Geo-Restrictions toggle
+      - Allowed Countries selection (15+ countries)
+      - Blocked Countries selection
+      - Visual feedback on country buttons
+24. **NEW (Feb 2026): Creator Event Cancellation** - Cancel events with auto-refund:
+    - `POST /api/events/{event_id}/cancel` - Cancels event and refunds all tickets
+    - Automatic notifications sent to all ticket holders
+    - Event status set to "cancelled" with reason stored
+    - Creator Dashboard shows "Cancel Event" button for upcoming events
+    - Cancelled events show CANCELLED badge
+25. **NEW (Feb 2026): MyTickets Enhancements**:
+    - **Watch/View Event Button**: "Watch Now" (live events) or "View Event" (upcoming)
+    - **Mobile-Friendly Calendar**: Uses fetch+blob download method
+    - **Cancelled/Refunded Display**: Shows REFUNDED overlay, strikethrough on amount
+    - Event status badges: LIVE NOW (pulse), Upcoming, Ended, Cancelled
 
