@@ -148,16 +148,22 @@ class Event(BaseModel):
     stream_url: Optional[str] = None
     qr_code: Optional[str] = None
     share_link: Optional[str] = None
-    status: str = "upcoming"  # "upcoming", "live", "completed"
+    status: str = "upcoming"  # "upcoming", "live", "completed", "cancelled"
     # Chat & Interaction settings
     chat_enabled: bool = False
     reactions_enabled: bool = False
     chat_mode: str = "open"  # "open", "moderated", "questions_only"
+    # Geo-fencing settings
+    geo_restricted: bool = False
+    allowed_countries: List[str] = []  # List of ISO country codes (e.g., ["US", "CA", "GB"])
+    blocked_countries: List[str] = []  # List of blocked countries
     is_blocked: bool = False
     block_reason: Optional[str] = None
     total_revenue: float = 0.0
     payout_processed: bool = False
     payout_date: Optional[datetime] = None
+    cancelled_at: Optional[datetime] = None
+    cancellation_reason: Optional[str] = None
     created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
 
 class EventCreate(BaseModel):
@@ -169,6 +175,13 @@ class EventCreate(BaseModel):
     venue: str
     price: float
     streaming_package: str = "free"
+    chat_enabled: bool = False
+    reactions_enabled: bool = False
+    chat_mode: str = "open"
+    # Geo-fencing
+    geo_restricted: bool = False
+    allowed_countries: List[str] = []
+    blocked_countries: List[str] = []
 
 class StreamingDevice(BaseModel):
     model_config = ConfigDict(extra="ignore")
