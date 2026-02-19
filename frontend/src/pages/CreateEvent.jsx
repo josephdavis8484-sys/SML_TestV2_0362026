@@ -6,8 +6,27 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Switch } from "@/components/ui/switch";
-import { Upload, Crown, Check, Zap, MessageCircle, Heart, HelpCircle, Tag, Loader2, X } from "lucide-react";
+import { Upload, Crown, Check, Zap, MessageCircle, Heart, HelpCircle, Tag, Loader2, X, Globe, MapPin } from "lucide-react";
 import { toast } from "sonner";
+
+// Common country codes for geo-fencing
+const COUNTRY_OPTIONS = [
+  { code: "US", name: "United States" },
+  { code: "CA", name: "Canada" },
+  { code: "GB", name: "United Kingdom" },
+  { code: "AU", name: "Australia" },
+  { code: "DE", name: "Germany" },
+  { code: "FR", name: "France" },
+  { code: "JP", name: "Japan" },
+  { code: "BR", name: "Brazil" },
+  { code: "MX", name: "Mexico" },
+  { code: "IN", name: "India" },
+  { code: "IT", name: "Italy" },
+  { code: "ES", name: "Spain" },
+  { code: "NL", name: "Netherlands" },
+  { code: "KR", name: "South Korea" },
+  { code: "SE", name: "Sweden" },
+];
 
 const CreateEvent = ({ user, onLogout }) => {
   const navigate = useNavigate();
@@ -28,7 +47,11 @@ const CreateEvent = ({ user, onLogout }) => {
     streaming_package: "free",
     chat_enabled: false,
     reactions_enabled: false,
-    chat_mode: "open"
+    chat_mode: "open",
+    // Geo-fencing
+    geo_restricted: false,
+    allowed_countries: [],
+    blocked_countries: []
   });
 
   const PRO_MODE_PRICE = 1000;
@@ -43,6 +66,17 @@ const CreateEvent = ({ user, onLogout }) => {
       };
       reader.readAsDataURL(file);
     }
+  };
+
+  const toggleCountry = (countryCode, listType) => {
+    setFormData(prev => {
+      const list = prev[listType];
+      if (list.includes(countryCode)) {
+        return { ...prev, [listType]: list.filter(c => c !== countryCode) };
+      } else {
+        return { ...prev, [listType]: [...list, countryCode] };
+      }
+    });
   };
 
   const validatePromoCode = async () => {
