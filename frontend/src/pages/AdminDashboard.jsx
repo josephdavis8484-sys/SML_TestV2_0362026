@@ -276,6 +276,43 @@ const AdminDashboard = () => {
     setShowPromoForm(true);
   };
 
+  // Bank Info Functions
+  const openBankForm = () => {
+    if (bankInfo && bankInfo.account_name) {
+      setBankForm({
+        account_name: bankInfo.account_name || "",
+        bank_name: bankInfo.bank_name || "",
+        account_number: bankInfo.account_number || "",
+        routing_number: bankInfo.routing_number || ""
+      });
+    } else {
+      setBankForm({
+        account_name: "",
+        bank_name: "",
+        account_number: "",
+        routing_number: ""
+      });
+    }
+    setShowBankForm(true);
+  };
+
+  const handleSaveBankInfo = async () => {
+    if (!bankForm.account_name || !bankForm.bank_name) {
+      toast.error("Account name and bank name are required");
+      return;
+    }
+
+    const adminAxios = getAdminAxios();
+    try {
+      await adminAxios.post("/admin/bank-info", bankForm);
+      toast.success("Bank info updated successfully");
+      setShowBankForm(false);
+      fetchAdminData();
+    } catch (error) {
+      toast.error(error.response?.data?.detail || "Failed to update bank info");
+    }
+  };
+
   if (loading) {
     return (
       <div className="min-h-screen bg-[#0f0f0f] flex items-center justify-center">
