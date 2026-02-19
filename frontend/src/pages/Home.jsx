@@ -79,7 +79,8 @@ const Home = ({ user, onLogout }) => {
       if (searchState) params.append("state", searchState);
       
       const response = await axiosInstance.get(`/events/search/location?${params.toString()}`);
-      setFilteredEvents(response.data);
+      // Backend returns {events: [...], count: ..., filters: {...}}
+      setFilteredEvents(response.data.events || []);
       setFeaturedEventIndex(0);
     } catch (error) {
       console.error("Error searching events:", error);
