@@ -2662,15 +2662,23 @@ async def join_room_as_creator(
         can_publish=True
     )
 
-@api_router.post("/livekit/join-as-viewer", response_model=LiveKitRoomInfo)
+@api_router.post("/livekit/join-as-viewer")
 async def join_room_as_viewer(
-    event_id: str,
+    request: dict,
     current_user: User = Depends(get_current_user)
 ):
     """Get LiveKit token for viewer to watch stream"""
+    event_id = request.get("event_id")
+    if not event_id:
+        raise HTTPException(status_code=400, detail="event_id is required")
+    
     event = await db.events.find_one({"id": event_id}, {"_id": 0})
     if not event:
         raise HTTPException(status_code=404, detail="Event not found")
+    
+    # Check if LiveKit is configured
+    if not LIVEKIT_API_KEY or not LIVEKIT_API_SECRET:
+        raise HTTPException(status_code=400, detail="LiveKit streaming is not configured")
     
     # Check if user has a ticket for this event
     ticket = await db.tickets.find_one({
@@ -2688,17 +2696,17 @@ async def join_room_as_viewer(
     token = generate_livekit_token(
         room_name=room_name,
         participant_identity=participant_id,
-        participant_name=current_user.name,
+        participant_name=current_user.name or current_user.email,
         can_publish=False,  # Viewers can't publish
         can_subscribe=True
     )
     
-    return LiveKitRoomInfo(
-        room_name=room_name,
-        token=token,
-        url=LIVEKIT_URL,
-        can_publish=False
-    )
+    return {
+        "room_name": room_name,
+        "token": token,
+        "url": LIVEKIT_URL,
+        "can_publish": False
+    }
 
 @api_router.post("/livekit/end-stream/{event_id}")
 async def end_stream(event_id: str, current_user: User = Depends(get_current_user)):
