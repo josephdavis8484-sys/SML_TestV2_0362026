@@ -2624,6 +2624,146 @@ async def check_event_reminders():
     except Exception as e:
         logging.error(f"Error in check_event_reminders: {e}")
 
+async def process_automatic_payouts():
+    """Process automatic payouts 24 hours after ticket purchase"""
+    try:
+        now = datetime.now(timezone.utc)
+        twenty_four_hours_ago = now - timedelta(hours=24)
+        
+        # Find all tickets purchased more than 24 hours ago that haven't been processed for payout
+        tickets = await db.tickets.find({
+            "refunded": False,
+            "payout_processed": {"$ne": True}
+        }, {"_id": 0}).to_list(10000)
+        
+        # Group tickets by event and creator
+        event_payouts = {}
+        for ticket in tickets:
+            # Check if ticket was purchased more than 24 hours ago
+            purchase_date = ticket.get("purchase_date")
+            if isinstance(purchase_date, str):
+                purchase_date = datetime.fromisoformat(purchase_date.replace("Z", "+00:00"))
+            
+            if purchase_date.tzinfo is None:
+                purchase_date = purchase_date.replace(tzinfo=timezone.utc)
+            
+            if purchase_date > twenty_four_hours_ago:
+                continue  # Not yet 24 hours old
+            
+            event_id = ticket.get("event_id")
+            if event_id not in event_payouts:
+                event = await db.events.find_one({"id": event_id}, {"_id": 0})
+                if event:
+                    event_payouts[event_id] = {
+                        "event": event,
+                        "creator_id": event.get("creator_id"),
+                        "tickets": [],
+                        "total_amount": 0
+                    }
+            
+            if event_id in event_payouts:
+                event_payouts[event_id]["tickets"].append(ticket)
+                event_payouts[event_id]["total_amount"] += ticket.get("amount_paid", 0)
+        
+        # Process payouts for each event's creator
+        for event_id, payout_data in event_payouts.items():
+            creator_id = payout_data["creator_id"]
+            total_amount = payout_data["total_amount"]
+            
+            if total_amount <= 0:
+                continue
+            
+            # Calculate 80% for creator (20% platform fee)
+            creator_amount = total_amount * 0.80
+            platform_fee = total_amount * 0.20
+            
+            # Get creator's Stripe account
+            creator = await db.users.find_one({"id": creator_id}, {"_id": 0})
+            if not creator:
+                logging.error(f"Creator not found: {creator_id}")
+                continue
+            
+            stripe_account_id = creator.get("stripe_account_id")
+            
+            payout_record = {
+                "id": str(uuid.uuid4()),
+                "event_id": event_id,
+                "creator_id": creator_id,
+                "total_ticket_sales": total_amount,
+                "platform_fee": platform_fee,
+                "creator_amount": creator_amount,
+                "ticket_ids": [t["id"] for t in payout_data["tickets"]],
+                "status": "pending",
+                "initiated_at": now.isoformat(),
+                "type": "automatic_24hr"
+            }
+            
+            if stripe_account_id:
+                try:
+                    # Check if Stripe account is ready for payouts
+                    account = stripe.Account.retrieve(stripe_account_id)
+                    
+                    if account.payouts_enabled:
+                        # Create transfer to creator's Stripe Connect account
+                        transfer = stripe.Transfer.create(
+                            amount=int(creator_amount * 100),  # Convert to cents
+                            currency="usd",
+                            destination=stripe_account_id,
+                            metadata={
+                                "event_id": event_id,
+                                "creator_id": creator_id,
+                                "platform": "showmelive",
+                                "type": "automatic_24hr_payout"
+                            }
+                        )
+                        
+                        payout_record["stripe_transfer_id"] = transfer.id
+                        payout_record["status"] = "completed"
+                        payout_record["completed_at"] = now.isoformat()
+                        
+                        logging.info(f"Automatic payout completed: ${creator_amount:.2f} to creator {creator_id} for event {event_id}")
+                        
+                        # Send notification to creator
+                        await create_notification(
+                            user_id=creator_id,
+                            notification_type="payout_completed",
+                            title="💰 Payout Received!",
+                            message=f"${creator_amount:.2f} has been deposited to your account for {payout_data['event']['title']}",
+                            event_id=event_id,
+                            data={
+                                "amount": creator_amount,
+                                "event_title": payout_data['event']['title']
+                            }
+                        )
+                    else:
+                        payout_record["status"] = "pending_stripe_setup"
+                        payout_record["error"] = "Creator's Stripe account not ready for payouts"
+                        logging.warning(f"Creator {creator_id} Stripe account not ready for payouts")
+                        
+                except stripe.StripeError as e:
+                    payout_record["status"] = "failed"
+                    payout_record["error"] = str(e)
+                    logging.error(f"Stripe error for payout to creator {creator_id}: {e}")
+            else:
+                payout_record["status"] = "pending_stripe_setup"
+                payout_record["error"] = "Creator has not connected Stripe account"
+                logging.warning(f"Creator {creator_id} has not connected Stripe account")
+            
+            # Save payout record
+            await db.automatic_payouts.insert_one(payout_record)
+            
+            # Mark tickets as payout processed
+            for ticket in payout_data["tickets"]:
+                await db.tickets.update_one(
+                    {"id": ticket["id"]},
+                    {"$set": {"payout_processed": True, "payout_id": payout_record["id"]}}
+                )
+        
+        logging.info(f"Automatic payout check completed. Processed {len(event_payouts)} events.")
+        
+    except Exception as e:
+        logging.error(f"Error in process_automatic_payouts: {e}")
+
 @app.on_event("startup")
 async def startup_event():
     """Start the background scheduler on app startup"""
@@ -2634,8 +2774,17 @@ async def startup_event():
         id="event_reminders",
         replace_existing=True
     )
+    
+    # Run automatic payout check every hour
+    scheduler.add_job(
+        process_automatic_payouts,
+        IntervalTrigger(hours=1),
+        id="automatic_payouts",
+        replace_existing=True
+    )
+    
     scheduler.start()
-    logging.info("Background scheduler started for event reminders")
+    logging.info("Background scheduler started for event reminders and automatic payouts")
 
 @app.on_event("shutdown")
 async def shutdown_db_client():
