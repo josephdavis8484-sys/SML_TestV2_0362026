@@ -257,13 +257,38 @@ const Home = ({ user, onLogout }) => {
 
       {/* Event Rows - Moved down with more spacing */}
       <div className="relative pt-12 pb-20">
-        <EventRow title="Upcoming Events" events={events.slice(0, 10)} />
-        {categories.map((category) => {
-          const categoryEvents = getEventsByCategory(category);
-          return categoryEvents.length > 0 ? (
-            <EventRow key={category} title={category} events={categoryEvents} />
-          ) : null;
-        })}
+        {filteredEvents.length > 0 ? (
+          <>
+            {/* Show filtered results */}
+            <EventRow title={`Events ${searchCity ? `in ${searchCity}` : ''}${searchState ? `, ${searchState}` : ''}`} events={filteredEvents.slice(0, 10)} />
+            {categories.map((category) => {
+              const categoryEvents = getEventsByCategory(category);
+              return categoryEvents.length > 0 ? (
+                <EventRow key={category} title={category} events={categoryEvents} />
+              ) : null;
+            })}
+            {filteredEvents.length === 0 && (
+              <div className="text-center py-20">
+                <MapPin className="w-16 h-16 text-gray-600 mx-auto mb-4" />
+                <p className="text-gray-400 text-lg">No events found in this location</p>
+                <Button onClick={clearSearch} className="mt-4 bg-purple-600 hover:bg-purple-700">
+                  View All Events
+                </Button>
+              </div>
+            )}
+          </>
+        ) : (
+          <>
+            {/* Show all events */}
+            <EventRow title="Upcoming Events" events={events.slice(0, 10)} />
+            {categories.map((category) => {
+              const categoryEvents = getEventsByCategory(category);
+              return categoryEvents.length > 0 ? (
+                <EventRow key={category} title={category} events={categoryEvents} />
+              ) : null;
+            })}
+          </>
+        )}
       </div>
     </div>
   );
