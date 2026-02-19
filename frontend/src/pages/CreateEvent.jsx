@@ -148,6 +148,24 @@ const CreateEvent = ({ user, onLogout }) => {
     setLoading(true);
 
     try {
+      // If geo-restricted, validate and geocode the location first
+      if (formData.geo_restricted) {
+        if (!formData.geo_city || !formData.geo_state) {
+          toast.error("Please enter both city and state for geo-fencing");
+          setLoading(false);
+          return;
+        }
+        
+        // Geocode if not already done
+        if (!formData.latitude || !formData.longitude) {
+          const geocoded = await geocodeLocation(formData.geo_city, formData.geo_state);
+          if (!geocoded) {
+            setLoading(false);
+            return;
+          }
+        }
+      }
+
       // Upload image first
       let imageUrl = "";
       if (imageFile) {
@@ -160,11 +178,27 @@ const CreateEvent = ({ user, onLogout }) => {
         imageUrl = `${process.env.REACT_APP_BACKEND_URL}${uploadRes.data.image_url}`;
       }
 
-      // Create event
+      // Create event with geo-fencing data
       const eventData = {
-        ...formData,
+        title: formData.title,
+        category: formData.category,
+        date: formData.date,
+        time: formData.time,
+        description: formData.description,
+        venue: formData.venue,
         price: parseFloat(formData.price),
-        image_url: imageUrl || "https://images.unsplash.com/photo-1540039155733-5bb30b53aa14?w=400&h=600&fit=crop"
+        streaming_package: formData.streaming_package,
+        chat_enabled: formData.chat_enabled,
+        reactions_enabled: formData.reactions_enabled,
+        chat_mode: formData.chat_mode,
+        image_url: imageUrl || "https://images.unsplash.com/photo-1540039155733-5bb30b53aa14?w=400&h=600&fit=crop",
+        // Geo-fencing fields
+        geo_restricted: formData.geo_restricted,
+        city: formData.geo_restricted ? formData.geo_city : "",
+        state: formData.geo_restricted ? formData.geo_state : "",
+        latitude: formData.geo_restricted ? formData.latitude : null,
+        longitude: formData.geo_restricted ? formData.longitude : null,
+        geo_radius_meters: formData.geo_restricted ? formData.geo_radius_meters : 1000
       };
 
       const response = await axiosInstance.post("/events", eventData);
