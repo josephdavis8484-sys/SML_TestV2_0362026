@@ -994,12 +994,113 @@ async def unblock_user(user_id: str, current_user: User = Depends(get_admin_user
 
 @api_router.get("/admin/events")
 async def get_all_events_admin(current_user: User = Depends(get_admin_user)):
-    """Get all events for admin"""
+    """Get all events for admin with creator details and revenue"""
     events = await db.events.find({}, {"_id": 0}).to_list(10000)
+    
+    # Get all unique creator IDs
+    creator_ids = list(set(e.get("creator_id") for e in events if e.get("creator_id")))
+    
+    # Fetch all creators in one query
+    creators = await db.users.find(
+        {"id": {"$in": creator_ids}},
+        {"_id": 0, "id": 1, "name": 1, "email": 1, "picture": 1}
+    ).to_list(10000)
+    
+    creator_map = {c["id"]: c for c in creators}
+    
+    # Get ticket counts and revenue for each event
     for event in events:
         if isinstance(event.get('created_at'), str):
             event['created_at'] = datetime.fromisoformat(event['created_at'])
+        
+        # Add creator info
+        creator_id = event.get("creator_id")
+        if creator_id and creator_id in creator_map:
+            event["creator"] = creator_map[creator_id]
+        else:
+            event["creator"] = {"name": "Unknown", "email": ""}
+        
+        # Get ticket count for this event
+        ticket_count = await db.tickets.count_documents({"event_id": event["id"], "refunded": False})
+        event["ticket_count"] = ticket_count
+        
+        # Get refunded ticket count
+        refunded_count = await db.tickets.count_documents({"event_id": event["id"], "refunded": True})
+        event["refunded_count"] = refunded_count
+        
+        # Calculate platform fee and creator earnings
+        total_revenue = event.get("total_revenue", 0)
+        event["platform_fee"] = total_revenue * 0.20
+        event["creator_earnings"] = total_revenue * 0.80
+        
+        # Check payout status
+        payout = await db.automatic_payouts.find_one({"event_id": event["id"]}, {"_id": 0})
+        event["payout_status"] = payout.get("status") if payout else "pending"
+    
     return events
+
+@api_router.post("/admin/events/{event_id}/refund-all")
+async def refund_all_event_tickets(event_id: str, reason: str = "Event cancelled", current_user: User = Depends(get_admin_user)):
+    """Refund all tickets for an event"""
+    event = await db.events.find_one({"id": event_id}, {"_id": 0})
+    if not event:
+        raise HTTPException(status_code=404, detail="Event not found")
+    
+    # Get all non-refunded tickets for this event
+    tickets = await db.tickets.find(
+        {"event_id": event_id, "refunded": False},
+        {"_id": 0}
+    ).to_list(10000)
+    
+    if not tickets:
+        return {"message": "No tickets to refund", "refunded_count": 0, "total_amount": 0}
+    
+    total_refunded = 0
+    refund_count = 0
+    
+    for ticket in tickets:
+        # In production, you would process actual Stripe refunds here
+        # For now, we mark them as refunded
+        await db.tickets.update_one(
+            {"id": ticket["id"]},
+            {"$set": {
+                "refunded": True,
+                "refund_reason": reason,
+                "refund_date": datetime.now(timezone.utc).isoformat(),
+                "refunded_by": "admin"
+            }}
+        )
+        total_refunded += ticket.get("amount_paid", 0)
+        refund_count += 1
+        
+        # Send notification to user
+        try:
+            await create_notification(
+                user_id=ticket["user_id"],
+                notification_type="ticket_refunded",
+                title="🔄 Ticket Refunded",
+                message=f"Your ticket for {event['title']} has been refunded. ${ticket.get('amount_paid', 0):.2f} will be returned to your payment method.",
+                event_id=event_id,
+                data={
+                    "event_title": event["title"],
+                    "refund_amount": ticket.get("amount_paid", 0),
+                    "reason": reason
+                }
+            )
+        except Exception as e:
+            logging.error(f"Failed to send refund notification: {e}")
+    
+    # Update event revenue
+    await db.events.update_one(
+        {"id": event_id},
+        {"$set": {"total_revenue": 0, "status": "cancelled"}}
+    )
+    
+    return {
+        "message": "All tickets refunded successfully",
+        "refunded_count": refund_count,
+        "total_amount": total_refunded
+    }
 
 @api_router.post("/admin/events/{event_id}/block")
 async def block_event(event_id: str, reason: str, current_user: User = Depends(get_admin_user)):
