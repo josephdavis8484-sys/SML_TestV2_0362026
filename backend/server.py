@@ -143,6 +143,12 @@ class Event(BaseModel):
     time: str = "7:00 PM"  # Default time
     description: str
     venue: str
+    # Location fields
+    city: str = ""
+    state: str = ""
+    country: str = "US"
+    latitude: Optional[float] = None
+    longitude: Optional[float] = None
     price: float
     streaming_package: str = "free"  # "free" or "premium"
     stream_url: Optional[str] = None
@@ -153,10 +159,11 @@ class Event(BaseModel):
     chat_enabled: bool = False
     reactions_enabled: bool = False
     chat_mode: str = "open"  # "open", "moderated", "questions_only"
-    # Geo-fencing settings
+    # Geo-fencing settings (radius-based from city location)
     geo_restricted: bool = False
-    allowed_countries: List[str] = []  # List of ISO country codes (e.g., ["US", "CA", "GB"])
-    blocked_countries: List[str] = []  # List of blocked countries
+    geo_radius_meters: int = 1000  # Default 1000 meters radius
+    allowed_countries: List[str] = []  # Legacy - kept for backwards compatibility
+    blocked_countries: List[str] = []  # Legacy - kept for backwards compatibility
     is_blocked: bool = False
     block_reason: Optional[str] = None
     total_revenue: float = 0.0
@@ -173,6 +180,11 @@ class EventCreate(BaseModel):
     time: str
     description: str
     venue: str
+    city: str = ""
+    state: str = ""
+    country: str = "US"
+    latitude: Optional[float] = None
+    longitude: Optional[float] = None
     price: float
     streaming_package: str = "free"
     chat_enabled: bool = False
