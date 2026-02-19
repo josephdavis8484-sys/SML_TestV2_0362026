@@ -97,11 +97,13 @@ const Home = ({ user, onLogout }) => {
   };
 
   const getEventsByCategory = (category) => {
-    return events.filter(event => event.category.toLowerCase() === category.toLowerCase());
+    const eventsToFilter = filteredEvents.length > 0 ? filteredEvents : events;
+    return eventsToFilter.filter(event => event.category.toLowerCase() === category.toLowerCase());
   };
 
   const categories = ["Comedy", "Music", "Influencer", "Entertainment", "Sports", "Education"];
-  const featuredEvent = events[featuredEventIndex];
+  const displayEvents = filteredEvents.length > 0 ? filteredEvents : events;
+  const featuredEvent = displayEvents[featuredEventIndex];
 
   return (
     <div className="min-h-screen bg-[#0f0f0f]" data-testid="home-page">
