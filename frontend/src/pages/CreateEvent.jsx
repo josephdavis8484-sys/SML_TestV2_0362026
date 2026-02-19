@@ -614,6 +614,105 @@ const CreateEvent = ({ user, onLogout }) => {
             )}
           </div>
 
+          {/* Geo-Fencing Settings */}
+          <div>
+            <label className="text-white text-lg font-semibold mb-4 block flex items-center gap-2">
+              <Globe className="w-5 h-5 text-purple-400" />
+              Geographic Restrictions (Geo-Fencing)
+            </label>
+            <p className="text-gray-400 text-sm mb-4">
+              Control which countries can access your event. Leave disabled for worldwide access.
+            </p>
+            
+            <div className="bg-gray-900/50 rounded-lg p-6 space-y-6 border border-gray-700">
+              {/* Enable Geo-Fencing Toggle */}
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 bg-purple-600/20 rounded-lg flex items-center justify-center">
+                    <MapPin className="w-5 h-5 text-purple-400" />
+                  </div>
+                  <div>
+                    <h4 className="text-white font-medium">Enable Geo-Restrictions</h4>
+                    <p className="text-gray-400 text-sm">Restrict event access by country</p>
+                  </div>
+                </div>
+                <Switch
+                  checked={formData.geo_restricted}
+                  onCheckedChange={(checked) => setFormData({...formData, geo_restricted: checked})}
+                  data-testid="geo-toggle"
+                />
+              </div>
+
+              {formData.geo_restricted && (
+                <div className="space-y-6 pt-4 border-t border-gray-700">
+                  {/* Allowed Countries */}
+                  <div>
+                    <h5 className="text-white font-medium mb-3 flex items-center gap-2">
+                      <Check className="w-4 h-4 text-green-400" />
+                      Allowed Countries (Leave empty to allow all except blocked)
+                    </h5>
+                    <div className="flex flex-wrap gap-2">
+                      {COUNTRY_OPTIONS.map(country => (
+                        <button
+                          key={`allow-${country.code}`}
+                          type="button"
+                          onClick={() => toggleCountry(country.code, 'allowed_countries')}
+                          disabled={formData.blocked_countries.includes(country.code)}
+                          className={`px-3 py-1.5 rounded-full text-sm font-medium transition-all ${
+                            formData.allowed_countries.includes(country.code)
+                              ? "bg-green-600 text-white"
+                              : formData.blocked_countries.includes(country.code)
+                              ? "bg-gray-800 text-gray-500 cursor-not-allowed"
+                              : "bg-gray-800 text-gray-300 hover:bg-gray-700"
+                          }`}
+                        >
+                          {country.name}
+                        </button>
+                      ))}
+                    </div>
+                    {formData.allowed_countries.length > 0 && (
+                      <p className="text-green-400 text-xs mt-2">
+                        ✓ Only viewers from {formData.allowed_countries.join(", ")} can access
+                      </p>
+                    )}
+                  </div>
+
+                  {/* Blocked Countries */}
+                  <div>
+                    <h5 className="text-white font-medium mb-3 flex items-center gap-2">
+                      <X className="w-4 h-4 text-red-400" />
+                      Blocked Countries
+                    </h5>
+                    <div className="flex flex-wrap gap-2">
+                      {COUNTRY_OPTIONS.map(country => (
+                        <button
+                          key={`block-${country.code}`}
+                          type="button"
+                          onClick={() => toggleCountry(country.code, 'blocked_countries')}
+                          disabled={formData.allowed_countries.includes(country.code)}
+                          className={`px-3 py-1.5 rounded-full text-sm font-medium transition-all ${
+                            formData.blocked_countries.includes(country.code)
+                              ? "bg-red-600 text-white"
+                              : formData.allowed_countries.includes(country.code)
+                              ? "bg-gray-800 text-gray-500 cursor-not-allowed"
+                              : "bg-gray-800 text-gray-300 hover:bg-gray-700"
+                          }`}
+                        >
+                          {country.name}
+                        </button>
+                      ))}
+                    </div>
+                    {formData.blocked_countries.length > 0 && (
+                      <p className="text-red-400 text-xs mt-2">
+                        ✗ Viewers from {formData.blocked_countries.join(", ")} are blocked
+                      </p>
+                    )}
+                  </div>
+                </div>
+              )}
+            </div>
+          </div>
+
           <div className="flex gap-4 pt-4">
             <Button
               type="submit"
