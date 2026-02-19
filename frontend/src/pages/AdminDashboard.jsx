@@ -467,36 +467,129 @@ const AdminDashboard = () => {
         {activeTab === "events" && (
           <div className="space-y-4">
             <h2 className="text-white text-3xl font-bold">Event Management</h2>
-            <div className="grid gap-4">
-              {events.map((event) => (
-                <div key={event.id} className="bg-gray-900/50 rounded-lg p-6">
-                  <div className="flex justify-between items-start">
-                    <div>
-                      <h3 className="text-white text-xl font-bold mb-2">{event.title}</h3>
-                      <p className="text-gray-400 text-sm mb-1">{event.date} at {event.time}</p>
-                      <p className="text-gray-400 text-sm">Revenue: ${event.total_revenue?.toFixed(2) || "0.00"}</p>
-                      {event.is_blocked && (
-                        <p className="text-red-500 text-sm mt-2">⚠️ Blocked: {event.block_reason}</p>
-                      )}
-                    </div>
-                    <div className="flex gap-2">
-                      <span className={`px-3 py-1 rounded text-sm ${
-                        event.status === "live" ? "bg-red-600" : "bg-blue-600"
-                      }`}>
-                        {event.status}
-                      </span>
-                      {!event.is_blocked && (
-                        <Button
-                          onClick={() => handleBlockEvent(event.id)}
-                          className="bg-red-600 hover:bg-red-700 text-sm"
-                        >
-                          Block
-                        </Button>
-                      )}
-                    </div>
-                  </div>
+            <p className="text-gray-400">Manage events, view revenue, and process refunds</p>
+            
+            <div className="bg-gray-900/50 rounded-lg overflow-hidden">
+              <table className="w-full">
+                <thead className="bg-gray-800">
+                  <tr>
+                    <th className="text-left text-gray-300 p-4">Event</th>
+                    <th className="text-left text-gray-300 p-4">Creator</th>
+                    <th className="text-left text-gray-300 p-4">Date & Time</th>
+                    <th className="text-left text-gray-300 p-4">Tickets</th>
+                    <th className="text-left text-gray-300 p-4">Revenue</th>
+                    <th className="text-left text-gray-300 p-4">Platform (20%)</th>
+                    <th className="text-left text-gray-300 p-4">Creator (80%)</th>
+                    <th className="text-left text-gray-300 p-4">Payout</th>
+                    <th className="text-left text-gray-300 p-4">Actions</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {events.map((event) => (
+                    <tr key={event.id} className="border-t border-gray-800 hover:bg-gray-800/50">
+                      <td className="p-4">
+                        <div className="flex items-center gap-3">
+                          <img 
+                            src={event.image_url} 
+                            alt={event.title}
+                            className="w-12 h-12 rounded object-cover"
+                          />
+                          <div>
+                            <p className="text-white font-medium">{event.title}</p>
+                            <p className="text-gray-500 text-xs">{event.category}</p>
+                            {event.is_blocked && (
+                              <span className="text-red-400 text-xs">⚠️ Blocked</span>
+                            )}
+                          </div>
+                        </div>
+                      </td>
+                      <td className="p-4">
+                        <div className="flex items-center gap-2">
+                          {event.creator?.picture && (
+                            <img 
+                              src={event.creator.picture} 
+                              alt={event.creator.name}
+                              className="w-8 h-8 rounded-full"
+                            />
+                          )}
+                          <div>
+                            <p className="text-white text-sm">{event.creator?.name || "Unknown"}</p>
+                            <p className="text-gray-500 text-xs">{event.creator?.email || ""}</p>
+                          </div>
+                        </div>
+                      </td>
+                      <td className="p-4">
+                        <p className="text-white text-sm">{event.date}</p>
+                        <p className="text-gray-400 text-xs">{event.time}</p>
+                      </td>
+                      <td className="p-4">
+                        <p className="text-white">{event.ticket_count || 0} sold</p>
+                        {event.refunded_count > 0 && (
+                          <p className="text-yellow-500 text-xs">{event.refunded_count} refunded</p>
+                        )}
+                      </td>
+                      <td className="p-4">
+                        <p className="text-green-400 font-bold">${(event.total_revenue || 0).toFixed(2)}</p>
+                      </td>
+                      <td className="p-4">
+                        <p className="text-blue-400">${(event.platform_fee || 0).toFixed(2)}</p>
+                      </td>
+                      <td className="p-4">
+                        <p className="text-yellow-400">${(event.creator_earnings || 0).toFixed(2)}</p>
+                      </td>
+                      <td className="p-4">
+                        <span className={`px-2 py-1 rounded text-xs ${
+                          event.payout_status === "completed" 
+                            ? "bg-green-600/20 text-green-400"
+                            : event.payout_status === "pending_stripe_setup"
+                            ? "bg-yellow-600/20 text-yellow-400"
+                            : event.payout_status === "failed"
+                            ? "bg-red-600/20 text-red-400"
+                            : "bg-gray-600/20 text-gray-400"
+                        }`}>
+                          {event.payout_status === "completed" ? "Paid" : 
+                           event.payout_status === "pending_stripe_setup" ? "Awaiting Setup" :
+                           event.payout_status === "failed" ? "Failed" : "Pending"}
+                        </span>
+                      </td>
+                      <td className="p-4">
+                        <div className="flex gap-2">
+                          {event.ticket_count > 0 && !event.is_blocked && (
+                            <Button
+                              onClick={() => handleRefundAllTickets(event.id, event.title)}
+                              className="bg-yellow-600 hover:bg-yellow-700 text-xs px-2 py-1"
+                              data-testid={`refund-event-${event.id}`}
+                            >
+                              Refund All
+                            </Button>
+                          )}
+                          {!event.is_blocked ? (
+                            <Button
+                              onClick={() => handleBlockEvent(event.id)}
+                              className="bg-red-600 hover:bg-red-700 text-xs px-2 py-1"
+                            >
+                              Block
+                            </Button>
+                          ) : (
+                            <Button
+                              onClick={() => handleUnblockEvent(event.id)}
+                              className="bg-green-600 hover:bg-green-700 text-xs px-2 py-1"
+                            >
+                              Unblock
+                            </Button>
+                          )}
+                        </div>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+              
+              {events.length === 0 && (
+                <div className="text-center py-12 text-gray-500">
+                  No events found
                 </div>
-              ))}
+              )}
             </div>
           </div>
         )}
