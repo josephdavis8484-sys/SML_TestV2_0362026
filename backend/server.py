@@ -496,6 +496,70 @@ async def get_events():
             event['created_at'] = datetime.fromisoformat(event['created_at'])
     return events
 
+# Search events by city/state - MUST be before /events/{event_id}
+@api_router.get("/events/search/location")
+async def search_events_by_location(
+    city: Optional[str] = None,
+    state: Optional[str] = None,
+    country: str = "US"
+):
+    """Search events by city and/or state"""
+    query = {"status": {"$nin": ["cancelled"]}, "is_blocked": {"$ne": True}}
+    
+    if city:
+        query["city"] = {"$regex": city, "$options": "i"}
+    if state:
+        query["state"] = {"$regex": state, "$options": "i"}
+    if country:
+        query["country"] = country.upper()
+    
+    events = await db.events.find(query, {"_id": 0}).to_list(100)
+    
+    return {
+        "events": events,
+        "count": len(events),
+        "filters": {
+            "city": city,
+            "state": state,
+            "country": country
+        }
+    }
+
+# Get unique cities and states for filtering - MUST be before /events/{event_id}
+@api_router.get("/events/locations")
+async def get_event_locations():
+    """Get list of unique cities and states that have events"""
+    pipeline = [
+        {"$match": {"status": {"$nin": ["cancelled"]}, "is_blocked": {"$ne": True}}},
+        {"$group": {
+            "_id": {"city": "$city", "state": "$state"},
+            "count": {"$sum": 1}
+        }},
+        {"$match": {"_id.city": {"$ne": ""}}},
+        {"$sort": {"count": -1}}
+    ]
+    
+    locations = await db.events.aggregate(pipeline).to_list(100)
+    
+    # Format response
+    cities = []
+    states = set()
+    
+    for loc in locations:
+        if loc["_id"]["city"]:
+            cities.append({
+                "city": loc["_id"]["city"],
+                "state": loc["_id"]["state"],
+                "event_count": loc["count"]
+            })
+        if loc["_id"]["state"]:
+            states.add(loc["_id"]["state"])
+    
+    return {
+        "cities": cities,
+        "states": list(states)
+    }
+
 @api_router.get("/events/{event_id}", response_model=Event)
 async def get_event(event_id: str):
     event = await db.events.find_one({"id": event_id}, {"_id": 0})
