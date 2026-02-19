@@ -154,18 +154,29 @@ English
   - REST API + WebSocket for real-time notifications
   - Viewers notified when purchased events go live
   - Toast alerts for live event notifications
+- [x] ~~Event reminder notifications~~ → **FULLY IMPLEMENTED** (Feb 2026)
+  - APScheduler background job runs every 5 minutes
+  - Sends notifications 1 hour before event starts
+  - Notifies all ticket holders automatically
+- [x] ~~Anti-piracy measures~~ → **FULLY IMPLEMENTED** (Feb 2026)
+  - AntiPiracy component wraps live event content
+  - Disables right-click context menu
+  - Blocks screenshot keyboard shortcuts (PrintScreen, Cmd+Shift+3/4/5)
+  - Disables text selection on live streams
+  - Prevents image/video dragging
+  - Detects DevTools opening
+  - "LIVE NOW" badge and "Content protected" notice
 - [ ] Real-time withdrawal status updates (WebSocket)
 
 ### P2 (Lower Priority - Future)
-- [ ] Anti-piracy measures (screen recording prevention)
 - [ ] Coins/Diamond virtual currency system
-- [ ] Social logins (Facebook, Instagram, Twitter)
+- [ ] Additional social logins (Facebook, Instagram, Twitter) - Deferred
 
 ---
 
 ## Tech Stack
 - **Frontend**: React, Tailwind CSS, shadcn/ui
-- **Backend**: FastAPI, Python
+- **Backend**: FastAPI, Python, APScheduler
 - **Database**: MongoDB
 - **Auth**: Google OAuth 2.0 (Emergent Auth), JWT for Admin
 - **Payments**: Stripe (fully integrated), Stripe Connect (creator payouts)
