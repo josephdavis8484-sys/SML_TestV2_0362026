@@ -68,7 +68,7 @@ const EventDetail = ({ user, onLogout }) => {
       sessionStorage.setItem("pending_purchase_event", id);
       sessionStorage.setItem("pending_role", "viewer");
       const redirectUrl = `${window.location.origin}/event/${id}`;
-      window.location.href = `${EMERGENT_AUTH_URL}/?redirect=${encodeURIComponent(redirectUrl)}`;
+      window.location.href = `${EMERGENT_AUTH_URL}/?redirect=${encodeURIComponent(redirectUrl)}&app_name=${encodeURIComponent(APP_NAME)}`;
       return;
     }
 
