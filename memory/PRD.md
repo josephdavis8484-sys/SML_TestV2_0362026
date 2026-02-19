@@ -23,6 +23,8 @@ English
 - Event creation form (Category, Title, Date/Time, Price, Poster)
 - Pro Mode for multi-camera streaming ($1000 fee via Stripe)
 - **Promo codes for Pro Mode discounts** (NEW - Feb 2026)
+- **Geo-fencing for events** - restrict by country (NEW - Feb 2026)
+- **Cancel event with auto-refund** (NEW - Feb 2026)
 - QR codes for camera devices (up to 5)
 - Control panel for camera switching, transitions, audio mixing
 
@@ -30,7 +32,9 @@ English
 - Home page to browse upcoming events
 - Event details page with "Buy Ticket" button
 - Stripe checkout for ticket purchases
-- "Add to Calendar" functionality
+- "Add to Calendar" functionality (mobile-friendly)
+- **Watch/Connect button on tickets** (NEW - Feb 2026)
+- Geo-access check before ticket purchase
 
 ### 4. Admin Panel
 - User management (approve/reject creators, block/unblock users)
