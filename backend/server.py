@@ -192,8 +192,7 @@ class EventCreate(BaseModel):
     chat_mode: str = "open"
     # Geo-fencing
     geo_restricted: bool = False
-    allowed_countries: List[str] = []
-    blocked_countries: List[str] = []
+    geo_radius_meters: int = 1000
 
 class StreamingDevice(BaseModel):
     model_config = ConfigDict(extra="ignore")
