@@ -197,7 +197,9 @@ const CreatorDashboard = ({ user, onLogout }) => {
               {events.map((event) => (
                 <div
                   key={event.id}
-                  className="bg-gray-900/50 rounded-lg overflow-hidden hover:bg-gray-900/70 transition-all"
+                  className={`bg-gray-900/50 rounded-lg overflow-hidden transition-all ${
+                    event.status === "cancelled" ? "opacity-60" : "hover:bg-gray-900/70"
+                  }`}
                   data-testid={`event-card-${event.id}`}
                 >
                   <div className="aspect-[3/4] w-full relative">
@@ -206,9 +208,27 @@ const CreatorDashboard = ({ user, onLogout }) => {
                       alt={event.title}
                       className="w-full h-full object-cover"
                     />
-                    <div className="absolute top-2 right-2 bg-blue-600 text-white px-3 py-1 rounded-full text-sm font-bold">
-                      {event.status}
+                    <div className={`absolute top-2 right-2 px-3 py-1 rounded-full text-sm font-bold ${
+                      event.status === "live" ? "bg-red-600 text-white animate-pulse" :
+                      event.status === "cancelled" ? "bg-gray-600 text-white" :
+                      event.status === "completed" ? "bg-green-600 text-white" :
+                      "bg-blue-600 text-white"
+                    }`}>
+                      {event.status === "live" && "🔴 "}{event.status}
                     </div>
+                    {event.geo_restricted && (
+                      <div className="absolute top-2 left-2 bg-purple-600 text-white px-2 py-1 rounded-full text-xs">
+                        <Globe className="w-3 h-3 inline mr-1" />
+                        Geo-Restricted
+                      </div>
+                    )}
+                    {event.status === "cancelled" && (
+                      <div className="absolute inset-0 bg-black/50 flex items-center justify-center">
+                        <div className="bg-red-600 text-white px-4 py-2 rounded-lg font-bold">
+                          CANCELLED
+                        </div>
+                      </div>
+                    )}
                   </div>
                   
                   <div className="p-6">
@@ -222,25 +242,45 @@ const CreatorDashboard = ({ user, onLogout }) => {
                       <span className="text-sm">Revenue: ${event.total_revenue?.toFixed(2) || "0.00"}</span>
                     </div>
                     
-                    <div className="flex gap-2">
-                      <Button
-                        onClick={() => navigate(`/control-panel/${event.id}`)}
-                        className="flex-1 bg-blue-600 hover:bg-blue-700 text-white text-sm"
-                        data-testid={`manage-button-${event.id}`}
-                      >
-                        Manage Stream
-                      </Button>
-                      <Button
-                        onClick={() => {
-                          navigator.clipboard.writeText(event.share_link);
-                          toast.success("Link copied!");
-                        }}
-                        className="flex-1 bg-gray-700 hover:bg-gray-600 text-white text-sm"
-                        data-testid={`share-button-${event.id}`}
-                      >
-                        Share
-                      </Button>
-                    </div>
+                    {event.status !== "cancelled" && event.status !== "completed" ? (
+                      <div className="space-y-2">
+                        <div className="flex gap-2">
+                          <Button
+                            onClick={() => navigate(`/control-panel/${event.id}`)}
+                            className="flex-1 bg-blue-600 hover:bg-blue-700 text-white text-sm"
+                            data-testid={`manage-button-${event.id}`}
+                          >
+                            Manage Stream
+                          </Button>
+                          <Button
+                            onClick={() => {
+                              navigator.clipboard.writeText(event.share_link);
+                              toast.success("Link copied!");
+                            }}
+                            className="flex-1 bg-gray-700 hover:bg-gray-600 text-white text-sm"
+                            data-testid={`share-button-${event.id}`}
+                          >
+                            Share
+                          </Button>
+                        </div>
+                        <Button
+                          onClick={() => handleCancelEvent(event.id, event.title)}
+                          className="w-full bg-red-600/20 hover:bg-red-600/40 text-red-400 border border-red-600/50 text-sm"
+                          data-testid={`cancel-button-${event.id}`}
+                        >
+                          <XCircle className="w-4 h-4 mr-2" />
+                          Cancel Event
+                        </Button>
+                      </div>
+                    ) : event.status === "completed" ? (
+                      <div className="text-center text-gray-400 py-2">
+                        Event completed
+                      </div>
+                    ) : (
+                      <div className="text-center text-red-400 py-2 text-sm">
+                        {event.cancellation_reason || "Event was cancelled"}
+                      </div>
+                    )}
                   </div>
                 </div>
               ))}
