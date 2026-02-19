@@ -2325,39 +2325,87 @@ async def cancel_event(event_id: str, reason: str = "Event cancelled by creator"
     }
 
 @api_router.post("/events/{event_id}/check-geo")
-async def check_geo_access(event_id: str, country_code: str):
-    """Check if a user's country is allowed to access this event"""
+async def check_geo_access(
+    event_id: str, 
+    user_lat: Optional[float] = None, 
+    user_lon: Optional[float] = None,
+    country_code: Optional[str] = None
+):
+    """Check if a user's location is allowed to access this event (radius-based)"""
     event = await db.events.find_one({"id": event_id}, {"_id": 0})
     if not event:
         raise HTTPException(status_code=404, detail="Event not found")
     
     # If geo-restriction is not enabled, allow access
     if not event.get("geo_restricted", False):
-        return {"allowed": True, "message": "Event is available worldwide"}
-    
-    country_code = country_code.upper()
-    allowed_countries = event.get("allowed_countries", [])
-    blocked_countries = event.get("blocked_countries", [])
-    
-    # Check blocked countries first
-    if blocked_countries and country_code in blocked_countries:
         return {
-            "allowed": False,
-            "message": f"This event is not available in your region ({country_code})"
+            "allowed": True, 
+            "message": "Event is available worldwide",
+            "event_location": {
+                "city": event.get("city", ""),
+                "state": event.get("state", ""),
+                "country": event.get("country", "")
+            }
         }
     
-    # If allowed_countries is specified, check if user is in allowed list
-    if allowed_countries:
-        if country_code in allowed_countries:
-            return {"allowed": True, "message": "Access granted"}
+    # Get event location
+    event_lat = event.get("latitude")
+    event_lon = event.get("longitude")
+    geo_radius = event.get("geo_radius_meters", GEO_FENCE_RADIUS_METERS)
+    
+    # If event has no coordinates, fall back to allowing based on city/state match or country
+    if event_lat is None or event_lon is None:
+        return {
+            "allowed": True,
+            "message": "Event location not configured for geo-fencing. Access granted.",
+            "event_location": {
+                "city": event.get("city", ""),
+                "state": event.get("state", ""),
+                "country": event.get("country", "")
+            }
+        }
+    
+    # If user provided coordinates, check radius
+    if user_lat is not None and user_lon is not None:
+        distance = calculate_distance_meters(event_lat, event_lon, user_lat, user_lon)
+        
+        if distance <= geo_radius:
+            return {
+                "allowed": True,
+                "message": f"You are within the event area ({int(distance)}m from venue)",
+                "distance_meters": int(distance),
+                "radius_meters": geo_radius,
+                "event_location": {
+                    "city": event.get("city", ""),
+                    "state": event.get("state", ""),
+                    "country": event.get("country", "")
+                }
+            }
         else:
             return {
                 "allowed": False,
-                "message": f"This event is only available in: {', '.join(allowed_countries)}"
+                "message": f"This event is only available within {geo_radius}m of {event.get('city', 'the venue')}, {event.get('state', '')}. You are {int(distance)}m away.",
+                "distance_meters": int(distance),
+                "radius_meters": geo_radius,
+                "event_location": {
+                    "city": event.get("city", ""),
+                    "state": event.get("state", ""),
+                    "country": event.get("country", "")
+                }
             }
     
-    # If no specific allowed countries and not blocked, allow
-    return {"allowed": True, "message": "Access granted"}
+    # No coordinates provided - require location
+    return {
+        "allowed": False,
+        "message": f"This event requires location access. It is only available within {geo_radius}m of {event.get('city', 'the venue')}, {event.get('state', '')}.",
+        "requires_location": True,
+        "radius_meters": geo_radius,
+        "event_location": {
+            "city": event.get("city", ""),
+            "state": event.get("state", ""),
+            "country": event.get("country", "")
+        }
+    }
 
 @api_router.get("/events/{event_id}/geo-settings")
 async def get_geo_settings(event_id: str, current_user: User = Depends(get_current_user)):
@@ -2371,16 +2419,19 @@ async def get_geo_settings(event_id: str, current_user: User = Depends(get_curre
     
     return {
         "geo_restricted": event.get("geo_restricted", False),
-        "allowed_countries": event.get("allowed_countries", []),
-        "blocked_countries": event.get("blocked_countries", [])
+        "geo_radius_meters": event.get("geo_radius_meters", GEO_FENCE_RADIUS_METERS),
+        "city": event.get("city", ""),
+        "state": event.get("state", ""),
+        "country": event.get("country", ""),
+        "latitude": event.get("latitude"),
+        "longitude": event.get("longitude")
     }
 
 @api_router.put("/events/{event_id}/geo-settings")
 async def update_geo_settings(
     event_id: str,
     geo_restricted: bool = False,
-    allowed_countries: List[str] = [],
-    blocked_countries: List[str] = [],
+    geo_radius_meters: int = 1000,
     current_user: User = Depends(get_current_user)
 ):
     """Update geo-fencing settings for an event (creator only)"""
@@ -2391,20 +2442,79 @@ async def update_geo_settings(
     if event.get("creator_id") != current_user.id:
         raise HTTPException(status_code=403, detail="Only the event creator can update geo settings")
     
-    # Normalize country codes to uppercase
-    allowed_countries = [c.upper() for c in allowed_countries]
-    blocked_countries = [c.upper() for c in blocked_countries]
-    
     await db.events.update_one(
         {"id": event_id},
         {"$set": {
             "geo_restricted": geo_restricted,
-            "allowed_countries": allowed_countries,
-            "blocked_countries": blocked_countries
+            "geo_radius_meters": geo_radius_meters
         }}
     )
     
     return {"success": True, "message": "Geo settings updated"}
+
+# Search events by city/state
+@api_router.get("/events/search/location")
+async def search_events_by_location(
+    city: Optional[str] = None,
+    state: Optional[str] = None,
+    country: str = "US"
+):
+    """Search events by city and/or state"""
+    query = {"status": {"$nin": ["cancelled"]}, "is_blocked": {"$ne": True}}
+    
+    if city:
+        query["city"] = {"$regex": city, "$options": "i"}
+    if state:
+        query["state"] = {"$regex": state, "$options": "i"}
+    if country:
+        query["country"] = country.upper()
+    
+    events = await db.events.find(query, {"_id": 0}).to_list(100)
+    
+    return {
+        "events": events,
+        "count": len(events),
+        "filters": {
+            "city": city,
+            "state": state,
+            "country": country
+        }
+    }
+
+# Get unique cities and states for filtering
+@api_router.get("/events/locations")
+async def get_event_locations():
+    """Get list of unique cities and states that have events"""
+    pipeline = [
+        {"$match": {"status": {"$nin": ["cancelled"]}, "is_blocked": {"$ne": True}}},
+        {"$group": {
+            "_id": {"city": "$city", "state": "$state"},
+            "count": {"$sum": 1}
+        }},
+        {"$match": {"_id.city": {"$ne": ""}}},
+        {"$sort": {"count": -1}}
+    ]
+    
+    locations = await db.events.aggregate(pipeline).to_list(100)
+    
+    # Format response
+    cities = []
+    states = set()
+    
+    for loc in locations:
+        if loc["_id"]["city"]:
+            cities.append({
+                "city": loc["_id"]["city"],
+                "state": loc["_id"]["state"],
+                "event_count": loc["count"]
+            })
+        if loc["_id"]["state"]:
+            states.add(loc["_id"]["state"])
+    
+    return {
+        "cities": cities,
+        "states": list(states)
+    }
 
 # ==================== LIVEKIT STREAMING ====================
 
