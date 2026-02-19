@@ -76,15 +76,42 @@ const CreateEvent = ({ user, onLogout }) => {
     }
   };
 
-  const toggleCountry = (countryCode, listType) => {
-    setFormData(prev => {
-      const list = prev[listType];
-      if (list.includes(countryCode)) {
-        return { ...prev, [listType]: list.filter(c => c !== countryCode) };
+  // Geocode city/state to get coordinates using Nominatim (free geocoding API)
+  const geocodeLocation = async (city, state) => {
+    if (!city || !state) {
+      toast.error("Please enter both city and state");
+      return false;
+    }
+    
+    setGeocodingLoading(true);
+    try {
+      const query = `${city}, ${state}, USA`;
+      const response = await fetch(
+        `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(query)}&limit=1`,
+        { headers: { 'User-Agent': 'ShowMeLive/1.0' } }
+      );
+      const data = await response.json();
+      
+      if (data && data.length > 0) {
+        const { lat, lon } = data[0];
+        setFormData(prev => ({
+          ...prev,
+          latitude: parseFloat(lat),
+          longitude: parseFloat(lon)
+        }));
+        toast.success(`Location found: ${city}, ${state}`);
+        return true;
       } else {
-        return { ...prev, [listType]: [...list, countryCode] };
+        toast.error("Could not find coordinates for this location. Please check the city and state.");
+        return false;
       }
-    });
+    } catch (error) {
+      console.error("Geocoding error:", error);
+      toast.error("Failed to geocode location. Please try again.");
+      return false;
+    } finally {
+      setGeocodingLoading(false);
+    }
   };
 
   const validatePromoCode = async () => {
