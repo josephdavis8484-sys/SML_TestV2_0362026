@@ -3,7 +3,7 @@ import Navbar from "@/components/Navbar";
 import { axiosInstance } from "@/App";
 import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
-import { Plus, Calendar, DollarSign, Users, Video, Settings, Wallet, BarChart3 } from "lucide-react";
+import { Plus, Calendar, DollarSign, Users, Video, Settings, Wallet, BarChart3, XCircle, Globe } from "lucide-react";
 import { toast } from "sonner";
 import CreatorOnboarding from "@/components/CreatorOnboarding";
 
@@ -46,6 +46,24 @@ const CreatorDashboard = ({ user, onLogout }) => {
       }
     } catch (error) {
       console.error("Error checking onboarding:", error);
+    }
+  };
+
+  const handleCancelEvent = async (eventId, eventTitle) => {
+    const confirmed = window.confirm(
+      `Are you sure you want to cancel "${eventTitle}"?\n\nThis will automatically refund all ticket holders and cannot be undone.`
+    );
+    if (!confirmed) return;
+
+    const reason = prompt("Enter cancellation reason (optional):", "Event cancelled by creator");
+    if (reason === null) return; // User clicked cancel
+
+    try {
+      const response = await axiosInstance.post(`/events/${eventId}/cancel?reason=${encodeURIComponent(reason || "Event cancelled")}`);
+      toast.success(`Event cancelled. ${response.data.refunded_count} tickets refunded.`);
+      fetchData(); // Refresh data
+    } catch (error) {
+      toast.error(error.response?.data?.detail || "Failed to cancel event");
     }
   };
 
