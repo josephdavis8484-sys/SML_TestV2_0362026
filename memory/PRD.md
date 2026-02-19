@@ -154,6 +154,10 @@ English
   - URL: `wss://showmelive-4y2wqa4p.livekit.cloud`
   - Real JWT token generation working
   - Multi-camera streaming ready
+  - **LiveStreamViewer component created** (Feb 2026) - Displays real video stream to viewers with tickets
+  - Viewers must have purchased ticket to watch live streams
+  - `/api/livekit/join-as-viewer` endpoint provides viewer tokens
+  - `/api/livekit/start-streaming` endpoint provides creator tokens
 - [x] ~~Implement WebSocket for Live Chat~~ → **FULLY IMPLEMENTED** (Feb 2026)
   - WebSocket endpoint: `/api/ws/chat/{event_id}`
   - Real-time message broadcast
