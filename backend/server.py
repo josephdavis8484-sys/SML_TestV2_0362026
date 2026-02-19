@@ -203,6 +203,7 @@ class EventCreate(BaseModel):
     latitude: Optional[float] = None
     longitude: Optional[float] = None
     price: float
+    image_url: str = "https://images.unsplash.com/photo-1540039155733-5bb30b53aa14?w=400&h=600&fit=crop"
     streaming_package: str = "free"
     chat_enabled: bool = False
     reactions_enabled: bool = False
