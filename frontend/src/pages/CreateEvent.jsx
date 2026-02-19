@@ -334,17 +334,31 @@ const CreateEvent = ({ user, onLogout }) => {
               />
             </div>
 
-            <div>
-              <label className="text-white text-sm font-medium mb-2 block">Time</label>
-              <Input
-                type="time"
-                value={formData.time}
-                onChange={(e) => setFormData({...formData, time: e.target.value})}
-                required
-                className="bg-gray-900 border-gray-700 text-white"
-                data-testid="time-input"
-              />
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <label className="text-white text-sm font-medium mb-2 block">Start Time</label>
+                <Input
+                  type="time"
+                  value={formData.start_time}
+                  onChange={(e) => setFormData({...formData, start_time: e.target.value})}
+                  required
+                  className="bg-gray-900 border-gray-700 text-white"
+                  data-testid="start-time-input"
+                />
+              </div>
+              <div>
+                <label className="text-white text-sm font-medium mb-2 block">End Time</label>
+                <Input
+                  type="time"
+                  value={formData.end_time}
+                  onChange={(e) => setFormData({...formData, end_time: e.target.value})}
+                  required
+                  className="bg-gray-900 border-gray-700 text-white"
+                  data-testid="end-time-input"
+                />
+              </div>
             </div>
+            <p className="text-gray-500 text-xs mt-1">Events will automatically be hidden after the end time passes</p>
 
             <div>
               <label className="text-white text-sm font-medium mb-2 block">Venue</label>
