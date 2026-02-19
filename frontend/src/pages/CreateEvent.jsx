@@ -9,24 +9,7 @@ import { Switch } from "@/components/ui/switch";
 import { Upload, Crown, Check, Zap, MessageCircle, Heart, HelpCircle, Tag, Loader2, X, Globe, MapPin } from "lucide-react";
 import { toast } from "sonner";
 
-// Common country codes for geo-fencing
-const COUNTRY_OPTIONS = [
-  { code: "US", name: "United States" },
-  { code: "CA", name: "Canada" },
-  { code: "GB", name: "United Kingdom" },
-  { code: "AU", name: "Australia" },
-  { code: "DE", name: "Germany" },
-  { code: "FR", name: "France" },
-  { code: "JP", name: "Japan" },
-  { code: "BR", name: "Brazil" },
-  { code: "MX", name: "Mexico" },
-  { code: "IN", name: "India" },
-  { code: "IT", name: "Italy" },
-  { code: "ES", name: "Spain" },
-  { code: "NL", name: "Netherlands" },
-  { code: "KR", name: "South Korea" },
-  { code: "SE", name: "Sweden" },
-];
+// Removed legacy country options - now using city/state geo-fencing
 
 // US States for dropdown
 const US_STATES = [
