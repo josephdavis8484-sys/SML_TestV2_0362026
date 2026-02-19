@@ -23,18 +23,26 @@ English
 - Event creation form (Category, Title, Date/Time, Price, Poster)
 - Pro Mode for multi-camera streaming ($1000 fee via Stripe)
 - **Promo codes for Pro Mode discounts** (NEW - Feb 2026)
-- **Geo-fencing for events** - restrict by country (NEW - Feb 2026)
+- **City/State Geo-fencing** - restrict event access to viewers within 1000m radius (UPDATED - Feb 2026)
+  - City and State input fields for event location
+  - Nominatim geocoding to convert to lat/lon coordinates
+  - "Verify Location" button for coordinate confirmation
 - **Cancel event with auto-refund** (NEW - Feb 2026)
 - QR codes for camera devices (up to 5)
 - Control panel for camera switching, transitions, audio mixing
 
 ### 3. Content Viewer Flow
 - Home page to browse upcoming events
+- **Location Search Feature** - search events by City/State (NEW - Feb 2026)
+  - MapPin toggle button opens search panel
+  - City input and State dropdown
+  - "Showing X events in [location]" indicator
+  - Clear search to reset filters
 - Event details page with "Buy Ticket" button
 - Stripe checkout for ticket purchases
 - "Add to Calendar" functionality (mobile-friendly)
 - **Watch/Connect button on tickets** (NEW - Feb 2026)
-- Geo-access check before ticket purchase
+- Geo-access check before ticket purchase (radius-based)
 
 ### 4. Admin Panel
 - User management (approve/reject creators, block/unblock users)
