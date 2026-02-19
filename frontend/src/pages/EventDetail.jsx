@@ -7,6 +7,7 @@ import { Calendar, MapPin, DollarSign, ArrowLeft, CreditCard, Ticket, MessageCir
 import { toast } from "sonner";
 import LiveChat from "@/components/LiveChat";
 import AntiPiracy from "@/components/AntiPiracy";
+import LiveStreamViewer from "@/components/LiveStreamViewer";
 
 const EMERGENT_AUTH_URL = "https://auth.emergentagent.com";
 const APP_NAME = "ShowMeLive";
