@@ -37,6 +37,12 @@ English
 - Event monitoring and management
 - Payment oversight and refund handling
 - Platform analytics
+- **Promo code management** (NEW - Feb 2026):
+  - Create promo codes with percentage or fixed discounts
+  - Set max uses limit
+  - Configure start date and expiration date
+  - Activate/deactivate codes
+  - Track usage statistics
 
 ### 5. Security & Monetization
 - 20% platform fee on ticket sales
