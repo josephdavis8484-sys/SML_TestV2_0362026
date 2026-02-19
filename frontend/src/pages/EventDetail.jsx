@@ -38,6 +38,18 @@ const EventDetail = ({ user, onLogout }) => {
     }
   };
 
+  const checkUserTicket = async () => {
+    try {
+      const response = await axiosInstance.get("/tickets");
+      const userTickets = response.data;
+      const ticketForEvent = userTickets.find(t => t.event_id === id && !t.refunded);
+      setHasTicket(!!ticketForEvent);
+    } catch (error) {
+      console.error("Error checking ticket:", error);
+      setHasTicket(false);
+    }
+  };
+
   const handlePurchase = async () => {
     if (!user) {
       // Store event ID to return after auth
