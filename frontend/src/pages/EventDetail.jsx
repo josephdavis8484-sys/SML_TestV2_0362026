@@ -9,6 +9,7 @@ import LiveChat from "@/components/LiveChat";
 import AntiPiracy from "@/components/AntiPiracy";
 
 const EMERGENT_AUTH_URL = "https://auth.emergentagent.com";
+const APP_NAME = "ShowMeLive";
 
 const EventDetail = ({ user, onLogout }) => {
   const { id } = useParams();
@@ -38,7 +39,7 @@ const EventDetail = ({ user, onLogout }) => {
       sessionStorage.setItem("pending_purchase_event", id);
       sessionStorage.setItem("pending_role", "viewer");
       const redirectUrl = `${window.location.origin}/event/${id}`;
-      window.location.href = `${EMERGENT_AUTH_URL}/?redirect=${encodeURIComponent(redirectUrl)}`;
+      window.location.href = `${EMERGENT_AUTH_URL}/?redirect=${encodeURIComponent(redirectUrl)}&app_name=${encodeURIComponent(APP_NAME)}`;
       return;
     }
 
