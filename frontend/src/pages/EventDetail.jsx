@@ -299,7 +299,7 @@ const EventDetail = ({ user, onLogout }) => {
           </div>
         </div>
       </div>
-    </div>
+    </AntiPiracy>
   );
 };
 
