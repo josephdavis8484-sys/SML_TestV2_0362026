@@ -22,6 +22,7 @@ English
 - Dashboard with "Schedule New Show" button
 - Event creation form (Category, Title, Date/Time, Price, Poster)
 - Pro Mode for multi-camera streaming ($1000 fee via Stripe)
+- **Promo codes for Pro Mode discounts** (NEW - Feb 2026)
 - QR codes for camera devices (up to 5)
 - Control panel for camera switching, transitions, audio mixing
 
