@@ -178,6 +178,19 @@ English
   - Prevents image/video dragging
   - Detects DevTools opening
   - "LIVE NOW" badge and "Content protected" notice
+- [x] ~~City/State Geo-fencing~~ → **FULLY IMPLEMENTED** (Feb 2026)
+  - Creator UI: City/State inputs with state dropdown
+  - Nominatim (OpenStreetMap) geocoding for coordinates
+  - "Verify Location" button shows confirmed coordinates
+  - Backend: Haversine formula for distance calculation
+  - Default 1000m radius geo-fence
+  - Endpoints: `/api/events/{id}/check-geo`, `/api/events/search/location`, `/api/events/locations`
+- [x] ~~Viewer Location Search~~ → **FULLY IMPLEMENTED** (Feb 2026)
+  - MapPin toggle button on homepage
+  - Search panel with City input and State dropdown
+  - Real-time filtering shows events in location
+  - "Showing X events in [location]" indicator
+  - Clear button resets to all events
 - [ ] Real-time withdrawal status updates (WebSocket)
 
 ### P2 (Lower Priority - Future)
