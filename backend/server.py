@@ -532,7 +532,7 @@ async def get_event_locations():
     pipeline = [
         {"$match": {"status": {"$nin": ["cancelled"]}, "is_blocked": {"$ne": True}}},
         {"$group": {
-            "_id": {"city": "$city", "state": "$state"},
+            "_id": {"city": {"$ifNull": ["$city", ""]}, "state": {"$ifNull": ["$state", ""]}},
             "count": {"$sum": 1}
         }},
         {"$match": {"_id.city": {"$ne": ""}}},
@@ -546,14 +546,16 @@ async def get_event_locations():
     states = set()
     
     for loc in locations:
-        if loc["_id"]["city"]:
+        city_val = loc.get("_id", {}).get("city", "")
+        state_val = loc.get("_id", {}).get("state", "")
+        if city_val:
             cities.append({
-                "city": loc["_id"]["city"],
-                "state": loc["_id"]["state"],
-                "event_count": loc["count"]
+                "city": city_val,
+                "state": state_val,
+                "event_count": loc.get("count", 0)
             })
-        if loc["_id"]["state"]:
-            states.add(loc["_id"]["state"])
+        if state_val:
+            states.add(state_val)
     
     return {
         "cities": cities,
