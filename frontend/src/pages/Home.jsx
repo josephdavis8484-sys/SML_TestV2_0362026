@@ -239,7 +239,7 @@ const Home = ({ user, onLogout }) => {
 
           {/* Carousel Indicators */}
           <div className="absolute bottom-8 left-1/2 -translate-x-1/2 flex gap-2">
-            {events.slice(0, 10).map((_, index) => (
+            {displayEvents.slice(0, 10).map((_, index) => (
               <button
                 key={index}
                 onClick={() => setFeaturedEventIndex(index)}
