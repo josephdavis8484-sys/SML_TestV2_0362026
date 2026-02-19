@@ -191,6 +191,13 @@ English
   - Real-time filtering shows events in location
   - "Showing X events in [location]" indicator
   - Clear button resets to all events
+- [x] ~~Event image upload fix~~ → **FIXED** (Feb 2026)
+  - Added `image_url` field to EventCreate model
+  - Custom images now saved correctly during event creation
+- [x] ~~Expired events filtering~~ → **FIXED** (Feb 2026)
+  - Home page `/api/events` filters out past events by date
+  - Location search also filters expired events
+  - Supports multiple date formats (YYYY-MM-DD, Month DD, YYYY, etc.)
 - [ ] Real-time withdrawal status updates (WebSocket)
 
 ### P2 (Lower Priority - Future)
