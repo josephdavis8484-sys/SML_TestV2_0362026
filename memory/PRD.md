@@ -258,4 +258,20 @@ English
     - Admin Dashboard: New "Promo Codes" tab with full CRUD UI
     - CreateEvent page: Promo code input when Pro Mode is selected
     - Discount breakdown showing original price, discount amount, final price
+19. **NEW (Feb 2026): Event Reminder Notifications** - Automatic reminders 1 hour before events:
+    - APScheduler background job runs every 5 minutes
+    - Checks for events starting within the next hour
+    - Sends notifications to all ticket holders
+    - Prevents duplicate reminders with reminder_flags collection
+    - Notification includes event title, image, and direct link
+20. **NEW (Feb 2026): Anti-Piracy Measures** - Content protection for live streams:
+    - AntiPiracy component (`/app/frontend/src/components/AntiPiracy.jsx`)
+    - Wraps EventDetail page content when event status is "live"
+    - Disables right-click context menu on live content
+    - Blocks screenshot keyboard shortcuts (PrintScreen, Cmd+Shift+3/4/5, Ctrl+P/S/U)
+    - Disables text selection on protected content
+    - Prevents image and video dragging
+    - Detects DevTools opening
+    - Visual indicators: "LIVE NOW" badge with pulsing red dot
+    - "Content protected • Recording disabled" notice with Shield icon
 
