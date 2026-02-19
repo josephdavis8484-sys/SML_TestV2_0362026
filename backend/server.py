@@ -157,7 +157,9 @@ class Event(BaseModel):
     category: str
     image_url: str = "https://images.unsplash.com/photo-1540039155733-5bb30b53aa14?w=400&h=600&fit=crop"
     date: str
-    time: str = "7:00 PM"  # Default time
+    start_time: str = ""  # Event start time (e.g., "19:00" or "7:00 PM")
+    end_time: str = ""    # Event end time (e.g., "21:00" or "9:00 PM")
+    time: str = "7:00 PM"  # Legacy field - kept for backwards compatibility
     description: str
     venue: str
     # Location fields
