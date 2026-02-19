@@ -205,7 +205,16 @@ const EventDetail = ({ user, onLogout }) => {
               <div className="flex flex-wrap gap-6 mb-8">
                 <div className="flex items-center gap-2 text-gray-300">
                   <Calendar className="w-5 h-5" />
-                  <span data-testid="event-date">{event.date} at {event.time}</span>
+                  <span data-testid="event-date">
+                    {event.date}
+                    {event.start_time && event.end_time ? (
+                      <span className="ml-2">
+                        {event.start_time} - {event.end_time}
+                      </span>
+                    ) : event.time ? (
+                      <span className="ml-2">at {event.time}</span>
+                    ) : null}
+                  </span>
                 </div>
                 <div className="flex items-center gap-2 text-gray-300">
                   <MapPin className="w-5 h-5" />
