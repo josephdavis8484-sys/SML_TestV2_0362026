@@ -2222,6 +2222,162 @@ async def end_event(event_id: str, current_user: User = Depends(get_current_user
     
     return {"success": True, "message": "Event has ended"}
 
+@api_router.post("/events/{event_id}/cancel")
+async def cancel_event(event_id: str, reason: str = "Event cancelled by creator", current_user: User = Depends(get_current_user)):
+    """Cancel an event and automatically refund all ticket holders"""
+    event = await db.events.find_one({"id": event_id}, {"_id": 0})
+    if not event:
+        raise HTTPException(status_code=404, detail="Event not found")
+    
+    if event.get("creator_id") != current_user.id:
+        raise HTTPException(status_code=403, detail="Only the event creator can cancel the event")
+    
+    if event.get("status") == "cancelled":
+        return {"success": False, "message": "Event is already cancelled"}
+    
+    if event.get("status") == "completed":
+        raise HTTPException(status_code=400, detail="Cannot cancel a completed event")
+    
+    # Get all non-refunded tickets
+    tickets = await db.tickets.find(
+        {"event_id": event_id, "refunded": False},
+        {"_id": 0}
+    ).to_list(10000)
+    
+    total_refunded = 0
+    refund_count = 0
+    
+    # Process refunds for each ticket
+    for ticket in tickets:
+        await db.tickets.update_one(
+            {"id": ticket["id"]},
+            {"$set": {
+                "refunded": True,
+                "refund_reason": reason,
+                "refund_date": datetime.now(timezone.utc).isoformat(),
+                "refunded_by": "creator_cancelled"
+            }}
+        )
+        total_refunded += ticket.get("amount_paid", 0)
+        refund_count += 1
+        
+        # Send notification to user
+        try:
+            await create_notification(
+                user_id=ticket["user_id"],
+                notification_type="ticket_refunded",
+                title="🔄 Event Cancelled - Refund Issued",
+                message=f"'{event['title']}' has been cancelled by the creator. ${ticket.get('amount_paid', 0):.2f} will be refunded to your payment method.",
+                event_id=event_id,
+                data={
+                    "event_title": event["title"],
+                    "refund_amount": ticket.get("amount_paid", 0),
+                    "reason": reason
+                }
+            )
+        except Exception as e:
+            logging.error(f"Failed to send refund notification: {e}")
+    
+    # Update event status
+    await db.events.update_one(
+        {"id": event_id},
+        {"$set": {
+            "status": "cancelled",
+            "total_revenue": 0,
+            "cancelled_at": datetime.now(timezone.utc).isoformat(),
+            "cancellation_reason": reason
+        }}
+    )
+    
+    return {
+        "success": True,
+        "message": f"Event cancelled. {refund_count} tickets refunded.",
+        "refunded_count": refund_count,
+        "total_refunded": total_refunded
+    }
+
+@api_router.post("/events/{event_id}/check-geo")
+async def check_geo_access(event_id: str, country_code: str):
+    """Check if a user's country is allowed to access this event"""
+    event = await db.events.find_one({"id": event_id}, {"_id": 0})
+    if not event:
+        raise HTTPException(status_code=404, detail="Event not found")
+    
+    # If geo-restriction is not enabled, allow access
+    if not event.get("geo_restricted", False):
+        return {"allowed": True, "message": "Event is available worldwide"}
+    
+    country_code = country_code.upper()
+    allowed_countries = event.get("allowed_countries", [])
+    blocked_countries = event.get("blocked_countries", [])
+    
+    # Check blocked countries first
+    if blocked_countries and country_code in blocked_countries:
+        return {
+            "allowed": False,
+            "message": f"This event is not available in your region ({country_code})"
+        }
+    
+    # If allowed_countries is specified, check if user is in allowed list
+    if allowed_countries:
+        if country_code in allowed_countries:
+            return {"allowed": True, "message": "Access granted"}
+        else:
+            return {
+                "allowed": False,
+                "message": f"This event is only available in: {', '.join(allowed_countries)}"
+            }
+    
+    # If no specific allowed countries and not blocked, allow
+    return {"allowed": True, "message": "Access granted"}
+
+@api_router.get("/events/{event_id}/geo-settings")
+async def get_geo_settings(event_id: str, current_user: User = Depends(get_current_user)):
+    """Get geo-fencing settings for an event (creator only)"""
+    event = await db.events.find_one({"id": event_id}, {"_id": 0})
+    if not event:
+        raise HTTPException(status_code=404, detail="Event not found")
+    
+    if event.get("creator_id") != current_user.id:
+        raise HTTPException(status_code=403, detail="Only the event creator can view geo settings")
+    
+    return {
+        "geo_restricted": event.get("geo_restricted", False),
+        "allowed_countries": event.get("allowed_countries", []),
+        "blocked_countries": event.get("blocked_countries", [])
+    }
+
+@api_router.put("/events/{event_id}/geo-settings")
+async def update_geo_settings(
+    event_id: str,
+    geo_restricted: bool = False,
+    allowed_countries: List[str] = [],
+    blocked_countries: List[str] = [],
+    current_user: User = Depends(get_current_user)
+):
+    """Update geo-fencing settings for an event (creator only)"""
+    event = await db.events.find_one({"id": event_id}, {"_id": 0})
+    if not event:
+        raise HTTPException(status_code=404, detail="Event not found")
+    
+    if event.get("creator_id") != current_user.id:
+        raise HTTPException(status_code=403, detail="Only the event creator can update geo settings")
+    
+    # Normalize country codes to uppercase
+    allowed_countries = [c.upper() for c in allowed_countries]
+    blocked_countries = [c.upper() for c in blocked_countries]
+    
+    await db.events.update_one(
+        {"id": event_id},
+        {"$set": {
+            "geo_restricted": geo_restricted,
+            "allowed_countries": allowed_countries,
+            "blocked_countries": blocked_countries
+        }}
+    )
+    
+    return {"success": True, "message": "Geo settings updated"}
+
 # ==================== LIVEKIT STREAMING ====================
 
 class LiveKitTokenRequest(BaseModel):
