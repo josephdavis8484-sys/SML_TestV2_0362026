@@ -32,6 +32,13 @@ const AdminDashboard = () => {
   const [loading, setLoading] = useState(true);
   const [showPromoForm, setShowPromoForm] = useState(false);
   const [editingPromo, setEditingPromo] = useState(null);
+  const [showBankForm, setShowBankForm] = useState(false);
+  const [bankForm, setBankForm] = useState({
+    account_name: "",
+    bank_name: "",
+    account_number: "",
+    routing_number: ""
+  });
   const [promoForm, setPromoForm] = useState({
     code: "",
     description: "",
