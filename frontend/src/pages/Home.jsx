@@ -44,22 +44,56 @@ const Home = ({ user, onLogout }) => {
 
   useEffect(() => {
     // Auto-cycle through featured events every 5 seconds
-    if (events.length > 0) {
+    const displayEvents = filteredEvents.length > 0 ? filteredEvents : events;
+    if (displayEvents.length > 0) {
       const interval = setInterval(() => {
-        setFeaturedEventIndex((prevIndex) => (prevIndex + 1) % Math.min(events.length, 10));
+        setFeaturedEventIndex((prevIndex) => (prevIndex + 1) % Math.min(displayEvents.length, 10));
       }, 5000);
 
       return () => clearInterval(interval);
     }
-  }, [events]);
+  }, [events, filteredEvents]);
 
   const fetchEvents = async () => {
     try {
       const response = await axiosInstance.get("/events");
       setEvents(response.data);
+      setFilteredEvents([]);
     } catch (error) {
       console.error("Error fetching events:", error);
     }
+  };
+
+  const searchByLocation = async () => {
+    if (!searchCity && !searchState) {
+      // If no search criteria, reset to show all events
+      setFilteredEvents([]);
+      setFeaturedEventIndex(0);
+      return;
+    }
+
+    setIsSearching(true);
+    try {
+      const params = new URLSearchParams();
+      if (searchCity) params.append("city", searchCity);
+      if (searchState) params.append("state", searchState);
+      
+      const response = await axiosInstance.get(`/events/search/location?${params.toString()}`);
+      setFilteredEvents(response.data);
+      setFeaturedEventIndex(0);
+    } catch (error) {
+      console.error("Error searching events:", error);
+    } finally {
+      setIsSearching(false);
+    }
+  };
+
+  const clearSearch = () => {
+    setSearchCity("");
+    setSearchState("");
+    setFilteredEvents([]);
+    setFeaturedEventIndex(0);
+    setShowSearchPanel(false);
   };
 
   const getEventsByCategory = (category) => {
