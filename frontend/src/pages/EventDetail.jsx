@@ -98,28 +98,66 @@ const EventDetail = ({ user, onLogout }) => {
   const isFreeEvent = event.price === 0;
   const totalPrice = (event.price * quantity).toFixed(2);
 
+  // Check if event is live and user has a ticket
+  const isLive = event.status === "live";
+
   return (
-    <div className="min-h-screen bg-[#0f0f0f]" data-testid="event-detail-page">
-      <Navbar user={user} onLogout={onLogout} />
-      
-      <div className="pt-20">
-        {/* Hero Image */}
-        <div className="relative h-[60vh] w-full">
-          <img 
-            src={event.image_url} 
-            alt={event.title}
-            className="w-full h-full object-cover"
-          />
-          <div className="absolute inset-0 bg-gradient-to-t from-[#0f0f0f] via-black/50 to-transparent"></div>
-          
-          <button
-            onClick={() => navigate(-1)}
-            className="absolute top-8 left-8 bg-black/60 hover:bg-blue-600/80 text-white p-3 rounded-full transition-colors"
-            data-testid="back-button"
-          >
-            <ArrowLeft className="w-6 h-6" />
-          </button>
-        </div>
+    <AntiPiracy enabled={isLive}>
+      <div className="min-h-screen bg-[#0f0f0f]" data-testid="event-detail-page">
+        <Navbar user={user} onLogout={onLogout} />
+        
+        <div className="pt-20">
+          {/* Live Stream or Hero Image */}
+          {isLive ? (
+            <div className="relative h-[60vh] w-full bg-black">
+              {/* Live Stream Placeholder - Would be replaced with actual video player */}
+              <div className="w-full h-full flex items-center justify-center bg-gradient-to-b from-gray-900 to-black">
+                <div className="text-center">
+                  <div className="flex items-center justify-center gap-2 mb-4">
+                    <div className="w-3 h-3 bg-red-500 rounded-full animate-pulse"></div>
+                    <span className="text-red-500 font-bold text-lg">LIVE NOW</span>
+                  </div>
+                  <img 
+                    src={event.image_url} 
+                    alt={event.title}
+                    className="max-h-80 mx-auto rounded-lg opacity-80"
+                    draggable="false"
+                    onContextMenu={(e) => e.preventDefault()}
+                  />
+                  <p className="text-gray-400 mt-4 text-sm flex items-center justify-center gap-2">
+                    <Shield className="w-4 h-4" />
+                    Content protected • Recording disabled
+                  </p>
+                </div>
+              </div>
+              <div className="absolute inset-0 bg-gradient-to-t from-[#0f0f0f] via-transparent to-transparent"></div>
+              
+              <button
+                onClick={() => navigate(-1)}
+                className="absolute top-8 left-8 bg-black/60 hover:bg-blue-600/80 text-white p-3 rounded-full transition-colors z-10"
+                data-testid="back-button"
+              >
+                <ArrowLeft className="w-6 h-6" />
+              </button>
+            </div>
+          ) : (
+            <div className="relative h-[60vh] w-full">
+              <img 
+                src={event.image_url} 
+                alt={event.title}
+                className="w-full h-full object-cover"
+              />
+              <div className="absolute inset-0 bg-gradient-to-t from-[#0f0f0f] via-black/50 to-transparent"></div>
+              
+              <button
+                onClick={() => navigate(-1)}
+                className="absolute top-8 left-8 bg-black/60 hover:bg-blue-600/80 text-white p-3 rounded-full transition-colors"
+                data-testid="back-button"
+              >
+                <ArrowLeft className="w-6 h-6" />
+              </button>
+            </div>
+          )}
 
         {/* Event Details */}
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 -mt-32 relative z-10 pb-20">
