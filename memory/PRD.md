@@ -21,6 +21,7 @@ English
 ### 2. Content Creator Flow
 - Dashboard with "Schedule New Show" button
 - Event creation form (Category, Title, Date/Time, Price, Poster)
+  - **Start Time & End Time fields** (NEW - Feb 2026) - Events auto-hide after end time
 - Pro Mode for multi-camera streaming ($1000 fee via Stripe)
 - **Promo codes for Pro Mode discounts** (NEW - Feb 2026)
 - **City/State Geo-fencing** - restrict event access to viewers within 1000m radius (UPDATED - Feb 2026)
