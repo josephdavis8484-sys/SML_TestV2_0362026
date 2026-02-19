@@ -118,6 +118,7 @@ const EventDetail = ({ user, onLogout }) => {
 
   // Check if event is live and user has a ticket
   const isLive = event.status === "live";
+  const canWatchStream = isLive && user && hasTicket;
 
   return (
     <AntiPiracy enabled={isLive}>
@@ -128,27 +129,45 @@ const EventDetail = ({ user, onLogout }) => {
           {/* Live Stream or Hero Image */}
           {isLive ? (
             <div className="relative h-[60vh] w-full bg-black">
-              {/* Live Stream Placeholder - Would be replaced with actual video player */}
-              <div className="w-full h-full flex items-center justify-center bg-gradient-to-b from-gray-900 to-black">
-                <div className="text-center">
-                  <div className="flex items-center justify-center gap-2 mb-4">
-                    <div className="w-3 h-3 bg-red-500 rounded-full animate-pulse"></div>
-                    <span className="text-red-500 font-bold text-lg">LIVE NOW</span>
+              {canWatchStream ? (
+                /* Actual LiveKit Video Stream for ticket holders */
+                <LiveStreamViewer
+                  eventId={id}
+                  userId={user?.id}
+                  userName={user?.name || user?.email}
+                />
+              ) : (
+                /* Placeholder for users without tickets */
+                <div className="w-full h-full flex items-center justify-center bg-gradient-to-b from-gray-900 to-black">
+                  <div className="text-center">
+                    <div className="flex items-center justify-center gap-2 mb-4">
+                      <div className="w-3 h-3 bg-red-500 rounded-full animate-pulse"></div>
+                      <span className="text-red-500 font-bold text-lg">LIVE NOW</span>
+                    </div>
+                    <img 
+                      src={event.image_url} 
+                      alt={event.title}
+                      className="max-h-80 mx-auto rounded-lg opacity-80"
+                      draggable="false"
+                      onContextMenu={(e) => e.preventDefault()}
+                    />
+                    {!user ? (
+                      <p className="text-yellow-400 mt-4 text-sm">
+                        Sign in and purchase a ticket to watch this live event
+                      </p>
+                    ) : !hasTicket ? (
+                      <p className="text-yellow-400 mt-4 text-sm">
+                        Purchase a ticket below to watch this live stream
+                      </p>
+                    ) : null}
+                    <p className="text-gray-400 mt-2 text-sm flex items-center justify-center gap-2">
+                      <Shield className="w-4 h-4" />
+                      Content protected • Recording disabled
+                    </p>
                   </div>
-                  <img 
-                    src={event.image_url} 
-                    alt={event.title}
-                    className="max-h-80 mx-auto rounded-lg opacity-80"
-                    draggable="false"
-                    onContextMenu={(e) => e.preventDefault()}
-                  />
-                  <p className="text-gray-400 mt-4 text-sm flex items-center justify-center gap-2">
-                    <Shield className="w-4 h-4" />
-                    Content protected • Recording disabled
-                  </p>
                 </div>
-              </div>
-              <div className="absolute inset-0 bg-gradient-to-t from-[#0f0f0f] via-transparent to-transparent"></div>
+              )}
+              <div className="absolute inset-0 bg-gradient-to-t from-[#0f0f0f] via-transparent to-transparent pointer-events-none"></div>
               
               <button
                 onClick={() => navigate(-1)}
