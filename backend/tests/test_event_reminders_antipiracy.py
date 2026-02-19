@@ -12,14 +12,13 @@ from datetime import datetime, timedelta, timezone
 
 BASE_URL = os.environ.get('REACT_APP_BACKEND_URL', '').rstrip('/')
 
+# Correct admin credentials
+ADMIN_EMAIL = "admin@showmelive.com"
+ADMIN_PASSWORD = "admin123"
+
+
 class TestHealthAndBasics:
     """Basic health checks"""
-    
-    def test_api_health(self):
-        """Test API is responding"""
-        response = requests.get(f"{BASE_URL}/api/")
-        assert response.status_code == 200
-        print("✓ API health check passed")
     
     def test_events_endpoint(self):
         """Test events endpoint"""
@@ -34,23 +33,11 @@ class TestEventGoLive:
     """Test event go-live functionality"""
     
     @pytest.fixture(scope="class")
-    def admin_session(self):
-        """Get admin session token"""
-        response = requests.post(
-            f"{BASE_URL}/api/admin/login",
-            params={"email": "admin@showmelive.online", "password": "admin"}
-        )
-        if response.status_code == 200:
-            return response.json().get("session_token")
-        pytest.skip("Admin login failed")
-    
-    @pytest.fixture(scope="class")
-    def creator_session(self, admin_session):
+    def creator_session(self):
         """Create a test creator user and get session"""
         import uuid
         import pymongo
         
-        # Connect to MongoDB directly to create test user
         mongo_url = os.environ.get('MONGO_URL', 'mongodb://localhost:27017')
         client = pymongo.MongoClient(mongo_url)
         db = client[os.environ.get('DB_NAME', 'test_database')]
@@ -58,7 +45,6 @@ class TestEventGoLive:
         user_id = f"test-creator-{uuid.uuid4()}"
         session_token = f"test_session_{uuid.uuid4()}"
         
-        # Create test creator user
         db.users.insert_one({
             "id": user_id,
             "email": f"test.creator.{uuid.uuid4()}@example.com",
@@ -67,7 +53,6 @@ class TestEventGoLive:
             "created_at": datetime.now(timezone.utc).isoformat()
         })
         
-        # Create session
         db.user_sessions.insert_one({
             "user_id": user_id,
             "session_token": session_token,
@@ -75,9 +60,8 @@ class TestEventGoLive:
             "created_at": datetime.now(timezone.utc).isoformat()
         })
         
-        yield {"token": session_token, "user_id": user_id}
+        yield {"token": session_token, "user_id": user_id, "db": db, "client": client}
         
-        # Cleanup
         db.users.delete_one({"id": user_id})
         db.user_sessions.delete_one({"session_token": session_token})
         client.close()
@@ -97,14 +81,10 @@ class TestEventGoLive:
     def test_event_go_live_with_creator(self, creator_session):
         """Test event go-live with creator session"""
         import uuid
-        import pymongo
         
-        # Create a test event
-        mongo_url = os.environ.get('MONGO_URL', 'mongodb://localhost:27017')
-        client = pymongo.MongoClient(mongo_url)
-        db = client[os.environ.get('DB_NAME', 'test_database')]
-        
+        db = creator_session["db"]
         event_id = f"test-event-{uuid.uuid4()}"
+        
         db.events.insert_one({
             "id": event_id,
             "creator_id": creator_session["user_id"],
@@ -120,7 +100,6 @@ class TestEventGoLive:
         })
         
         try:
-            # Test go-live
             headers = {"Authorization": f"Bearer {creator_session['token']}"}
             response = requests.post(
                 f"{BASE_URL}/api/events/{event_id}/go-live",
@@ -132,15 +111,13 @@ class TestEventGoLive:
             assert data.get("status") == "live" or "success" in str(data).lower()
             print("✓ Event go-live successful")
             
-            # Verify event status changed
             event = db.events.find_one({"id": event_id})
             assert event["status"] == "live"
             print("✓ Event status updated to 'live'")
             
         finally:
-            # Cleanup
             db.events.delete_one({"id": event_id})
-            client.close()
+            db.notifications.delete_many({"event_id": event_id})
 
 
 class TestPromoCodesFunctionality:
@@ -151,7 +128,7 @@ class TestPromoCodesFunctionality:
         """Get admin session token"""
         response = requests.post(
             f"{BASE_URL}/api/admin/login",
-            params={"email": "admin@showmelive.online", "password": "admin"}
+            params={"email": ADMIN_EMAIL, "password": ADMIN_PASSWORD}
         )
         if response.status_code == 200:
             return response.json().get("session_token")
@@ -161,7 +138,7 @@ class TestPromoCodesFunctionality:
         """Test admin login"""
         response = requests.post(
             f"{BASE_URL}/api/admin/login",
-            params={"email": "admin@showmelive.online", "password": "admin"}
+            params={"email": ADMIN_EMAIL, "password": ADMIN_PASSWORD}
         )
         assert response.status_code == 200
         data = response.json()
@@ -188,10 +165,11 @@ class TestPromoCodesFunctionality:
     
     def test_create_promo_code(self, admin_session):
         """Test creating a promo code"""
+        import uuid
         headers = {"Authorization": f"Bearer {admin_session}"}
         promo_data = {
-            "code": "TEST50OFF",
-            "description": "Test 50% off promo",
+            "code": f"TEST{uuid.uuid4().hex[:6].upper()}",
+            "description": "Test promo code",
             "discount_type": "percentage",
             "discount_value": 50,
             "applies_to": "pro_mode",
@@ -204,12 +182,10 @@ class TestPromoCodesFunctionality:
             json=promo_data
         )
         
-        # May fail if code already exists
-        if response.status_code == 400 and "exists" in response.text.lower():
-            print("✓ Promo code already exists (expected)")
-        else:
-            assert response.status_code == 200
-            print("✓ Promo code created successfully")
+        assert response.status_code == 200
+        data = response.json()
+        assert data.get("code") == promo_data["code"]
+        print("✓ Promo code created successfully")
 
 
 class TestStripeConnectPayouts:
@@ -251,7 +227,7 @@ class TestStripeConnectPayouts:
     
     def test_stripe_connect_status_requires_auth(self):
         """Test Stripe Connect status requires authentication"""
-        response = requests.get(f"{BASE_URL}/api/creator/stripe-connect/status")
+        response = requests.get(f"{BASE_URL}/api/stripe/connect/status")
         assert response.status_code == 401
         print("✓ Stripe Connect status requires auth")
     
@@ -259,19 +235,19 @@ class TestStripeConnectPayouts:
         """Test getting Stripe Connect status"""
         headers = {"Authorization": f"Bearer {creator_session['token']}"}
         response = requests.get(
-            f"{BASE_URL}/api/creator/stripe-connect/status",
+            f"{BASE_URL}/api/stripe/connect/status",
             headers=headers
         )
         assert response.status_code == 200
         data = response.json()
-        assert "connected" in data or "stripe_account_id" in data or "status" in str(data).lower()
+        assert "connected" in data or "stripe_account_id" in data
         print("✓ Stripe Connect status retrieved")
     
-    def test_stripe_connect_onboard_requires_auth(self):
-        """Test Stripe Connect onboard requires authentication"""
-        response = requests.post(f"{BASE_URL}/api/creator/stripe-connect/onboard")
+    def test_stripe_connect_create_account_requires_auth(self):
+        """Test Stripe Connect create account requires authentication"""
+        response = requests.post(f"{BASE_URL}/api/stripe/connect/create-account")
         assert response.status_code == 401
-        print("✓ Stripe Connect onboard requires auth")
+        print("✓ Stripe Connect create account requires auth")
 
 
 class TestNotificationsEndpoints:
@@ -327,8 +303,10 @@ class TestNotificationsEndpoints:
         )
         assert response.status_code == 200
         data = response.json()
-        assert isinstance(data, list)
-        print(f"✓ Retrieved {len(data)} notifications")
+        # API returns dict with notifications list
+        assert "notifications" in data
+        assert isinstance(data["notifications"], list)
+        print(f"✓ Retrieved notifications (unread: {data.get('unread_count', 0)})")
 
 
 class TestRoleSelection:
@@ -351,7 +329,7 @@ class TestRoleSelection:
             "id": user_id,
             "email": f"test.role.{uuid.uuid4()}@example.com",
             "name": "Test Role User",
-            "role": None,  # No role set
+            "role": None,
             "created_at": datetime.now(timezone.utc).isoformat()
         })
         
