@@ -596,18 +596,123 @@ const AdminDashboard = () => {
             <h2 className="text-white text-3xl font-bold">Platform Bank Account</h2>
             <div className="bg-gray-900/50 rounded-lg p-6">
               <p className="text-gray-400 mb-4">Configure platform bank account for receiving fees</p>
-              {bankInfo && bankInfo.account_name ? (
-                <div className="space-y-2 text-gray-300">
-                  <p><strong>Account Name:</strong> {bankInfo.account_name}</p>
-                  <p><strong>Bank:</strong> {bankInfo.bank_name}</p>
-                  <p><strong>Last Updated:</strong> {new Date(bankInfo.updated_at).toLocaleDateString()}</p>
-                </div>
+              
+              {!showBankForm ? (
+                <>
+                  {bankInfo && bankInfo.account_name ? (
+                    <div className="space-y-3 text-gray-300 mb-6">
+                      <div className="grid grid-cols-2 gap-4">
+                        <div>
+                          <p className="text-gray-500 text-sm">Account Name</p>
+                          <p className="text-white font-medium">{bankInfo.account_name}</p>
+                        </div>
+                        <div>
+                          <p className="text-gray-500 text-sm">Bank Name</p>
+                          <p className="text-white font-medium">{bankInfo.bank_name}</p>
+                        </div>
+                        {bankInfo.account_number && (
+                          <div>
+                            <p className="text-gray-500 text-sm">Account Number</p>
+                            <p className="text-white font-medium">****{bankInfo.account_number.slice(-4)}</p>
+                          </div>
+                        )}
+                        {bankInfo.routing_number && (
+                          <div>
+                            <p className="text-gray-500 text-sm">Routing Number</p>
+                            <p className="text-white font-medium">****{bankInfo.routing_number.slice(-4)}</p>
+                          </div>
+                        )}
+                      </div>
+                      {bankInfo.updated_at && (
+                        <p className="text-gray-500 text-sm mt-4">
+                          Last Updated: {new Date(bankInfo.updated_at).toLocaleDateString()}
+                        </p>
+                      )}
+                    </div>
+                  ) : (
+                    <p className="text-gray-500 mb-6">No bank account configured yet</p>
+                  )}
+                  <Button 
+                    onClick={openBankForm}
+                    className="bg-blue-600 hover:bg-blue-700"
+                    data-testid="update-bank-info-button"
+                  >
+                    {bankInfo && bankInfo.account_name ? "Update Bank Info" : "Add Bank Info"}
+                  </Button>
+                </>
               ) : (
-                <p className="text-gray-500">No bank account configured yet</p>
+                <div className="space-y-4">
+                  <h3 className="text-white text-lg font-semibold">
+                    {bankInfo && bankInfo.account_name ? "Update Bank Information" : "Add Bank Information"}
+                  </h3>
+                  
+                  <div className="grid md:grid-cols-2 gap-4">
+                    <div>
+                      <label className="text-gray-300 text-sm block mb-1">Account Name *</label>
+                      <Input
+                        value={bankForm.account_name}
+                        onChange={(e) => setBankForm({...bankForm, account_name: e.target.value})}
+                        placeholder="ShowMeLive Inc."
+                        className="bg-gray-800 border-gray-700 text-white"
+                        data-testid="bank-account-name"
+                      />
+                    </div>
+                    
+                    <div>
+                      <label className="text-gray-300 text-sm block mb-1">Bank Name *</label>
+                      <Input
+                        value={bankForm.bank_name}
+                        onChange={(e) => setBankForm({...bankForm, bank_name: e.target.value})}
+                        placeholder="Chase Bank"
+                        className="bg-gray-800 border-gray-700 text-white"
+                        data-testid="bank-name"
+                      />
+                    </div>
+                    
+                    <div>
+                      <label className="text-gray-300 text-sm block mb-1">Account Number</label>
+                      <Input
+                        value={bankForm.account_number}
+                        onChange={(e) => setBankForm({...bankForm, account_number: e.target.value})}
+                        placeholder="************1234"
+                        className="bg-gray-800 border-gray-700 text-white"
+                        type="password"
+                        data-testid="bank-account-number"
+                      />
+                    </div>
+                    
+                    <div>
+                      <label className="text-gray-300 text-sm block mb-1">Routing Number</label>
+                      <Input
+                        value={bankForm.routing_number}
+                        onChange={(e) => setBankForm({...bankForm, routing_number: e.target.value})}
+                        placeholder="*********"
+                        className="bg-gray-800 border-gray-700 text-white"
+                        type="password"
+                        data-testid="bank-routing-number"
+                      />
+                    </div>
+                  </div>
+                  
+                  <div className="flex gap-3 pt-4">
+                    <Button
+                      onClick={handleSaveBankInfo}
+                      className="bg-green-600 hover:bg-green-700"
+                      data-testid="save-bank-info-button"
+                    >
+                      <Check className="w-4 h-4 mr-2" />
+                      Save Bank Info
+                    </Button>
+                    <Button
+                      onClick={() => setShowBankForm(false)}
+                      variant="outline"
+                      className="border-gray-600 text-gray-300"
+                    >
+                      Cancel
+                    </Button>
+                  </div>
+                </div>
               )}
-              <Button className="mt-4 bg-blue-600 hover:bg-blue-700">
-                Update Bank Info
-              </Button>
             </div>
           </div>
         )}
