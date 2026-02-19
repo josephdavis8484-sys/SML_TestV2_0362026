@@ -538,7 +538,7 @@ async def search_events_by_location(
     state: Optional[str] = None,
     country: str = "US"
 ):
-    """Search events by city and/or state"""
+    """Search events by city and/or state (excludes expired events)"""
     query = {"status": {"$nin": ["cancelled"]}, "is_blocked": {"$ne": True}}
     
     if city:
@@ -550,9 +550,28 @@ async def search_events_by_location(
     
     events = await db.events.find(query, {"_id": 0}).to_list(100)
     
+    # Filter out expired events
+    today = datetime.now(timezone.utc).date()
+    valid_events = []
+    for event in events:
+        event_date_str = event.get('date', '')
+        try:
+            event_date = None
+            for fmt in ['%Y-%m-%d', '%B %d, %Y', '%b %d, %Y', '%m/%d/%Y']:
+                try:
+                    event_date = datetime.strptime(event_date_str, fmt).date()
+                    break
+                except ValueError:
+                    continue
+            
+            if event_date is None or event_date >= today:
+                valid_events.append(event)
+        except Exception:
+            valid_events.append(event)
+    
     return {
-        "events": events,
-        "count": len(events),
+        "events": valid_events,
+        "count": len(valid_events),
         "filters": {
             "city": city,
             "state": state,
