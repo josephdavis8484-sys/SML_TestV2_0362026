@@ -1,4 +1,4 @@
-<analysis>original_problem_statement:
+<analysis>**original_problem_statement:**
 The user wants to redesign the website  to have a clean, modern look similar to Netflix.
 
 **PRODUCT REQUIREMENTS (based on latest user request):**
@@ -9,70 +9,77 @@ The user wants to redesign the website  to have a clean, modern look similar to 
     *   **Authentication**: Google social login.
     *   **Content Creator**: Mandatory login, must accept Content Guidelines & a 20% platform fee.
 3.  **Content Creator Flow**:
-    *   **Dashboard**: Schedule New Show button, list of upcoming shows, links to Analytics and Settings.
-    *   **Event Creation**: Form for Category, Title, Date/Time, Price, Poster/Image upload. Option to enable/disable live chat & reactions.
-    *   **Pro Mode**: A Pro mode for multi-camera streaming via a one-time fee.
-    *   **Payouts**: Onboard to Stripe Connect to receive payouts.
-    *   **Control Panel**: A dedicated UI to manage the live stream using LiveKit.
-    *   **Analytics**: A dashboard with charts for ticket sales, revenue, and demographics.
+    *   **Dashboard**: Schedule New Show button, list of upcoming shows with a cancel option (triggers auto-refunds).
+    *   **Event Creation**: Form for Category, Title, Date/Time, Price, Poster/Image upload.
+        *   **Geo-Fencing**: Option to restrict by country or by a 1000-meter radius around a specified City/State.
+        *   Option to enable/disable live chat & reactions.
+    *   **Event Cancellation**: Creators can cancel events, which automatically refunds all ticket holders.
+    *   **Pro Mode**: A Pro mode for multi-camera streaming, with a one-time fee that supports promotional codes.
+    *   **Payouts**: Onboard to Stripe Connect to receive automatic payouts.
+    *   **Control Panel**: A dedicated UI to manage the live stream using LiveKit, including a Go Live button that triggers notifications.
+    *   **Analytics**: A dashboard for ticket sales, revenue, and demographics.
 4.  **Content Viewer Flow**:
-    *   **Home Page**: Browse upcoming events with search/filter.
+    *   **Home Page**: Browse upcoming events with search/filter by City/State.
     *   **Event Details**: Full event info, Buy Ticket button, and a live chat component if enabled.
-    *   **Post-Purchase**: Add to Calendar functionality.
+    *   **Post-Purchase**: Add to Calendar functionality and a Watch/Connect button on the ticket to join the event.
+    *   **Notifications**: Receive real-time notifications (e.g., when an event goes live, event reminders).
 5.  **Admin Role & Panel**:
     *   **Access**: A separate login path ().
-    *   **Dashboard**: Manage users, events, categories, and site guidelines. Monitor live events, oversee payments, approve payouts, and handle refunds.
+    *   **Dashboard**: Manage users, categories, and site guidelines.
+    *   **Event Management**: View detailed event info including creator, total revenue, platform fees, and creator earnings. Ability to refund all attendees for an event.
+    *   **Promo Codes**: Full CRUD for promotional codes applicable to Pro Mode.
+    *   **Bank Info**: Manage the platform's bank account details for receiving funds.
+6.  **Monetization & Payouts**:
+    *   Viewer ticket payments are processed via Stripe and go to the platform's account.
+    *   The platform retains a 20% fee.
+    *   An automated background job processes payouts to creators' Stripe Connect accounts 24 hours after the ticket sale.
+7.  **Platform Features**:
+    *   **Live Chat**: Real-time via WebSockets.
+    *   **Anti-Piracy**: Basic measures to deter screen recording on the event viewing page.
 
 **User's preferred language**: English
 
 **what currently exists?**
-The project is a full-stack application using FastAPI, React, and MongoDB. It has a Netflix-inspired dark theme.
+The project is a full-stack application (FastAPI, React, MongoDB) with a Netflix-inspired dark theme. It features comprehensive role-based access for Admins, Content Creators, and Viewers.
 
-*   **Frontend**: A responsive UI with a public-facing homepage, event details page, and role-based sections.
-    *   **Auth**: A pre-authentication role selection page () followed by Google Sign-In.
-    *   **Admin**: A fully functional admin panel at  with dashboards for managing users, events, tickets, and monitoring the platform.
-    *   **Creator**: A dashboard with event creation, an analytics page, a settings page for payouts, and a WebRTC control panel powered by LiveKit.
-    *   **Viewer**: Can browse events, purchase tickets via Stripe, and participate in a live chat (via polling) during events.
-*   **Backend**: A FastAPI server with endpoints for:
-    *   User authentication (Google OAuth, Admin password auth).
-    *   CRUD for events, including settings for live chat.
-    *   Ticket purchasing via Stripe.
-    *   A comprehensive set of admin APIs.
-    *   Creator payout management via Stripe Connect (partially implemented).
-    *   Real-time streaming integration via LiveKit (token generation).
-    *   Live chat message handling.
-*   **Database**: Seeded with sample events.
+Key implemented features include:
+*   **Stripe & Stripe Connect**: Fully functional payment processing for ticket sales and automated 24-hour payouts to creators.
+*   **LiveKit Streaming**: Integrated for real-time video streaming.
+*   **Real-Time Features**: Live chat (WebSockets) and a push notification system for event alerts.
+*   **Creator Tools**: A dashboard for event management (including creation and cancellation with auto-refunds), and a control panel with a Go Live button.
+*   **Admin Panel**: A robust dashboard for managing users, events (with financial breakdowns), promotional codes, and platform bank info.
+*   **Viewer Experience**: Users can browse events, buy tickets, get calendar invites (mobile-friendly), receive notifications, and join events directly from their tickets.
+*   **Geo-Fencing**: Creators can restrict events by country. The backend is partially updated to support city/state radius-based fencing.
+*   **Security**: Basic anti-piracy measures are in place for video streams.
 
 **Last working item**:
-- Last item agent was working: The agent was replacing the Plaid integration with Stripe Connect for creator payouts. It updated the backend  to remove Plaid-related code and add new endpoints for Stripe Connect onboarding (, ) and payouts.
+- Last item agent was working: The agent was implementing a more advanced geo-fencing system. It updated the backend to support a 1000-meter radius restriction based on a City/State location by adding a  distance calculation function and updating the geo-check endpoint. It was in the process of updating the frontend  page to include City/State input fields.
 - Status: IN PROGRESS
 - Agent Testing Done: N
 - Which testing method agent to use?: both
 - User Testing Done: N
 
 **All Pending/In progress Issue list**:
-- **Issue 1**: Complete Stripe Connect integration for creator payouts (Priority: P0)
+- **Issue 1**: The creator-facing UI for geo-fencing needs to be updated. (Priority: P0)
 
 **Issues Detail**:
 - **Issue 1**:
-    - **Description**: The backend was updated to use Stripe Connect instead of Plaid for creator payouts. However, the frontend () still uses the  component and has not been updated to call the new Stripe Connect endpoints. This leaves the creator payout onboarding flow broken.
-    - **Attempted fixes**: Backend code in  was replaced. No frontend changes were made.
+    - **Description**: The  page does not have input fields for  and  to support the new radius-based geo-fencing. The UI still reflects the old country-only restriction model.
+    - **Attempted fixes**: Backend logic in  was updated to handle radius-based checks. No corresponding frontend changes were completed.
     - **Next debug checklist**:
-        - In , remove the  component and its related state.
-        - Implement functions to call the new backend endpoints:  to get an onboarding URL and  to get a link to the Stripe dashboard.
-        - Redirect the user to the Stripe-hosted onboarding page.
-        - Update the UI to reflect the Stripe Connect status (e.g., Onboarding Complete, Manage Account).
-        - Delete the unused  file.
-    - **Why fix this issue and what will be achieved with the fix?**: This is a critical monetization feature that allows creators to get paid.
+        - In , replace the existing country-select UI with input fields for  and .
+        - Update the form submission logic to send the new location data to the backend.
+        - Ensure the frontend correctly communicates with the updated  endpoint.
+    - **Why fix this issue and what will be achieved with the fix?**: This will complete the user-requested feature for location-specific geo-fencing.
     - **Status**: IN PROGRESS
     - **Is recurring issue?**: N
     - **Should Test frontend/backend/both after fix?**: both
     - **Blocked on other issue**: None
 
 **In progress Task List**:
-- **Task 1**: Update Frontend for Stripe Connect Payouts (Priority: P0)
+- **Task 1**: Complete City/State Geo-Fencing UI (Priority: P0)
   - **Where to resume**: Modify the file .
-  - **What will be achieved with this?**: A functional creator payout system where creators can onboard with Stripe to receive their earnings.
+  - **What will be achieved with this?**: Creators will be able to define a precise location (City, State) for their event, enabling a 1000-meter geo-fenced radius.
   - **Status**: IN PROGRESS
   - **Should Test frontend/backend/both after fix?**: both
   - **Blocked on something**: None
@@ -80,91 +87,91 @@ The project is a full-stack application using FastAPI, React, and MongoDB. It ha
 **Upcoming and Future Tasks**
 
 **Upcoming Tasks:**
--   **P0: Implement WebSocket for Live Chat**: The current live chat polls the backend for new messages. This should be upgraded to use WebSockets for true real-time communication, providing a better user experience.
--   **P1: Stabilize Sign-in and Role Selection Flow**: While the current flow works and passed tests, this was a recurring issue. It should be monitored and verified by the user to ensure it is stable and meets expectations.
+-   **P0: Implement Viewer Search by Location**: Add a search/filter feature on the homepage allowing viewers to find events by City and State.
 
 **Future Tasks:**
--   Anti-piracy measures (disabling screen recording/screenshots).
--   Additional social logins (Facebook, Instagram, Twitter).
--   Push notifications for when events go live.
+-   **P1: Additional Social Logins**: Integrate Facebook, Instagram, and Twitter/X for user authentication (user previously deferred this).
 
 **Completed work in this session**
-- **Admin Panel**: Built and tested a complete, secure admin panel for platform management.
-- **Role-Based Auth Flow**: Implemented the user-requested role selection before sign-in flow.
-- **Creator Features**:
-    - **Analytics Dashboard**: Created a new page with placeholder charts for creator analytics.
-    - **Onboarding Flow**: Implemented a first-time onboarding modal for new creators.
-    - **WebRTC Control Panel**: Built a new UI for the creator's streaming control panel based on a user-provided design and integrated it with LiveKit.
-- **Viewer Features**:
-    - **Live Chat & Reactions**: Added a feature allowing creators to enable live chat and reactions for viewers during an event.
-- **Integrations**:
-    - **LiveKit**: Fully integrated LiveKit with user-provided API keys for real-time video streaming.
-    - **Stripe Connect**: Initiated migration from Plaid to Stripe Connect for creator payouts by updating all backend logic.
-- **Code Cleanup**: Removed the multi-image upload feature as requested by the user.
-- **Testing**: Used the testing agent extensively after each major feature implementation, ensuring stability.
+-   **Stripe Connect Migration**: Completed the full migration from a mock component to a functional Stripe Connect integration for creator payouts, which was verified by the user.
+-   **Automated Payout System**: Implemented an automated money flow where the platform takes a 20% fee and pays out the remaining 80% to creators 24 hours after a ticket sale.
+-   **WebSocket Live Chat**: Upgraded the polling-based chat to a real-time WebSocket implementation.
+-   **Push Notification System**: Created a notification system with a UI bell icon and backend logic to alert viewers when an event goes live.
+-   **Promotional Code System**: Built a full-featured promo code system for the Pro Mode fee, including admin management and creator UI.
+-   **Admin Panel Enhancements**:
+    - Fixed the non-functional Update Bank Info button.
+    - Overhauled the Events tab to show detailed financial breakdowns (revenue, fees, earnings) and a Refund All button.
+-   **Creator & Viewer UX Improvements**:
+    - Implemented a Creator Cancel Event feature with automatic refunds.
+    - Added a Watch/Connect button to the  page for easy event access.
+    - Fixed the Add to Calendar button to be mobile-friendly.
+-   **Event Reminder Scheduler**: Added a background job to automatically notify ticket holders one hour before an event.
+-   **Anti-Piracy Measures**: Integrated a component to deter screen recording and screenshots during live events.
 
 **Earlier issues found/mentioned but not fixed**
-- None. The agent addressed all issues raised in this session.
+-   None. All issues raised by the user in this session were addressed.
 
 **Known issue recurrence from previous fork**
 -   **Issue**: The sign-in and role selection flow was historically unstable.
--   **Recurrence count**: 1 (in the previous fork)
--   **Status**: RESOLVED (The agent implemented a new pre-auth flow that passed all tests, but it remains a sensitive area to monitor).
+-   **Recurrence count**: 1 (in a previous fork)
+-   **Status**: RESOLVED (The flow has been stable and passed tests in this session, but should be monitored).
 
 **Code Architecture**
 
 
 **Key Technical Concepts**
--   **Backend**: FastAPI, Python, Pydantic
--   **Frontend**: React, JavaScript, Tailwind CSS, shadcn/ui
--   **Database**: MongoDB
--   **Authentication**: Google OAuth 2.0, JWT for Admin
--   **Payments**: Stripe (for tickets), Stripe Connect (for payouts)
--   **Streaming**: LiveKit (WebRTC)
--   **Integrations**: iCalendar ()
+-   **Backend**: FastAPI, Pydantic, MongoDB
+-   **Frontend**: React, Tailwind CSS, shadcn/ui
+-   **Payments & Payouts**: Stripe, Stripe Connect
+-   **Streaming**: LiveKit
+-   **Real-time**: WebSockets,  for background jobs
+-   **Geo-location**:  formula for distance calculation
 
 **key DB schema**
 -   **users**: 
 -   **events**: 
 -   **tickets**: 
--   **chat_messages**: 
+-   **promo_codes**: (New Collection) 
+-   **notifications**: (New Collection) 
+-   **platform_settings**: (New Collection) 
 
 **changes in tech stack**
--   Creator payout integration was changed from **Plaid** to **Stripe Connect**.
+-   Added  to backend dependencies for running scheduled jobs (payouts, reminders).
 
 **All files of reference**
--   : Contains all backend logic, including the new Stripe Connect and LiveKit endpoints.
--   : Needs to be updated to replace the Plaid mock with Stripe Connect functionality.
--   : Obsolete file that should be deleted.
--   : The new LiveKit-powered streaming control panel.
--   : Contains all frontend routes, including the new creator and admin pages.
+-   : Contains all backend logic, including new schedulers, payout logic, geo-fencing, and promo codes.
+-   : Needs to be updated for the city/state geo-fencing UI.
+-   : Contains the updated UI for managing promo codes and bank info.
+-   : Contains the fixed calendar button and new Watch button.
 -   : Contains the latest product requirements.
 
 **Areas that need refactoring**:
--   : The entire bank linking section needs to be rewritten to support Stripe Connect instead of the Plaid mock.
--   The  component is now unused and should be deleted.
+-    has grown significantly and now exceeds 3000 lines. It should be refactored into a more modular structure, separating routes, models, and business logic/services into different files for better maintainability.
 
 **key api endpoints**
--   **Stripe Connect (New)**:
-    -   : Creates a Stripe Connect account and returns an onboarding URL.
-    -   : Returns a URL for the creator to access their Stripe Express dashboard.
-    -   : Initiates a payout to the creator's Stripe account.
--   **LiveKit (New)**:
-    -   : Generates a JWT for the creator to start a stream.
-    -   : Generates a JWT for a viewer to join a stream.
--   **Chat (New)**:
-    -   : Fetches chat messages and status for an event.
-    -   : Sends a new chat message.
+-   **Payouts (Automated)**: No direct endpoint; handled by a background  job.
+-   **Promo Codes (Admin)**: , , ,  
+-   **Promo Codes (Validation)**: 
+-   **Event Management**:
+    -   : Allows a creator to cancel an event and trigger refunds.
+    -   : Updated to perform radius-based geo-fencing.
+-   **Notifications**:
+    -   : Fetches notifications for the logged-in user.
+    -   : Marks notifications as read.
+    -   : WebSocket endpoint for real-time notifications.
+-   **Admin**:
+    -   / : To manage platform bank details.
+    -   : Enhanced to return financial data and creator info.
+    -   : To refund all tickets for an event.
 
 **Critical Info for New Agent**
--   The immediate priority is to finish the migration from Plaid to Stripe Connect. The backend code is already updated in , but the frontend in  is still using a mock Plaid component. You must update the frontend to call the new Stripe Connect APIs and remove the mock code.
--   The user has provided all necessary LiveKit credentials (API Key, Secret, URL), which are now in . The WebRTC streaming feature is fully configured on the backend.
--   The user explicitly rejected virtual tipping and opted for a full LiveKit implementation. They also requested the removal of multi-image uploads.
+-   Your immediate task is to complete the geo-fencing feature. This involves updating the frontend in  to include  and  inputs. After that, you must implement the viewer-facing search functionality to filter events by location.
+-   The application is configured with the user's real Stripe test key. All payment and payout functionalities are live for testing.
+-   The user has explicitly deferred adding more social logins and rejected a virtual currency system. Do not work on these unless requested again.
+-   Consider planning a refactor of  as a future task to improve code maintainability, as it has become monolithic.
 
 **documents and test reports created in this job**
--   
--   
--   
+-    (Updated)
 -   
 -   
 -   
@@ -173,39 +180,39 @@ The project is a full-stack application using FastAPI, React, and MongoDB. It ha
 -   
 
 **Last 10 User Messages and any pending HUMAN messages**
-1.  **User**: Add LiveKit keys and URL.
-2.  **Agent**: Acknowledged, but noted API Secret is still missing.
-3.  **User**: Provides API Secret.
-4.  **Agent**: Configured LiveKit, fixed a bug in token generation, and verified the integration.
-5.  **User**: Use a mocked PLAID connect, having issues with API keys.
-6.  **Agent**: Implemented a mock Plaid Link flow on the frontend.
-7.  **User**: Change PLAID Connect to Stripe payment system.
-8.  **Agent**: Agreed this is a better approach and started replacing Plaid with Stripe Connect on the backend.
-9.  **Agent**: Updated  to remove all Plaid logic and add Stripe Connect endpoints.
-10. **Agent**: The last action was to successfully modify  to replace Plaid with Stripe Connect.
+1.  **User**: Requested city/state option for event creation, a 1000m geo-fencing radius, and a viewer search by city/state.
+2.  **User**: Requested features: geo-fencing, creator event cancellation, fix for mobile calendar button, Watch button on tickets, and verification of event-ticket linking.
+3.  **User**: Explained the desired money flow: funds to admin account, 20% fee retained, and automatic 80% payout to creators after 24 hours. Also requested enhancements to the admin event management tab.
+4.  **User**: Reported that the Update Bank Info button was broken in the Admin Panel. (This was fixed).
+5.  **User**: Asked for the admin login credentials. (This was provided).
+6.  **User**: Confirmed the Stripe Connect flow worked after providing their real test key.
+7.  **User**: Confirmed testing of the Stripe functionality was working properly.
+8.  **User**: Approved working on event reminders, anti-piracy, and social logins, but rejected the virtual currency system.
+9.  **User**: When asked about social logins requiring developer keys, instructed the agent to stick with Google OAuth for now.
+10. **User**: Asked for an explanation of the money flow and payout timing.
 
 **Project Health Check:**
--   **Broken**: The creator payout onboarding flow is non-functional. The backend has been migrated to Stripe Connect, while the frontend still displays a (now disconnected) mock Plaid UI.
--   **Mocked**: None. The last mocked component (Plaid Link) is pending removal.
+-   **Broken**: None.
+-   **Mocked**: None.
 
 **3rd Party Integrations**
--   **Google OAuth**: Integrated for user authentication. Requires User-provided key.
--   **Stripe**: Used for ticket payments.  key is in use.
--   **Stripe Connect**: For creator payouts. Backend logic is implemented, but frontend is not. Uses the same Stripe key.
--   **iCalendar**: Integrated via  Python library.
--   **LiveKit**: Fully integrated for WebRTC streaming. Uses User-provided API Key, Secret, and URL.
+-   **Google OAuth**: For user authentication. Requires User-provided key.
+-   **Stripe**: For ticket payments. Uses a real user-provided test key.
+-   **Stripe Connect**: For creator payouts (automated). Uses the same Stripe key.
+-   **LiveKit**: For WebRTC streaming. Uses User-provided API keys.
+-   **iCalendar**:  Python library for calendar invites.
+-   **APScheduler**: Python library for background job scheduling.
 
 **Testing status**
--   **Testing agent used after significant changes**: YES. The agent ran the testing agent after every major feature addition or change, as documented in the  reports.
+-   **Testing agent used after significant changes**: YES, extensively after each feature.
 -   **Troubleshoot agent used after agent stuck in loop**: NO
--   **Test files created**: None. All testing was done via the testing agent.
--   **Known regressions**: None currently, but the Creator Payout feature is broken due to the incomplete migration.
+-   **Test files created**: None. Testing was performed by the testing agent.
+-   **Known regressions**: None.
 
 **Credentials to test flow:**
--   Admin credentials are seeded in the database. Use email  and password .
--   Regular user/creator flow starts with Google Sign-in.
+-   **Admin**:  / 
+-   **Creator/Viewer**: Use Google Sign-in flow.
 
 **What agent forgot to execute**
--   After updating the backend from Plaid to Stripe Connect in , the agent failed to update the corresponding frontend in .
--   The agent did not delete the now-obsolete  file.
--   The agent did not test the new Stripe Connect endpoints after adding them, leaving the feature in an unverified and broken state.</analysis>
+-   The agent was in the middle of a task. It updated the backend for city/state geo-fencing but did not complete the corresponding frontend changes in .
+-   The agent has not yet started implementing the viewer-facing search functionality to find events by city/state, which was part of the same user request.</analysis>

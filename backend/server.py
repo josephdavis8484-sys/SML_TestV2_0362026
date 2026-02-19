@@ -535,7 +535,7 @@ async def create_event(event_input: EventCreate, current_user: User = Depends(ge
         raise HTTPException(status_code=403, detail="Only creators can create events")
     
     event_id = str(uuid.uuid4())
-    share_link = f"{os.environ.get('FRONTEND_URL', 'https://livestream-hub-76.preview.emergentagent.com')}/event/{event_id}"
+    share_link = f"{os.environ.get('FRONTEND_URL', 'https://creator-stage-1.preview.emergentagent.com')}/event/{event_id}"
     
     event = Event(
         id=event_id,
@@ -593,7 +593,7 @@ async def generate_device_token(event_id: str, device_name: str, is_control_pane
     await db.streaming_devices.insert_one(device_doc)
     
     # Generate QR code for device pairing
-    device_url = f"{os.environ.get('FRONTEND_URL', 'https://livestream-hub-76.preview.emergentagent.com')}/stream/{device_token}"
+    device_url = f"{os.environ.get('FRONTEND_URL', 'https://creator-stage-1.preview.emergentagent.com')}/stream/{device_token}"
     qr = qrcode.QRCode(version=1, box_size=10, border=5)
     qr.add_data(device_url)
     qr.make(fit=True)
