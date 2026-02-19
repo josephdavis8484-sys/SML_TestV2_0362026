@@ -23,6 +23,7 @@ from livekit import api as livekit_api
 import stripe
 import asyncio
 import json
+import math
 from apscheduler.schedulers.asyncio import AsyncIOScheduler
 from apscheduler.triggers.interval import IntervalTrigger
 
@@ -47,11 +48,27 @@ EMERGENT_AUTH_URL = "https://demobackend.emergentagent.com/auth/v1/env/oauth/ses
 STREAMING_PACKAGES = {"free": 0.0, "premium": 1000.0}
 PLATFORM_FEE_PERCENTAGE = 20
 PAYOUT_DELAY_HOURS = 24
+GEO_FENCE_RADIUS_METERS = 1000  # Default geo-fence radius
 
 # LiveKit Configuration (for when keys are provided)
 LIVEKIT_URL = os.environ.get('LIVEKIT_URL', 'http://localhost:7880')
 LIVEKIT_API_KEY = os.environ.get('LIVEKIT_API_KEY', '')
 LIVEKIT_API_SECRET = os.environ.get('LIVEKIT_API_SECRET', '')
+
+# Helper function to calculate distance between two coordinates (Haversine formula)
+def calculate_distance_meters(lat1: float, lon1: float, lat2: float, lon2: float) -> float:
+    """Calculate the distance between two points on Earth in meters using Haversine formula"""
+    R = 6371000  # Earth's radius in meters
+    
+    phi1 = math.radians(lat1)
+    phi2 = math.radians(lat2)
+    delta_phi = math.radians(lat2 - lat1)
+    delta_lambda = math.radians(lon2 - lon1)
+    
+    a = math.sin(delta_phi / 2) ** 2 + math.cos(phi1) * math.cos(phi2) * math.sin(delta_lambda / 2) ** 2
+    c = 2 * math.atan2(math.sqrt(a), math.sqrt(1 - a))
+    
+    return R * c
 
 # Plaid Configuration (for when keys are provided)
 PLAID_CLIENT_ID = os.environ.get('PLAID_CLIENT_ID', '')
