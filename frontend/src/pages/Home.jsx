@@ -109,6 +109,92 @@ const Home = ({ user, onLogout }) => {
     <div className="min-h-screen bg-[#0f0f0f]" data-testid="home-page">
       <Navbar user={user} onLogout={onLogout} />
       
+      {/* Location Search Toggle Button - Fixed Position */}
+      <button
+        onClick={() => setShowSearchPanel(!showSearchPanel)}
+        className="fixed top-20 right-4 z-50 bg-purple-600 hover:bg-purple-700 text-white p-3 rounded-full shadow-lg transition-all"
+        data-testid="location-search-toggle"
+      >
+        <MapPin className="w-5 h-5" />
+      </button>
+
+      {/* Location Search Panel */}
+      {showSearchPanel && (
+        <div className="fixed top-32 right-4 z-50 bg-gray-900/95 backdrop-blur-md border border-gray-700 rounded-lg p-4 w-80 shadow-xl" data-testid="location-search-panel">
+          <div className="flex items-center justify-between mb-4">
+            <h3 className="text-white font-semibold flex items-center gap-2">
+              <Search className="w-4 h-4 text-purple-400" />
+              Find Events Near You
+            </h3>
+            <button onClick={() => setShowSearchPanel(false)} className="text-gray-400 hover:text-white">
+              <X className="w-4 h-4" />
+            </button>
+          </div>
+          
+          <div className="space-y-3">
+            <div>
+              <label className="text-gray-400 text-xs mb-1 block">City</label>
+              <Input
+                value={searchCity}
+                onChange={(e) => setSearchCity(e.target.value)}
+                placeholder="Enter city name"
+                className="bg-gray-800 border-gray-700 text-white"
+                data-testid="search-city-input"
+              />
+            </div>
+            
+            <div>
+              <label className="text-gray-400 text-xs mb-1 block">State</label>
+              <select
+                value={searchState}
+                onChange={(e) => setSearchState(e.target.value)}
+                className="w-full bg-gray-800 border border-gray-700 text-white rounded-md px-3 py-2 text-sm"
+                data-testid="search-state-select"
+              >
+                <option value="">All States</option>
+                {US_STATES.map(state => (
+                  <option key={state.code} value={state.code}>{state.name}</option>
+                ))}
+              </select>
+            </div>
+            
+            <div className="flex gap-2 pt-2">
+              <Button
+                onClick={searchByLocation}
+                disabled={isSearching}
+                className="flex-1 bg-purple-600 hover:bg-purple-700 text-white"
+                data-testid="search-events-button"
+              >
+                {isSearching ? "Searching..." : "Search"}
+              </Button>
+              {(searchCity || searchState || filteredEvents.length > 0) && (
+                <Button
+                  onClick={clearSearch}
+                  variant="outline"
+                  className="bg-transparent border-gray-600 text-gray-300 hover:bg-gray-800"
+                  data-testid="clear-search-button"
+                >
+                  Clear
+                </Button>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Active Search Indicator */}
+      {filteredEvents.length > 0 && (
+        <div className="fixed top-20 left-1/2 -translate-x-1/2 z-40 bg-purple-600/90 backdrop-blur-sm text-white px-4 py-2 rounded-full text-sm flex items-center gap-2 shadow-lg" data-testid="search-results-indicator">
+          <MapPin className="w-4 h-4" />
+          Showing {filteredEvents.length} event{filteredEvents.length !== 1 ? 's' : ''} 
+          {searchCity && ` in ${searchCity}`}
+          {searchState && `, ${searchState}`}
+          <button onClick={clearSearch} className="ml-2 hover:bg-purple-700 rounded-full p-1">
+            <X className="w-3 h-3" />
+          </button>
+        </div>
+      )}
+      
       {/* Hero Section */}
       {featuredEvent && (
         <div className="relative h-[85vh] w-full" data-testid="hero-section">
