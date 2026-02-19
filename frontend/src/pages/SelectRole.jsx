@@ -3,6 +3,7 @@ import { useNavigate } from "react-router-dom";
 import { User, Video, ArrowLeft } from "lucide-react";
 
 const EMERGENT_AUTH_URL = "https://auth.emergentagent.com";
+const APP_NAME = "ShowMeLive";
 
 const SelectRole = () => {
   const navigate = useNavigate();
@@ -11,9 +12,9 @@ const SelectRole = () => {
     // Store selected role in sessionStorage before auth
     sessionStorage.setItem("pending_role", role);
     
-    // Redirect to Google auth
+    // Redirect to Google auth with custom app name
     const redirectUrl = `${window.location.origin}/`;
-    window.location.href = `${EMERGENT_AUTH_URL}/?redirect=${encodeURIComponent(redirectUrl)}`;
+    window.location.href = `${EMERGENT_AUTH_URL}/?redirect=${encodeURIComponent(redirectUrl)}&app_name=${encodeURIComponent(APP_NAME)}`;
   };
 
   return (
