@@ -18,10 +18,14 @@ const EventDetail = ({ user, onLogout }) => {
   const [event, setEvent] = useState(null);
   const [quantity, setQuantity] = useState(1);
   const [purchasing, setPurchasing] = useState(false);
+  const [hasTicket, setHasTicket] = useState(false);
 
   useEffect(() => {
     fetchEvent();
-  }, [id]);
+    if (user) {
+      checkUserTicket();
+    }
+  }, [id, user]);
 
   const fetchEvent = async () => {
     try {
