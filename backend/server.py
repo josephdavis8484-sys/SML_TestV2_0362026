@@ -490,11 +490,45 @@ async def logout(request: Request, response: Response):
 # Event Routes
 @api_router.get("/events", response_model=List[Event])
 async def get_events():
-    events = await db.events.find({"status": "upcoming"}, {"_id": 0}).to_list(1000)
+    """Get all upcoming events that haven't expired (date is in the future)"""
+    # Get current date for filtering expired events
+    today = datetime.now(timezone.utc).date()
+    
+    # Find events that are upcoming and not cancelled/blocked
+    events = await db.events.find({
+        "status": {"$in": ["upcoming", "live"]},
+        "is_blocked": {"$ne": True}
+    }, {"_id": 0}).to_list(1000)
+    
+    # Filter out expired events (date has passed)
+    valid_events = []
     for event in events:
         if isinstance(event.get('created_at'), str):
             event['created_at'] = datetime.fromisoformat(event['created_at'])
-    return events
+        
+        # Parse event date and check if it's still valid
+        event_date_str = event.get('date', '')
+        try:
+            # Try different date formats
+            event_date = None
+            for fmt in ['%Y-%m-%d', '%B %d, %Y', '%b %d, %Y', '%m/%d/%Y']:
+                try:
+                    event_date = datetime.strptime(event_date_str, fmt).date()
+                    break
+                except ValueError:
+                    continue
+            
+            # If we couldn't parse the date, include the event (benefit of doubt)
+            if event_date is None:
+                valid_events.append(event)
+            elif event_date >= today:
+                valid_events.append(event)
+            # Else: event is expired, skip it
+        except Exception:
+            # If any error, include the event
+            valid_events.append(event)
+    
+    return valid_events
 
 # Search events by city/state - MUST be before /events/{event_id}
 @api_router.get("/events/search/location")
