@@ -2522,6 +2522,122 @@ logging.basicConfig(
 )
 logger = logging.getLogger(__name__)
 
+# Initialize scheduler for background tasks
+scheduler = AsyncIOScheduler()
+
+async def check_event_reminders():
+    """Check for events starting in ~1 hour and send reminder notifications"""
+    try:
+        now = datetime.now(timezone.utc)
+        one_hour_from_now = now + timedelta(hours=1)
+        
+        # Find events starting in the next hour (within a 10-minute window)
+        window_start = one_hour_from_now - timedelta(minutes=5)
+        window_end = one_hour_from_now + timedelta(minutes=5)
+        
+        # Get all upcoming events
+        events = await db.events.find({
+            "status": {"$nin": ["live", "completed", "cancelled"]},
+        }, {"_id": 0}).to_list(1000)
+        
+        for event in events:
+            try:
+                # Parse event date and time
+                event_date_str = event.get("date", "")
+                event_time_str = event.get("time", "7:00 PM")
+                
+                if not event_date_str:
+                    continue
+                
+                # Combine date and time
+                datetime_str = f"{event_date_str} {event_time_str}"
+                event_datetime = parser.parse(datetime_str)
+                
+                # Make timezone aware if not already
+                if event_datetime.tzinfo is None:
+                    event_datetime = event_datetime.replace(tzinfo=timezone.utc)
+                
+                # Check if event starts within the reminder window
+                if window_start <= event_datetime <= window_end:
+                    # Check if reminder was already sent
+                    reminder_key = f"reminder_sent_{event['id']}"
+                    existing_reminder = await db.reminder_flags.find_one({"key": reminder_key})
+                    
+                    if existing_reminder:
+                        continue  # Already sent reminder for this event
+                    
+                    # Get all ticket holders for this event
+                    tickets = await db.tickets.find(
+                        {"event_id": event["id"], "refunded": False},
+                        {"_id": 0, "user_id": 1}
+                    ).to_list(10000)
+                    
+                    user_ids = list(set(ticket["user_id"] for ticket in tickets))
+                    
+                    # Send reminder notifications
+                    for user_id in user_ids:
+                        notification = Notification(
+                            user_id=user_id,
+                            type="event_reminder",
+                            title="⏰ Event starting in 1 hour!",
+                            message=f"{event['title']} is starting soon. Don't miss it!",
+                            event_id=event["id"],
+                            data={
+                                "event_title": event["title"],
+                                "event_image": event.get("image_url"),
+                                "action_url": f"/event/{event['id']}"
+                            }
+                        )
+                        
+                        notif_doc = notification.model_dump()
+                        notif_doc["created_at"] = notif_doc["created_at"].isoformat()
+                        await db.notifications.insert_one(notif_doc)
+                        
+                        # Send via WebSocket if connected
+                        await notification_manager.send_to_user(user_id, {
+                            "type": "new_notification",
+                            "notification": {
+                                "id": notification.id,
+                                "type": "event_reminder",
+                                "title": notification.title,
+                                "message": notification.message,
+                                "event_id": event["id"],
+                                "data": notification.data,
+                                "read": False,
+                                "created_at": notif_doc["created_at"]
+                            }
+                        })
+                    
+                    # Mark reminder as sent
+                    await db.reminder_flags.insert_one({
+                        "key": reminder_key,
+                        "event_id": event["id"],
+                        "sent_at": now.isoformat(),
+                        "notified_count": len(user_ids)
+                    })
+                    
+                    logging.info(f"Sent reminder for event {event['id']} to {len(user_ids)} users")
+                    
+            except Exception as e:
+                logging.error(f"Error processing event {event.get('id')}: {e}")
+                
+    except Exception as e:
+        logging.error(f"Error in check_event_reminders: {e}")
+
+@app.on_event("startup")
+async def startup_event():
+    """Start the background scheduler on app startup"""
+    # Run reminder check every 5 minutes
+    scheduler.add_job(
+        check_event_reminders,
+        IntervalTrigger(minutes=5),
+        id="event_reminders",
+        replace_existing=True
+    )
+    scheduler.start()
+    logging.info("Background scheduler started for event reminders")
+
 @app.on_event("shutdown")
 async def shutdown_db_client():
+    scheduler.shutdown()
     client.close()
