@@ -690,7 +690,7 @@ const CreateEvent = ({ user, onLogout }) => {
               Geographic Restrictions (Geo-Fencing)
             </label>
             <p className="text-gray-400 text-sm mb-4">
-              Control which countries can access your event. Leave disabled for worldwide access.
+              Restrict event access to viewers within a 1000-meter radius of a specific location. Perfect for local events.
             </p>
             
             <div className="bg-gray-900/50 rounded-lg p-6 space-y-6 border border-gray-700">
@@ -701,8 +701,8 @@ const CreateEvent = ({ user, onLogout }) => {
                     <MapPin className="w-5 h-5 text-purple-400" />
                   </div>
                   <div>
-                    <h4 className="text-white font-medium">Enable Geo-Restrictions</h4>
-                    <p className="text-gray-400 text-sm">Restrict event access by country</p>
+                    <h4 className="text-white font-medium">Enable Location Restriction</h4>
+                    <p className="text-gray-400 text-sm">Only allow viewers within 1000m of the event location</p>
                   </div>
                 </div>
                 <Switch
@@ -714,68 +714,89 @@ const CreateEvent = ({ user, onLogout }) => {
 
               {formData.geo_restricted && (
                 <div className="space-y-6 pt-4 border-t border-gray-700">
-                  {/* Allowed Countries */}
-                  <div>
-                    <h5 className="text-white font-medium mb-3 flex items-center gap-2">
-                      <Check className="w-4 h-4 text-green-400" />
-                      Allowed Countries (Leave empty to allow all except blocked)
-                    </h5>
-                    <div className="flex flex-wrap gap-2">
-                      {COUNTRY_OPTIONS.map(country => (
-                        <button
-                          key={`allow-${country.code}`}
-                          type="button"
-                          onClick={() => toggleCountry(country.code, 'allowed_countries')}
-                          disabled={formData.blocked_countries.includes(country.code)}
-                          className={`px-3 py-1.5 rounded-full text-sm font-medium transition-all ${
-                            formData.allowed_countries.includes(country.code)
-                              ? "bg-green-600 text-white"
-                              : formData.blocked_countries.includes(country.code)
-                              ? "bg-gray-800 text-gray-500 cursor-not-allowed"
-                              : "bg-gray-800 text-gray-300 hover:bg-gray-700"
-                          }`}
+                  {/* City/State Inputs */}
+                  <div className="bg-purple-900/20 border border-purple-500/30 rounded-lg p-4">
+                    <p className="text-purple-400 text-sm mb-4">
+                      <MapPin className="w-4 h-4 inline mr-2" />
+                      Enter the city and state where your event will be held. Only viewers within 1000 meters of this location can access the event.
+                    </p>
+                    
+                    <div className="grid md:grid-cols-2 gap-4">
+                      <div>
+                        <label className="text-white text-sm font-medium mb-2 block">City</label>
+                        <Input
+                          value={formData.geo_city}
+                          onChange={(e) => setFormData({...formData, geo_city: e.target.value, latitude: null, longitude: null})}
+                          placeholder="e.g., Los Angeles"
+                          className="bg-gray-800 border-gray-700 text-white"
+                          data-testid="geo-city-input"
+                        />
+                      </div>
+                      
+                      <div>
+                        <label className="text-white text-sm font-medium mb-2 block">State</label>
+                        <select
+                          value={formData.geo_state}
+                          onChange={(e) => setFormData({...formData, geo_state: e.target.value, latitude: null, longitude: null})}
+                          className="w-full bg-gray-800 border border-gray-700 text-white rounded-md px-3 py-2"
+                          data-testid="geo-state-select"
                         >
-                          {country.name}
-                        </button>
-                      ))}
+                          <option value="">Select a state</option>
+                          {US_STATES.map(state => (
+                            <option key={state.code} value={state.code}>{state.name}</option>
+                          ))}
+                        </select>
+                      </div>
                     </div>
-                    {formData.allowed_countries.length > 0 && (
-                      <p className="text-green-400 text-xs mt-2">
-                        ✓ Only viewers from {formData.allowed_countries.join(", ")} can access
-                      </p>
+
+                    {/* Verify Location Button */}
+                    <div className="mt-4">
+                      <Button
+                        type="button"
+                        onClick={() => geocodeLocation(formData.geo_city, formData.geo_state)}
+                        disabled={geocodingLoading || !formData.geo_city || !formData.geo_state}
+                        className="bg-purple-600 hover:bg-purple-700 text-white"
+                        data-testid="verify-location-button"
+                      >
+                        {geocodingLoading ? (
+                          <>
+                            <Loader2 className="w-4 h-4 animate-spin mr-2" />
+                            Verifying...
+                          </>
+                        ) : (
+                          <>
+                            <MapPin className="w-4 h-4 mr-2" />
+                            Verify Location
+                          </>
+                        )}
+                      </Button>
+                    </div>
+
+                    {/* Show coordinates if found */}
+                    {formData.latitude && formData.longitude && (
+                      <div className="mt-4 bg-green-900/30 border border-green-600/50 rounded-lg p-3">
+                        <p className="text-green-400 text-sm flex items-center gap-2">
+                          <Check className="w-4 h-4" />
+                          Location verified: {formData.geo_city}, {formData.geo_state}
+                        </p>
+                        <p className="text-green-300/70 text-xs mt-1">
+                          Coordinates: {formData.latitude.toFixed(4)}, {formData.longitude.toFixed(4)}
+                        </p>
+                        <p className="text-green-300/70 text-xs mt-1">
+                          Viewers must be within {formData.geo_radius_meters}m of this location to access the event.
+                        </p>
+                      </div>
                     )}
                   </div>
 
-                  {/* Blocked Countries */}
-                  <div>
-                    <h5 className="text-white font-medium mb-3 flex items-center gap-2">
-                      <X className="w-4 h-4 text-red-400" />
-                      Blocked Countries
-                    </h5>
-                    <div className="flex flex-wrap gap-2">
-                      {COUNTRY_OPTIONS.map(country => (
-                        <button
-                          key={`block-${country.code}`}
-                          type="button"
-                          onClick={() => toggleCountry(country.code, 'blocked_countries')}
-                          disabled={formData.allowed_countries.includes(country.code)}
-                          className={`px-3 py-1.5 rounded-full text-sm font-medium transition-all ${
-                            formData.blocked_countries.includes(country.code)
-                              ? "bg-red-600 text-white"
-                              : formData.allowed_countries.includes(country.code)
-                              ? "bg-gray-800 text-gray-500 cursor-not-allowed"
-                              : "bg-gray-800 text-gray-300 hover:bg-gray-700"
-                          }`}
-                        >
-                          {country.name}
-                        </button>
-                      ))}
-                    </div>
-                    {formData.blocked_countries.length > 0 && (
-                      <p className="text-red-400 text-xs mt-2">
-                        ✗ Viewers from {formData.blocked_countries.join(", ")} are blocked
-                      </p>
-                    )}
+                  {/* Radius Info */}
+                  <div className="flex items-start gap-3 text-gray-400 text-sm">
+                    <Globe className="w-5 h-5 text-purple-400 mt-0.5" />
+                    <p>
+                      <strong className="text-white">How it works:</strong> When viewers try to watch your event, 
+                      they'll need to share their location. Only those within 1000 meters (~0.6 miles) of the 
+                      specified city will be able to access the stream.
+                    </p>
                   </div>
                 </div>
               )}
