@@ -234,4 +234,17 @@ English
     - `POST /api/events/{event_id}/end` - Marks event as completed
     - Toast notifications for live event alerts
     - Notification types: event_live, event_reminder, ticket_purchased, payout_completed
+18. **NEW (Feb 2026): Promo Code System for Pro Mode** - Discounts for creator Pro Mode:
+    - PromoCode model with fields: code, discount_type (percentage/fixed), discount_value, max_uses, start_date, expiration_date
+    - Admin CRUD endpoints:
+      - `GET /api/admin/promo-codes` - List all promo codes
+      - `POST /api/admin/promo-codes` - Create new promo code
+      - `PUT /api/admin/promo-codes/{id}` - Update promo code
+      - `DELETE /api/admin/promo-codes/{id}` - Delete promo code
+    - User validation endpoints:
+      - `POST /api/promo-codes/validate` - Validate and calculate discount
+      - `POST /api/promo-codes/apply` - Apply code (increment usage)
+    - Admin Dashboard: New "Promo Codes" tab with full CRUD UI
+    - CreateEvent page: Promo code input when Pro Mode is selected
+    - Discount breakdown showing original price, discount amount, final price
 
