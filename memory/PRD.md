@@ -274,4 +274,20 @@ English
     - Detects DevTools opening
     - Visual indicators: "LIVE NOW" badge with pulsing red dot
     - "Content protected • Recording disabled" notice with Shield icon
+21. **NEW (Feb 2026): Automatic 24-Hour Payout System** - Money flow automation:
+    - **Money Flow**: Customer pays → Stripe fee deducted → Money to Admin account → After 24hrs: 20% stays with Admin, 80% to Creator
+    - APScheduler background job runs every hour
+    - Checks for tickets purchased 24+ hours ago
+    - Automatically transfers 80% to creator's Stripe Connect account
+    - 20% platform fee remains in admin's Stripe account
+    - Tracks payout status: pending, completed, failed, pending_stripe_setup
+    - Sends notification to creator when payout completes
+22. **NEW (Feb 2026): Enhanced Admin Event Management**:
+    - Event table shows: Event name/image, Creator name/email/picture, Date & Time
+    - Revenue breakdown: Total Revenue, Platform Fee (20%), Creator Earnings (80%)
+    - Ticket counts: sold and refunded
+    - Payout status indicator
+    - "Refund All" button to refund all tickets for an event
+    - Block/Unblock event functionality
+    - `POST /api/admin/events/{event_id}/refund-all` - Refund all tickets for an event
 
