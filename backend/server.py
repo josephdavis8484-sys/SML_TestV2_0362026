@@ -494,43 +494,68 @@ async def logout(request: Request, response: Response):
 # Event Routes
 @api_router.get("/events", response_model=List[Event])
 async def get_events():
-    """Get all upcoming events that haven't expired (date is in the future)"""
-    # Get current date for filtering expired events
-    today = datetime.now(timezone.utc).date()
+    """Get all upcoming events that haven't expired (based on date and end_time)"""
+    # Get current datetime for filtering
+    now = datetime.now(timezone.utc)
+    today = now.date()
+    current_time = now.strftime("%H:%M")
     
-    # Find events that are upcoming and not cancelled/blocked
+    # Find events that are upcoming/live and not cancelled/blocked
     events = await db.events.find({
         "status": {"$in": ["upcoming", "live"]},
         "is_blocked": {"$ne": True}
     }, {"_id": 0}).to_list(1000)
     
-    # Filter out expired events (date has passed)
+    # Filter out expired events (date has passed OR end_time has passed)
     valid_events = []
     for event in events:
         if isinstance(event.get('created_at'), str):
             event['created_at'] = datetime.fromisoformat(event['created_at'])
         
-        # Parse event date and check if it's still valid
+        # Parse event date
         event_date_str = event.get('date', '')
-        try:
-            # Try different date formats
-            event_date = None
-            for fmt in ['%Y-%m-%d', '%B %d, %Y', '%b %d, %Y', '%m/%d/%Y']:
-                try:
-                    event_date = datetime.strptime(event_date_str, fmt).date()
-                    break
-                except ValueError:
-                    continue
-            
-            # If we couldn't parse the date, include the event (benefit of doubt)
-            if event_date is None:
-                valid_events.append(event)
-            elif event_date >= today:
-                valid_events.append(event)
-            # Else: event is expired, skip it
-        except Exception:
-            # If any error, include the event
+        event_date = None
+        for fmt in ['%Y-%m-%d', '%B %d, %Y', '%b %d, %Y', '%m/%d/%Y']:
+            try:
+                event_date = datetime.strptime(event_date_str, fmt).date()
+                break
+            except ValueError:
+                continue
+        
+        # If we couldn't parse the date, include the event (benefit of doubt)
+        if event_date is None:
             valid_events.append(event)
+            continue
+        
+        # If the event date is in the future, include it
+        if event_date > today:
+            valid_events.append(event)
+            continue
+        
+        # If event is today, check the end_time
+        if event_date == today:
+            end_time = event.get('end_time', '')
+            if not end_time:
+                # No end time specified, include the event
+                valid_events.append(event)
+            else:
+                # Parse end_time and compare
+                try:
+                    # Handle different time formats
+                    end_time_parsed = None
+                    for tfmt in ['%H:%M', '%I:%M %p', '%I:%M%p']:
+                        try:
+                            end_time_parsed = datetime.strptime(end_time.strip(), tfmt).strftime("%H:%M")
+                            break
+                        except ValueError:
+                            continue
+                    
+                    if end_time_parsed is None or end_time_parsed >= current_time:
+                        valid_events.append(event)
+                    # Else: event has ended, don't include
+                except Exception:
+                    valid_events.append(event)
+        # Else: event_date < today, skip it (expired)
     
     return valid_events
 
