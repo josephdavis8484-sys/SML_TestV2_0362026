@@ -1070,11 +1070,11 @@ async def process_refund(ticket_id: str, reason: str, current_user: User = Depen
 
 class PlatformBankInfo(BaseModel):
     account_name: str
-    account_number: str
-    routing_number: str
+    account_number: Optional[str] = ""
+    routing_number: Optional[str] = ""
     bank_name: str
     updated_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
-    updated_by: str
+    updated_by: Optional[str] = ""
 
 @api_router.get("/admin/bank-info")
 async def get_bank_info(current_user: User = Depends(get_admin_user)):
