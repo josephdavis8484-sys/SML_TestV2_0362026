@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from "react";
+import React, { useState, useEffect, useCallback, useRef } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { axiosInstance } from "@/App";
 import { Button } from "@/components/ui/button";
@@ -20,7 +20,11 @@ import {
   Video,
   VideoOff,
   Users,
-  AlertCircle
+  AlertCircle,
+  Music,
+  Sliders,
+  ChevronRight,
+  ChevronLeft
 } from "lucide-react";
 import { toast } from "sonner";
 import {
@@ -34,6 +38,170 @@ import {
 } from "@livekit/components-react";
 import "@livekit/components-styles";
 import { Track, createLocalTracks, LocalVideoTrack, LocalAudioTrack } from "livekit-client";
+
+// Mobile-friendly Settings Overlay Component
+const SettingsOverlay = ({ isOpen, onClose, children, title }) => {
+  if (!isOpen) return null;
+  
+  return (
+    <div className="fixed inset-0 z-50 bg-black/95 flex flex-col">
+      <div className="flex items-center justify-between p-4 border-b border-gray-700">
+        <button onClick={onClose} className="text-white p-2">
+          <ChevronLeft className="w-6 h-6" />
+        </button>
+        <h2 className="text-white text-xl font-bold">{title}</h2>
+        <div className="w-10" /> {/* Spacer for centering */}
+      </div>
+      <div className="flex-1 overflow-auto p-6">
+        {children}
+      </div>
+    </div>
+  );
+};
+
+// Individual Setting Control Component
+const SettingControl = ({ icon: Icon, label, onClick, value, color = "blue" }) => (
+  <button
+    onClick={onClick}
+    className={`w-full bg-gray-800 hover:bg-gray-700 rounded-xl p-6 flex items-center justify-between transition-all`}
+  >
+    <div className="flex items-center gap-4">
+      <div className={`w-14 h-14 bg-${color}-600/20 rounded-xl flex items-center justify-center`}>
+        <Icon className={`w-7 h-7 text-${color}-400`} />
+      </div>
+      <div className="text-left">
+        <h3 className="text-white text-lg font-semibold">{label}</h3>
+        <p className="text-gray-400 text-sm">{value}</p>
+      </div>
+    </div>
+    <ChevronRight className="w-6 h-6 text-gray-400" />
+  </button>
+);
+
+// Large Slider Overlay for individual controls
+const SliderOverlay = ({ isOpen, onClose, title, value, onChange, min = 0, max = 100, icon: Icon, color = "blue" }) => {
+  if (!isOpen) return null;
+  
+  return (
+    <div className="fixed inset-0 z-[60] bg-black/98 flex flex-col">
+      <div className="flex items-center justify-between p-4 border-b border-gray-700">
+        <button onClick={onClose} className="text-white p-2">
+          <ChevronLeft className="w-6 h-6" />
+        </button>
+        <h2 className="text-white text-xl font-bold">{title}</h2>
+        <div className="w-10" />
+      </div>
+      
+      <div className="flex-1 flex flex-col items-center justify-center p-8">
+        {/* Large Icon */}
+        <div className={`w-24 h-24 bg-${color}-600/20 rounded-2xl flex items-center justify-center mb-8`}>
+          <Icon className={`w-12 h-12 text-${color}-400`} />
+        </div>
+        
+        {/* Large Value Display */}
+        <div className="text-white text-7xl font-bold mb-12">
+          {value}%
+        </div>
+        
+        {/* Large Slider */}
+        <div className="w-full max-w-md">
+          <Slider
+            value={[value]}
+            onValueChange={(v) => onChange(v[0])}
+            min={min}
+            max={max}
+            step={1}
+            className="w-full h-4"
+          />
+        </div>
+        
+        {/* Quick Presets */}
+        <div className="flex gap-4 mt-8">
+          {[0, 25, 50, 75, 100].map((preset) => (
+            <button
+              key={preset}
+              onClick={() => onChange(preset)}
+              className={`px-6 py-3 rounded-xl text-lg font-semibold transition-all ${
+                value === preset
+                  ? `bg-${color}-600 text-white`
+                  : "bg-gray-800 text-gray-300 hover:bg-gray-700"
+              }`}
+            >
+              {preset}%
+            </button>
+          ))}
+        </div>
+      </div>
+    </div>
+  );
+};
+
+// Video Transition Selector Overlay
+const TransitionOverlay = ({ isOpen, onClose, transitionType, setTransitionType, fadeSpeed, setFadeSpeed, isPremium }) => {
+  if (!isOpen) return null;
+  
+  const transitions = [
+    { type: "cut", label: "Cut", description: "Instant switch between cameras", premium: false },
+    { type: "fade", label: "Fade", description: "Smooth fade transition", premium: true },
+    { type: "crossfade", label: "Crossfade", description: "Cross-dissolve between cameras", premium: true },
+  ];
+  
+  return (
+    <div className="fixed inset-0 z-[60] bg-black/98 flex flex-col">
+      <div className="flex items-center justify-between p-4 border-b border-gray-700">
+        <button onClick={onClose} className="text-white p-2">
+          <ChevronLeft className="w-6 h-6" />
+        </button>
+        <h2 className="text-white text-xl font-bold">Video Transitions</h2>
+        <div className="w-10" />
+      </div>
+      
+      <div className="flex-1 overflow-auto p-6 space-y-4">
+        {transitions.map((t) => (
+          <button
+            key={t.type}
+            onClick={() => isPremium || !t.premium ? setTransitionType(t.type) : toast.error("Premium feature")}
+            disabled={!isPremium && t.premium}
+            className={`w-full p-6 rounded-xl text-left transition-all ${
+              transitionType === t.type
+                ? "bg-purple-600 border-2 border-purple-400"
+                : "bg-gray-800 border-2 border-transparent hover:border-gray-600"
+            } ${!isPremium && t.premium ? "opacity-50" : ""}`}
+          >
+            <div className="flex items-center justify-between">
+              <div>
+                <h3 className="text-white text-xl font-bold">{t.label}</h3>
+                <p className="text-gray-300 text-sm mt-1">{t.description}</p>
+              </div>
+              {t.premium && !isPremium && (
+                <span className="bg-yellow-600 text-black text-xs font-bold px-2 py-1 rounded">PRO</span>
+              )}
+            </div>
+          </button>
+        ))}
+        
+        {transitionType !== "cut" && (
+          <div className="mt-8 p-6 bg-gray-800 rounded-xl">
+            <h4 className="text-white text-lg font-semibold mb-4">Fade Speed</h4>
+            <Slider
+              value={[fadeSpeed]}
+              onValueChange={(v) => setFadeSpeed(v[0])}
+              min={0}
+              max={100}
+              step={1}
+              className="w-full"
+            />
+            <div className="flex justify-between mt-2 text-gray-400 text-sm">
+              <span>Slow</span>
+              <span>{fadeSpeed}%</span>
+              <span>Fast</span>
+            </div>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+};
 
 const ControlPanel = ({ user, onLogout }) => {
   const { eventId } = useParams();
@@ -54,19 +222,70 @@ const ControlPanel = ({ user, onLogout }) => {
   const [speakerVolume, setSpeakerVolume] = useState(80);
   const [treble, setTreble] = useState(50);
   const [bass, setBass] = useState(50);
+  const [balance, setBalance] = useState(50);
   
   // Video transition
   const [transitionType, setTransitionType] = useState("cut");
   const [fadeSpeed, setFadeSpeed] = useState(50);
 
+  // Settings Panel State
+  const [showSettings, setShowSettings] = useState(false);
+  const [activeSettingOverlay, setActiveSettingOverlay] = useState(null);
+
   // Available cameras
   const [availableCameras, setAvailableCameras] = useState([]);
   const [selectedCameraId, setSelectedCameraId] = useState(null);
+  
+  // Local tracks for streaming
+  const localVideoRef = useRef(null);
+  const localAudioRef = useRef(null);
+  const [localStream, setLocalStream] = useState(null);
 
   useEffect(() => {
     fetchData();
     enumerateCameras();
   }, [eventId]);
+
+  // Initialize local media when streaming starts
+  useEffect(() => {
+    if (isStreaming && !localStream) {
+      initializeLocalMedia();
+    }
+    return () => {
+      if (localStream) {
+        localStream.getTracks().forEach(track => track.stop());
+      }
+    };
+  }, [isStreaming]);
+
+  // Apply audio settings to stream
+  useEffect(() => {
+    if (localStream) {
+      const audioTrack = localStream.getAudioTracks()[0];
+      if (audioTrack) {
+        audioTrack.enabled = !micMuted;
+      }
+    }
+  }, [micMuted, localStream]);
+
+  const initializeLocalMedia = async () => {
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({
+        video: selectedCameraId ? { deviceId: { exact: selectedCameraId } } : true,
+        audio: true
+      });
+      setLocalStream(stream);
+      
+      if (localVideoRef.current) {
+        localVideoRef.current.srcObject = stream;
+      }
+      
+      toast.success("Camera and microphone connected!");
+    } catch (error) {
+      console.error("Error accessing media devices:", error);
+      toast.error("Failed to access camera/microphone. Please check permissions.");
+    }
+  };
 
   const enumerateCameras = async () => {
     try {
@@ -122,10 +341,13 @@ const ControlPanel = ({ user, onLogout }) => {
       // Stop stream
       try {
         await axiosInstance.post(`/livekit/end-stream/${eventId}`);
-        // Also mark event as completed
         await axiosInstance.post(`/events/${eventId}/end`);
         setIsStreaming(false);
         setLiveKitToken(null);
+        if (localStream) {
+          localStream.getTracks().forEach(track => track.stop());
+          setLocalStream(null);
+        }
         toast.success("Stream ended");
         fetchData();
       } catch (error) {
@@ -148,26 +370,50 @@ const ControlPanel = ({ user, onLogout }) => {
         // Set event to live and notify all ticket holders
         try {
           const goLiveRes = await axiosInstance.post(`/events/${eventId}/go-live`);
-          toast.success(`Stream started! ${goLiveRes.data.notified_count} viewers notified.`);
+          toast.success(`Stream started! ${goLiveRes.data.notified_count || 0} viewers notified.`);
         } catch (err) {
-          // Stream started but notification might have failed
           toast.success("Stream started!");
           console.error("Failed to notify viewers:", err);
         }
         
-        fetchData(); // Refresh status
+        fetchData();
       } catch (error) {
         toast.error("Failed to start stream");
       }
     }
   };
 
-  const switchCamera = (index) => {
+  const switchCamera = async (index) => {
     setActiveCamera(index);
     if (availableCameras[index]) {
       setSelectedCameraId(availableCameras[index].deviceId);
+      
+      // If streaming, switch the camera
+      if (localStream) {
+        try {
+          const newStream = await navigator.mediaDevices.getUserMedia({
+            video: { deviceId: { exact: availableCameras[index].deviceId } },
+            audio: true
+          });
+          
+          // Stop old tracks
+          localStream.getTracks().forEach(track => track.stop());
+          
+          setLocalStream(newStream);
+          if (localVideoRef.current) {
+            localVideoRef.current.srcObject = newStream;
+          }
+        } catch (error) {
+          console.error("Error switching camera:", error);
+        }
+      }
     }
     toast.success(`Switched to Camera ${index + 1}`);
+  };
+
+  const toggleMic = () => {
+    setMicMuted(!micMuted);
+    toast.info(micMuted ? "Microphone unmuted" : "Microphone muted");
   };
 
   if (!event) {
@@ -178,420 +424,317 @@ const ControlPanel = ({ user, onLogout }) => {
     );
   }
 
-  const streamDevices = devices.filter(d => !d.is_control_panel);
-  const maxDevices = event.streaming_package === "premium" ? 5 : 1;
   const isPremium = event.streaming_package === "premium";
-
-  // Generate placeholder cameras for demo
-  const cameras = Array.from({ length: Math.max(availableCameras.length, isPremium ? 5 : 1) }, (_, i) => ({
-    id: i,
-    name: availableCameras[i]?.label || `Camera ${i + 1}`,
-    connected: i < availableCameras.length,
-    deviceId: availableCameras[i]?.deviceId
-  }));
+  const maxDevices = isPremium ? 5 : 1;
+  const cameras = [
+    { id: "main", name: "Main Camera", connected: true },
+    ...devices.filter(d => !d.is_control_panel).map((d, i) => ({
+      id: d.device_token,
+      name: `Camera ${i + 2}`,
+      connected: d.is_activated
+    }))
+  ];
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-[#0f0f1a] to-[#1a1a2e]" data-testid="control-panel">
-      {/* Window Title Bar */}
-      <div className="bg-gray-900/80 border-b border-gray-700 px-4 py-2 flex items-center justify-between">
-        <div className="flex items-center gap-3">
-          <button
-            onClick={() => navigate("/creator/dashboard")}
-            className="text-gray-400 hover:text-white transition-colors"
-          >
-            <ArrowLeft className="w-5 h-5" />
-          </button>
-          <span className="text-white font-semibold">{event.title} - Control Panel</span>
-          {isPremium && (
-            <span className="bg-yellow-500/20 text-yellow-400 text-xs px-2 py-0.5 rounded font-medium">
-              PRO
-            </span>
-          )}
-          {streamStatus?.is_live && (
-            <div className="flex items-center gap-2 bg-red-600 px-2 py-0.5 rounded text-xs">
-              <div className="w-2 h-2 bg-white rounded-full animate-pulse" />
-              <span className="text-white font-medium">LIVE</span>
-            </div>
-          )}
-        </div>
-        <div className="flex items-center gap-4">
-          {streamStatus?.is_live && (
-            <div className="flex items-center gap-2 text-gray-400 text-sm">
-              <Users className="w-4 h-4" />
-              <span>{streamStatus?.viewer_count || 0} viewers</span>
-            </div>
-          )}
-          <div className="flex items-center gap-2">
-            <button className="text-gray-400 hover:text-white p-1"><Minimize2 className="w-4 h-4" /></button>
-            <button className="text-gray-400 hover:text-white p-1"><Maximize2 className="w-4 h-4" /></button>
-            <button 
-              onClick={() => navigate("/creator/dashboard")}
-              className="text-gray-400 hover:text-red-500 p-1"
+    <div className="min-h-screen bg-[#0a0a0f] text-white">
+      {/* Header */}
+      <div className="bg-gray-900/80 border-b border-gray-700 p-4">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-4">
+            <button
+              onClick={() => navigate(-1)}
+              className="p-2 hover:bg-gray-700 rounded-lg transition-colors"
             >
-              <X className="w-4 h-4" />
+              <ArrowLeft className="w-6 h-6" />
             </button>
+            <div>
+              <h1 className="text-xl font-bold">{event.title}</h1>
+              <p className="text-gray-400 text-sm">Control Panel</p>
+            </div>
+          </div>
+          
+          <div className="flex items-center gap-4">
+            {/* Settings Button - Large and prominent for mobile */}
+            <button
+              onClick={() => setShowSettings(true)}
+              className="bg-gray-800 hover:bg-gray-700 p-3 rounded-xl transition-all flex items-center gap-2"
+              data-testid="settings-button"
+            >
+              <Settings className="w-6 h-6" />
+              <span className="hidden sm:inline font-medium">Settings</span>
+            </button>
+            
+            {/* Live Indicator */}
+            {isStreaming && (
+              <div className="flex items-center gap-2 bg-red-600 px-4 py-2 rounded-full">
+                <div className="w-3 h-3 bg-white rounded-full animate-pulse"></div>
+                <span className="font-bold">LIVE</span>
+              </div>
+            )}
           </div>
         </div>
       </div>
 
-      {/* LiveKit Configuration Status */}
-      {!streamStatus?.livekit_configured && (
-        <div className="bg-yellow-500/10 border-b border-yellow-500/30 px-4 py-2 flex items-center gap-2">
-          <AlertCircle className="w-4 h-4 text-yellow-400" />
-          <span className="text-yellow-400 text-sm">
-            LiveKit not configured. Add LIVEKIT_URL, LIVEKIT_API_KEY, and LIVEKIT_API_SECRET to .env for real streaming.
-          </span>
-        </div>
-      )}
-
-      <div className="flex h-[calc(100vh-48px)]">
-        {/* Main Content Area */}
-        <div className="flex-1 p-4 flex flex-col">
-          {/* Main Camera View */}
-          <div className="flex-1 bg-black rounded-lg overflow-hidden relative mb-4">
-            <div className="absolute top-4 left-4 bg-black/60 px-3 py-1 rounded text-white text-sm font-medium z-10">
-              Camera {activeCamera + 1}
-            </div>
-            {isStreaming && (
-              <div className="absolute top-4 right-4 flex items-center gap-2 bg-red-600 px-3 py-1 rounded z-10">
-                <div className="w-2 h-2 bg-white rounded-full animate-pulse" />
-                <span className="text-white text-sm font-medium">LIVE</span>
+      {/* Main Content */}
+      <div className="p-4 space-y-4">
+        {/* Video Preview */}
+        <div className="bg-gray-900 rounded-xl overflow-hidden">
+          <div className="aspect-video bg-black relative">
+            {isStreaming && localStream ? (
+              <video
+                ref={localVideoRef}
+                autoPlay
+                muted
+                playsInline
+                className="w-full h-full object-cover"
+              />
+            ) : (
+              <div className="w-full h-full flex items-center justify-center">
+                <div className="text-center">
+                  <Video className="w-16 h-16 text-gray-600 mx-auto mb-4" />
+                  <p className="text-gray-400">Camera preview will appear here</p>
+                  <p className="text-gray-500 text-sm mt-2">Click "Go Live" to start streaming</p>
+                </div>
               </div>
             )}
             
-            {/* LiveKit Room or Preview */}
-            {isStreaming && liveKitToken && liveKitUrl ? (
-              <LiveKitRoom
-                video={true}
-                audio={true}
-                token={liveKitToken}
-                serverUrl={liveKitUrl}
-                connectOptions={{ autoSubscribe: true }}
-                className="w-full h-full"
-              >
-                <StreamView micMuted={micMuted} />
-                <RoomAudioRenderer />
-              </LiveKitRoom>
-            ) : (
-              <div className="w-full h-full flex items-center justify-center bg-gradient-to-br from-gray-900 to-black">
-                {cameras[activeCamera]?.connected ? (
-                  <div className="text-center">
-                    <Video className="w-20 h-20 text-blue-500 mx-auto mb-4" />
-                    <p className="text-white text-lg">Camera {activeCamera + 1} Ready</p>
-                    <p className="text-gray-500 text-sm mt-1">{cameras[activeCamera]?.name}</p>
-                    <p className="text-gray-600 text-xs mt-2">Click "Start Stream" to go live</p>
-                  </div>
-                ) : (
-                  <div className="text-center">
-                    <Monitor className="w-20 h-20 text-gray-600 mx-auto mb-4" />
-                    <p className="text-gray-400 text-lg">Camera {activeCamera + 1}</p>
-                    <p className="text-gray-500 text-sm mt-1">Not connected</p>
-                    <Button
-                      onClick={generateDevice}
-                      className="mt-4 bg-blue-600 hover:bg-blue-700"
-                    >
-                      <Plus className="w-4 h-4 mr-2" />
-                      Connect Device
-                    </Button>
-                  </div>
-                )}
+            {/* Overlay controls */}
+            {isStreaming && (
+              <div className="absolute bottom-4 left-4 flex items-center gap-3">
+                <button
+                  onClick={toggleMic}
+                  className={`p-3 rounded-full ${micMuted ? "bg-red-600" : "bg-gray-800/80"}`}
+                >
+                  {micMuted ? <MicOff className="w-6 h-6" /> : <Mic className="w-6 h-6" />}
+                </button>
               </div>
             )}
           </div>
-
-          {/* Bottom Controls */}
-          <div className="bg-gray-900/80 rounded-lg p-4 border border-gray-700">
-            <div className="grid grid-cols-4 gap-6">
-              {/* Camera Switch */}
-              <div>
-                <h3 className="text-gray-400 text-xs font-medium mb-3 uppercase tracking-wider">Switch Camera</h3>
-                <div className="flex gap-2 flex-wrap">
-                  {cameras.slice(0, maxDevices).map((cam, index) => (
-                    <button
-                      key={cam.id}
-                      onClick={() => switchCamera(index)}
-                      disabled={!isPremium && index > 0}
-                      className={`px-4 py-2 rounded font-medium text-sm transition-all ${
-                        activeCamera === index
-                          ? "bg-blue-600 text-white"
-                          : cam.connected
-                          ? "bg-gray-700 text-white hover:bg-gray-600"
-                          : "bg-gray-800 text-gray-500"
-                      } ${!isPremium && index > 0 ? "opacity-50 cursor-not-allowed" : ""}`}
-                    >
-                      Cam {index + 1}
-                    </button>
-                  ))}
-                </div>
-              </div>
-
-              {/* Mic Controls */}
-              <div>
-                <h3 className="text-gray-400 text-xs font-medium mb-3 uppercase tracking-wider">Mic Volume</h3>
-                <div className="flex items-center gap-3">
-                  <button
-                    onClick={() => setMicMuted(!micMuted)}
-                    className={`p-2 rounded transition-colors ${
-                      micMuted ? "bg-red-600 text-white" : "bg-gray-700 text-white hover:bg-gray-600"
-                    }`}
-                  >
-                    {micMuted ? <MicOff className="w-5 h-5" /> : <Mic className="w-5 h-5" />}
-                  </button>
-                  <div className="flex-1">
-                    <Slider
-                      value={[micMuted ? 0 : micVolume]}
-                      onValueChange={(value) => setMicVolume(value[0])}
-                      max={100}
-                      step={1}
-                      className="w-full"
-                      disabled={micMuted}
-                    />
-                  </div>
-                  <span className="text-white text-sm w-8">{micMuted ? 0 : micVolume}%</span>
-                </div>
-                {/* Volume bars visualization */}
-                <div className="flex gap-0.5 mt-2 h-4">
-                  {Array.from({ length: 20 }).map((_, i) => (
-                    <div
-                      key={i}
-                      className={`flex-1 rounded-sm transition-colors ${
-                        !micMuted && i < (micVolume / 5)
-                          ? i < 14 ? "bg-green-500" : i < 17 ? "bg-yellow-500" : "bg-red-500"
-                          : "bg-gray-700"
-                      }`}
-                    />
-                  ))}
-                </div>
-              </div>
-
-              {/* Speaker Controls */}
-              <div>
-                <h3 className="text-gray-400 text-xs font-medium mb-3 uppercase tracking-wider">Speaker</h3>
-                <div className="flex items-center gap-3 mb-3">
-                  <Volume2 className="w-5 h-5 text-gray-400" />
-                  <Slider
-                    value={[speakerVolume]}
-                    onValueChange={(value) => setSpeakerVolume(value[0])}
-                    max={100}
-                    step={1}
-                    className="flex-1"
-                  />
-                  <span className="text-white text-sm w-8">{speakerVolume}%</span>
-                </div>
-                <div className="grid grid-cols-2 gap-2">
-                  <div>
-                    <span className="text-gray-500 text-xs">Treble</span>
-                    <Slider
-                      value={[treble]}
-                      onValueChange={(value) => setTreble(value[0])}
-                      max={100}
-                      step={1}
-                      className="mt-1"
-                    />
-                  </div>
-                  <div>
-                    <span className="text-gray-500 text-xs">Bass</span>
-                    <Slider
-                      value={[bass]}
-                      onValueChange={(value) => setBass(value[0])}
-                      max={100}
-                      step={1}
-                      className="mt-1"
-                    />
-                  </div>
-                </div>
-              </div>
-
-              {/* Video Transitions */}
-              <div>
-                <h3 className="text-gray-400 text-xs font-medium mb-3 uppercase tracking-wider">Video Transition</h3>
-                <div className="flex gap-2 mb-3">
-                  {["cut", "fade", "crossfade"].map((type) => (
-                    <button
-                      key={type}
-                      onClick={() => setTransitionType(type)}
-                      disabled={!isPremium && type !== "cut"}
-                      className={`px-3 py-1 rounded text-xs font-medium transition-all ${
-                        transitionType === type
-                          ? "bg-blue-600 text-white"
-                          : "bg-gray-700 text-gray-300 hover:bg-gray-600"
-                      } ${!isPremium && type !== "cut" ? "opacity-50 cursor-not-allowed" : ""}`}
-                    >
-                      {type.charAt(0).toUpperCase() + type.slice(1)}
-                    </button>
-                  ))}
-                </div>
-                {transitionType !== "cut" && (
-                  <div>
-                    <span className="text-gray-500 text-xs">Fade Speed</span>
-                    <Slider
-                      value={[fadeSpeed]}
-                      onValueChange={(value) => setFadeSpeed(value[0])}
-                      max={100}
-                      step={1}
-                      className="mt-1"
-                    />
-                  </div>
-                )}
-              </div>
-            </div>
-
-            {/* Action Buttons */}
-            <div className="flex gap-4 mt-6 pt-4 border-t border-gray-700">
-              <Button
-                onClick={handleStartStream}
-                className={`flex-1 py-6 text-lg font-bold transition-all ${
-                  isStreaming
-                    ? "bg-red-600 hover:bg-red-700"
-                    : "bg-green-600 hover:bg-green-700"
-                }`}
-              >
-                {isStreaming ? (
-                  <>
-                    <Pause className="w-6 h-6 mr-2" />
-                    Stop Stream
-                  </>
-                ) : (
-                  <>
-                    <Play className="w-6 h-6 mr-2" />
-                    Start Stream
-                  </>
-                )}
-              </Button>
-              <Button
-                className="bg-blue-600 hover:bg-blue-700 py-6 px-8"
-              >
-                <Settings className="w-6 h-6 mr-2" />
-                Settings
-              </Button>
-            </div>
-          </div>
         </div>
 
-        {/* Camera Preview Sidebar */}
-        <div className="w-64 bg-gray-900/50 border-l border-gray-700 p-4 overflow-y-auto">
-          <h3 className="text-gray-400 text-xs font-medium mb-4 uppercase tracking-wider">Camera Previews</h3>
-          <div className="space-y-3">
+        {/* Camera Selection */}
+        <div className="bg-gray-900 rounded-xl p-4">
+          <h3 className="text-gray-400 text-sm font-medium mb-3">Cameras</h3>
+          <div className="flex gap-3 flex-wrap">
             {cameras.slice(0, maxDevices).map((cam, index) => (
               <button
                 key={cam.id}
                 onClick={() => switchCamera(index)}
                 disabled={!isPremium && index > 0}
-                className={`w-full rounded-lg overflow-hidden transition-all ${
+                className={`px-5 py-3 rounded-xl font-medium transition-all ${
                   activeCamera === index
-                    ? "ring-2 ring-blue-500"
-                    : "hover:ring-2 hover:ring-gray-600"
-                } ${!isPremium && index > 0 ? "opacity-50 cursor-not-allowed" : ""}`}
+                    ? "bg-blue-600 text-white"
+                    : cam.connected
+                    ? "bg-gray-800 text-white hover:bg-gray-700"
+                    : "bg-gray-800/50 text-gray-500"
+                } ${!isPremium && index > 0 ? "opacity-50" : ""}`}
               >
-                <div className="aspect-video bg-black flex items-center justify-center relative">
-                  {cam.connected ? (
-                    <>
-                      <Video className={`w-8 h-8 ${activeCamera === index ? "text-blue-500" : "text-gray-500"}`} />
-                      {activeCamera === index && isStreaming && (
-                        <div className="absolute top-1 right-1 w-2 h-2 bg-red-500 rounded-full animate-pulse" />
-                      )}
-                    </>
-                  ) : (
-                    <Monitor className="w-8 h-8 text-gray-700" />
-                  )}
-                </div>
-                <div className="bg-gray-800 px-2 py-1">
-                  <p className="text-white text-xs font-medium truncate">{cam.name}</p>
-                  <p className={`text-xs ${cam.connected ? "text-green-400" : "text-gray-500"}`}>
-                    {cam.connected ? "Connected" : "Not connected"}
-                  </p>
-                </div>
+                Cam {index + 1}
               </button>
             ))}
-
-            {/* Add Camera Button */}
-            {streamDevices.length < maxDevices && (
+            
+            {isPremium && cameras.length < maxDevices && (
               <button
                 onClick={generateDevice}
-                className="w-full aspect-video bg-gray-800/50 border-2 border-dashed border-gray-700 rounded-lg flex flex-col items-center justify-center hover:border-blue-500 transition-colors"
+                className="px-5 py-3 rounded-xl font-medium bg-gray-800 text-gray-300 hover:bg-gray-700 flex items-center gap-2"
               >
-                <Plus className="w-8 h-8 text-gray-500 mb-1" />
-                <span className="text-gray-500 text-xs">Add Camera</span>
+                <Plus className="w-5 h-5" />
+                Add Camera
               </button>
-            )}
-          </div>
-
-          {/* Package Info */}
-          <div className="mt-4 p-3 bg-gray-800/50 rounded-lg">
-            <p className="text-gray-400 text-xs">
-              {isPremium ? "Premium" : "Free"} Package
-            </p>
-            <p className="text-white text-sm font-medium">
-              {availableCameras.length}/{maxDevices} cameras
-            </p>
-            {!isPremium && (
-              <Button
-                onClick={() => navigate("/creator/create-event")}
-                className="w-full mt-2 bg-yellow-600 hover:bg-yellow-700 text-xs py-1"
-              >
-                Upgrade to Pro
-              </Button>
             )}
           </div>
         </div>
+
+        {/* Quick Audio Controls */}
+        <div className="bg-gray-900 rounded-xl p-4">
+          <div className="flex items-center justify-between mb-4">
+            <h3 className="text-gray-400 text-sm font-medium">Quick Audio</h3>
+            <button
+              onClick={toggleMic}
+              className={`p-2 rounded-lg ${micMuted ? "bg-red-600" : "bg-gray-700"}`}
+            >
+              {micMuted ? <MicOff className="w-5 h-5" /> : <Mic className="w-5 h-5" />}
+            </button>
+          </div>
+          
+          <div className="flex items-center gap-3">
+            <Volume2 className="w-5 h-5 text-gray-400" />
+            <Slider
+              value={[micMuted ? 0 : micVolume]}
+              onValueChange={(v) => setMicVolume(v[0])}
+              max={100}
+              step={1}
+              className="flex-1"
+              disabled={micMuted}
+            />
+            <span className="text-gray-400 text-sm w-12 text-right">{micMuted ? 0 : micVolume}%</span>
+          </div>
+        </div>
+
+        {/* Go Live Button */}
+        <Button
+          onClick={handleStartStream}
+          className={`w-full py-8 text-xl font-bold rounded-xl transition-all ${
+            isStreaming
+              ? "bg-red-600 hover:bg-red-700"
+              : "bg-green-600 hover:bg-green-700"
+          }`}
+          data-testid="go-live-button"
+        >
+          {isStreaming ? (
+            <>
+              <Pause className="w-7 h-7 mr-3" />
+              End Stream
+            </>
+          ) : (
+            <>
+              <Play className="w-7 h-7 mr-3" />
+              Go Live
+            </>
+          )}
+        </Button>
       </div>
+
+      {/* Settings Panel Overlay */}
+      <SettingsOverlay 
+        isOpen={showSettings} 
+        onClose={() => setShowSettings(false)}
+        title="Settings"
+      >
+        <div className="space-y-4">
+          <SettingControl
+            icon={Mic}
+            label="Microphone Volume"
+            value={micMuted ? "Muted" : `${micVolume}%`}
+            onClick={() => setActiveSettingOverlay("mic")}
+            color="blue"
+          />
+          
+          <SettingControl
+            icon={Volume2}
+            label="Speaker Volume"
+            value={`${speakerVolume}%`}
+            onClick={() => setActiveSettingOverlay("speaker")}
+            color="green"
+          />
+          
+          <SettingControl
+            icon={Sliders}
+            label="Audio Balance"
+            value={balance === 50 ? "Center" : balance < 50 ? `Left ${50 - balance}%` : `Right ${balance - 50}%`}
+            onClick={() => setActiveSettingOverlay("balance")}
+            color="purple"
+          />
+          
+          <SettingControl
+            icon={Music}
+            label="Treble"
+            value={`${treble}%`}
+            onClick={() => setActiveSettingOverlay("treble")}
+            color="yellow"
+          />
+          
+          <SettingControl
+            icon={Music}
+            label="Bass"
+            value={`${bass}%`}
+            onClick={() => setActiveSettingOverlay("bass")}
+            color="orange"
+          />
+          
+          <SettingControl
+            icon={Video}
+            label="Video Transitions"
+            value={transitionType.charAt(0).toUpperCase() + transitionType.slice(1)}
+            onClick={() => setActiveSettingOverlay("transitions")}
+            color="pink"
+          />
+        </div>
+      </SettingsOverlay>
+
+      {/* Individual Setting Overlays */}
+      <SliderOverlay
+        isOpen={activeSettingOverlay === "mic"}
+        onClose={() => setActiveSettingOverlay(null)}
+        title="Microphone Volume"
+        value={micVolume}
+        onChange={setMicVolume}
+        icon={Mic}
+        color="blue"
+      />
+      
+      <SliderOverlay
+        isOpen={activeSettingOverlay === "speaker"}
+        onClose={() => setActiveSettingOverlay(null)}
+        title="Speaker Volume"
+        value={speakerVolume}
+        onChange={setSpeakerVolume}
+        icon={Volume2}
+        color="green"
+      />
+      
+      <SliderOverlay
+        isOpen={activeSettingOverlay === "balance"}
+        onClose={() => setActiveSettingOverlay(null)}
+        title="Audio Balance"
+        value={balance}
+        onChange={setBalance}
+        icon={Sliders}
+        color="purple"
+      />
+      
+      <SliderOverlay
+        isOpen={activeSettingOverlay === "treble"}
+        onClose={() => setActiveSettingOverlay(null)}
+        title="Treble"
+        value={treble}
+        onChange={setTreble}
+        icon={Music}
+        color="yellow"
+      />
+      
+      <SliderOverlay
+        isOpen={activeSettingOverlay === "bass"}
+        onClose={() => setActiveSettingOverlay(null)}
+        title="Bass"
+        value={bass}
+        onChange={setBass}
+        icon={Music}
+        color="orange"
+      />
+      
+      <TransitionOverlay
+        isOpen={activeSettingOverlay === "transitions"}
+        onClose={() => setActiveSettingOverlay(null)}
+        transitionType={transitionType}
+        setTransitionType={setTransitionType}
+        fadeSpeed={fadeSpeed}
+        setFadeSpeed={setFadeSpeed}
+        isPremium={isPremium}
+      />
 
       {/* QR Code Modal */}
       {showQR && (
         <div className="fixed inset-0 bg-black/80 flex items-center justify-center z-50 p-4">
-          <div className="bg-gray-900 rounded-lg p-8 max-w-md w-full border border-gray-700">
-            <h3 className="text-white text-2xl font-bold mb-4">Connect Camera Device</h3>
-            <p className="text-gray-400 text-sm mb-4">
-              Scan this QR code with your phone or tablet to use it as a camera
-            </p>
-            <div className="bg-white p-4 rounded-lg mb-4">
-              <img src={showQR.qr_code} alt="Device QR" className="w-full" />
+          <div className="bg-gray-900 rounded-xl p-6 max-w-sm w-full">
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="text-white text-lg font-bold">Add Camera Device</h3>
+              <button onClick={() => setShowQR(null)} className="text-gray-400 hover:text-white">
+                <X className="w-6 h-6" />
+              </button>
             </div>
-            <div className="flex gap-4">
-              <Button
-                onClick={() => {
-                  navigator.clipboard.writeText(showQR.device_url);
-                  toast.success("Link copied!");
-                }}
-                className="flex-1 bg-blue-600 hover:bg-blue-700"
-              >
-                Copy Link
-              </Button>
-              <Button
-                onClick={() => setShowQR(null)}
-                className="flex-1 bg-gray-700 hover:bg-gray-600"
-              >
-                Close
-              </Button>
+            <div className="bg-white p-4 rounded-lg mb-4">
+              <img src={showQR.qr_code} alt="QR Code" className="w-full" />
+            </div>
+            <p className="text-gray-400 text-sm text-center mb-4">
+              Scan this QR code with your mobile device to add it as a streaming camera
+            </p>
+            <div className="bg-gray-800 rounded-lg p-3 break-all">
+              <p className="text-xs text-gray-400 mb-1">Or open this URL:</p>
+              <p className="text-blue-400 text-xs">{showQR.device_url}</p>
             </div>
           </div>
         </div>
-      )}
-    </div>
-  );
-};
-
-// Stream View Component (inside LiveKitRoom)
-const StreamView = ({ micMuted }) => {
-  const { localParticipant } = useLocalParticipant();
-  const tracks = useTracks([Track.Source.Camera, Track.Source.Microphone]);
-  
-  useEffect(() => {
-    if (localParticipant) {
-      // Mute/unmute based on state
-      const audioTrack = localParticipant.getTrackPublication(Track.Source.Microphone);
-      if (audioTrack) {
-        audioTrack.setEnabled(!micMuted);
-      }
-    }
-  }, [micMuted, localParticipant]);
-
-  const videoTrack = tracks.find(t => t.source === Track.Source.Camera);
-
-  return (
-    <div className="w-full h-full">
-      {videoTrack && (
-        <VideoTrack trackRef={videoTrack} className="w-full h-full object-cover" />
       )}
     </div>
   );
