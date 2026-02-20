@@ -3,7 +3,7 @@ import { useNavigate } from "react-router-dom";
 import axios from "axios";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Shield, Users, Calendar, Ticket, DollarSign, AlertTriangle, Activity, Tag, Plus, Trash2, Edit, Check, X } from "lucide-react";
+import { Shield, Users, Calendar, Ticket, DollarSign, AlertTriangle, Activity, Tag, Plus, Trash2, Edit, Check, X, Info, Phone, Mail, Globe, Facebook, Twitter, Instagram, Youtube, FileText } from "lucide-react";
 import { toast } from "sonner";
 
 const BACKEND_URL = process.env.REACT_APP_BACKEND_URL;
