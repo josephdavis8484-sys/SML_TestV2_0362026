@@ -1321,6 +1321,90 @@ async def unblock_event(event_id: str, current_user: User = Depends(get_admin_us
     
     return {"message": "Event unblocked successfully"}
 
+@api_router.delete("/admin/events/{event_id}")
+async def delete_event(event_id: str, current_user: User = Depends(get_admin_user)):
+    """Permanently delete an event (admin only)"""
+    # Check if event exists
+    event = await db.events.find_one({"id": event_id}, {"_id": 0})
+    if not event:
+        raise HTTPException(status_code=404, detail="Event not found")
+    
+    # Delete the event
+    await db.events.delete_one({"id": event_id})
+    
+    # Also delete related chat messages
+    await db.chat_messages.delete_many({"event_id": event_id})
+    
+    return {"message": f"Event '{event['title']}' deleted successfully"}
+
+@api_router.get("/admin/events/deletable")
+async def get_deletable_events(current_user: User = Depends(get_admin_user)):
+    """Get events that can be safely deleted (test, cancelled, completed, or paid out)"""
+    # Find events that are completed, cancelled, or have "test" in the title
+    events = await db.events.find({
+        "$or": [
+            {"status": {"$in": ["completed", "cancelled"]}},
+            {"title": {"$regex": "test", "$options": "i"}},
+            {"payout_processed": True}
+        ]
+    }, {"_id": 0}).to_list(1000)
+    
+    return events
+
+# Platform About/Settings Management
+class PlatformAboutInfo(BaseModel):
+    description: str = "ShowMeLive is a premium virtual event platform that connects content creators with audiences worldwide."
+    phone: str = ""
+    email: str = "support@showmelive.com"
+    socialLinks: dict = Field(default_factory=lambda: {
+        "facebook": "",
+        "twitter": "",
+        "instagram": "",
+        "youtube": ""
+    })
+    termsUrl: str = ""
+    privacyUrl: str = ""
+    termsContent: str = ""
+    privacyContent: str = ""
+    updated_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
+
+@api_router.get("/platform/about")
+async def get_platform_about():
+    """Get platform about information (public)"""
+    about = await db.platform_settings.find_one({"type": "about"}, {"_id": 0})
+    if not about:
+        # Return defaults
+        return {
+            "description": "ShowMeLive is a premium virtual event platform that connects content creators with audiences worldwide. Our platform enables creators to host live events, concerts, educational sessions, and more, while providing viewers with an immersive viewing experience.",
+            "phone": "",
+            "email": "support@showmelive.com",
+            "socialLinks": {
+                "facebook": "",
+                "twitter": "",
+                "instagram": "",
+                "youtube": ""
+            },
+            "termsUrl": "",
+            "privacyUrl": ""
+        }
+    return about
+
+@api_router.put("/admin/platform/about")
+async def update_platform_about(about_info: PlatformAboutInfo, current_user: User = Depends(get_admin_user)):
+    """Update platform about information (admin only)"""
+    about_data = about_info.model_dump()
+    about_data["type"] = "about"
+    about_data["updated_at"] = datetime.now(timezone.utc).isoformat()
+    about_data["updated_by"] = current_user.email
+    
+    await db.platform_settings.update_one(
+        {"type": "about"},
+        {"$set": about_data},
+        upsert=True
+    )
+    
+    return {"message": "About information updated successfully"}
+
 @api_router.get("/admin/tickets")
 async def get_all_tickets(current_user: User = Depends(get_admin_user)):
     """Get all tickets"""
