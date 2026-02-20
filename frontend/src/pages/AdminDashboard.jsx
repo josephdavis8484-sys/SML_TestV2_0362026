@@ -28,11 +28,23 @@ const AdminDashboard = () => {
   const [liveMonitoring, setLiveMonitoring] = useState([]);
   const [bankInfo, setBankInfo] = useState(null);
   const [promoCodes, setPromoCodes] = useState([]);
+  const [deletableEvents, setDeletableEvents] = useState([]);
+  const [aboutInfo, setAboutInfo] = useState({
+    description: "",
+    phone: "",
+    email: "",
+    socialLinks: { facebook: "", twitter: "", instagram: "", youtube: "" },
+    termsUrl: "",
+    privacyUrl: "",
+    termsContent: "",
+    privacyContent: ""
+  });
   const [activeTab, setActiveTab] = useState("overview");
   const [loading, setLoading] = useState(true);
   const [showPromoForm, setShowPromoForm] = useState(false);
   const [editingPromo, setEditingPromo] = useState(null);
   const [showBankForm, setShowBankForm] = useState(false);
+  const [showAboutForm, setShowAboutForm] = useState(false);
   const [bankForm, setBankForm] = useState({
     account_name: "",
     bank_name: "",
