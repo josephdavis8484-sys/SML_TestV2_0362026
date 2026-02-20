@@ -43,6 +43,10 @@ English
 - Stripe checkout for ticket purchases
 - "Add to Calendar" functionality (mobile-friendly)
 - **Watch/Connect button on tickets** (NEW - Feb 2026)
+- **Share button for live events** (NEW - Feb 2026)
+  - When watching live stream, viewers see "Share This Show" button
+  - Social sharing: X (Twitter), Facebook, WhatsApp
+  - Copy link to clipboard option
 - Geo-access check before ticket purchase (radius-based)
 
 ### 4. Admin Panel
