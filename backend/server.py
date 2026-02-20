@@ -1826,12 +1826,20 @@ async def get_creator_analytics(current_user: User = Depends(get_current_user)):
     if current_user.role != "creator":
         raise HTTPException(status_code=403, detail="Only creators can view analytics")
     
-    # Get all creator's events
-    events = await db.events.find({"creator_id": current_user.id}, {"_id": 0}).to_list(1000)
+    # Get creator's events with only necessary fields for analytics
+    events = await db.events.find(
+        {"creator_id": current_user.id},
+        {"_id": 0, "id": 1, "title": 1, "category": 1, "total_revenue": 1, "image_url": 1, "date": 1}
+    ).to_list(100)  # Limit to 100 most recent events
     event_ids = [e["id"] for e in events]
     
-    # Get all tickets for these events
-    tickets = await db.tickets.find({"event_id": {"$in": event_ids}}, {"_id": 0}).to_list(10000)
+    # Use aggregation pipeline for ticket analytics (more efficient)
+    ticket_pipeline = [
+        {"$match": {"event_id": {"$in": event_ids}, "refunded": {"$ne": True}}},
+        {"$project": {"amount_paid": 1, "purchase_date": 1, "quantity": 1, "event_id": 1}},
+        {"$limit": 5000}  # Reasonable limit for analytics
+    ]
+    tickets = await db.tickets.aggregate(ticket_pipeline).to_list(5000)
     
     # Calculate revenue by month (last 6 months)
     from collections import defaultdict
@@ -1839,14 +1847,16 @@ async def get_creator_analytics(current_user: User = Depends(get_current_user)):
     tickets_by_month = defaultdict(int)
     
     for ticket in tickets:
-        if not ticket.get("refunded", False):
-            purchase_date = ticket.get("purchase_date")
-            if isinstance(purchase_date, str):
+        purchase_date = ticket.get("purchase_date")
+        if isinstance(purchase_date, str):
+            try:
                 purchase_date = datetime.fromisoformat(purchase_date.replace("Z", "+00:00"))
-            if purchase_date:
-                month_key = purchase_date.strftime("%Y-%m")
-                revenue_by_month[month_key] += ticket.get("amount_paid", 0)
-                tickets_by_month[month_key] += ticket.get("quantity", 1)
+            except:
+                continue
+        if purchase_date:
+            month_key = purchase_date.strftime("%Y-%m")
+            revenue_by_month[month_key] += ticket.get("amount_paid", 0)
+            tickets_by_month[month_key] += ticket.get("quantity", 1)
     
     # Sort by month and get last 6
     sorted_months = sorted(revenue_by_month.keys())[-6:]
