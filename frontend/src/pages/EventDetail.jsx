@@ -3,7 +3,7 @@ import { useParams, useNavigate } from "react-router-dom";
 import Navbar from "@/components/Navbar";
 import { axiosInstance } from "@/App";
 import { Button } from "@/components/ui/button";
-import { Calendar, MapPin, DollarSign, ArrowLeft, CreditCard, Ticket, MessageCircle, Shield } from "lucide-react";
+import { Calendar, MapPin, DollarSign, ArrowLeft, CreditCard, Ticket, MessageCircle, Shield, Share2 } from "lucide-react";
 import { toast } from "sonner";
 import LiveChat from "@/components/LiveChat";
 import AntiPiracy from "@/components/AntiPiracy";
