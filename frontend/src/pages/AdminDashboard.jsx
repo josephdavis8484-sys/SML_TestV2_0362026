@@ -83,13 +83,15 @@ const AdminDashboard = () => {
   const fetchAdminData = async () => {
     const adminAxios = getAdminAxios();
     try {
-      const [statsRes, usersRes, eventsRes, ticketsRes, bankRes, promoRes] = await Promise.all([
+      const [statsRes, usersRes, eventsRes, ticketsRes, bankRes, promoRes, aboutRes, deletableRes] = await Promise.all([
         adminAxios.get("/admin/dashboard"),
         adminAxios.get("/admin/users"),
         adminAxios.get("/admin/events"),
         adminAxios.get("/admin/tickets"),
         adminAxios.get("/admin/bank-info"),
-        adminAxios.get("/admin/promo-codes")
+        adminAxios.get("/admin/promo-codes"),
+        adminAxios.get("/platform/about"),
+        adminAxios.get("/admin/events/deletable")
       ]);
       
       setStats(statsRes.data);
@@ -98,6 +100,8 @@ const AdminDashboard = () => {
       setTickets(ticketsRes.data);
       setBankInfo(bankRes.data);
       setPromoCodes(promoRes.data);
+      setAboutInfo(aboutRes.data);
+      setDeletableEvents(deletableRes.data);
     } catch (error) {
       console.error("Error fetching admin data:", error);
       if (error.response?.status === 403 || error.response?.status === 401) {
