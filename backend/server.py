@@ -1406,13 +1406,34 @@ async def update_platform_about(about_info: PlatformAboutInfo, current_user: Use
     return {"message": "About information updated successfully"}
 
 @api_router.get("/admin/tickets")
-async def get_all_tickets(current_user: User = Depends(get_admin_user)):
-    """Get all tickets"""
-    tickets = await db.tickets.find({}, {"_id": 0}).to_list(10000)
+async def get_all_tickets(
+    current_user: User = Depends(get_admin_user),
+    skip: int = 0,
+    limit: int = 100
+):
+    """Get all tickets with pagination"""
+    # Cap limit at 500 for performance
+    limit = min(limit, 500)
+    
+    # Get total count
+    total_count = await db.tickets.count_documents({})
+    
+    # Get paginated tickets with only necessary fields
+    tickets = await db.tickets.find(
+        {},
+        {"_id": 0}
+    ).skip(skip).limit(limit).sort("purchase_date", -1).to_list(limit)
+    
     for ticket in tickets:
         if isinstance(ticket.get('purchase_date'), str):
             ticket['purchase_date'] = datetime.fromisoformat(ticket['purchase_date'])
-    return tickets
+    
+    return {
+        "tickets": tickets,
+        "total": total_count,
+        "skip": skip,
+        "limit": limit
+    }
 
 @api_router.post("/admin/refund/{ticket_id}")
 async def process_refund(ticket_id: str, reason: str, current_user: User = Depends(get_admin_user)):
