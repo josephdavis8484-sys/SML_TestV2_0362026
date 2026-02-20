@@ -97,7 +97,7 @@ const AdminDashboard = () => {
       setStats(statsRes.data);
       setUsers(usersRes.data);
       setEvents(eventsRes.data);
-      setTickets(ticketsRes.data);
+      setTickets(ticketsRes.data.tickets || ticketsRes.data);
       setBankInfo(bankRes.data);
       setPromoCodes(promoRes.data);
       setAboutInfo(aboutRes.data);
