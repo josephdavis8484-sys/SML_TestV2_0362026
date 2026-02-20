@@ -1133,6 +1133,247 @@ const AdminDashboard = () => {
             </div>
           </div>
         )}
+
+        {/* About Page Management Tab */}
+        {activeTab === "about" && (
+          <div className="space-y-6" data-testid="about-tab">
+            <div className="flex justify-between items-center">
+              <h2 className="text-white text-3xl font-bold">About Page Settings</h2>
+              <Button
+                onClick={() => setShowAboutForm(!showAboutForm)}
+                className="bg-blue-600 hover:bg-blue-700"
+              >
+                <Edit className="w-4 h-4 mr-2" />
+                {showAboutForm ? "Cancel" : "Edit About Info"}
+              </Button>
+            </div>
+
+            {showAboutForm ? (
+              <div className="bg-gray-900/50 border border-gray-700 rounded-lg p-6 space-y-6">
+                <div>
+                  <label className="text-gray-300 text-sm block mb-2">Description</label>
+                  <textarea
+                    value={aboutInfo.description}
+                    onChange={(e) => setAboutInfo({...aboutInfo, description: e.target.value})}
+                    className="w-full bg-gray-800 border border-gray-700 text-white rounded-lg p-3 min-h-[120px]"
+                    placeholder="Describe ShowMeLive..."
+                  />
+                </div>
+
+                <div className="grid md:grid-cols-2 gap-4">
+                  <div>
+                    <label className="text-gray-300 text-sm block mb-2">Phone Number</label>
+                    <Input
+                      value={aboutInfo.phone}
+                      onChange={(e) => setAboutInfo({...aboutInfo, phone: e.target.value})}
+                      placeholder="+1 (555) 123-4567"
+                      className="bg-gray-800 border-gray-700 text-white"
+                    />
+                  </div>
+                  <div>
+                    <label className="text-gray-300 text-sm block mb-2">Support Email</label>
+                    <Input
+                      value={aboutInfo.email}
+                      onChange={(e) => setAboutInfo({...aboutInfo, email: e.target.value})}
+                      placeholder="support@showmelive.com"
+                      className="bg-gray-800 border-gray-700 text-white"
+                    />
+                  </div>
+                </div>
+
+                <div>
+                  <label className="text-gray-300 text-sm block mb-2">Social Media Links</label>
+                  <div className="grid md:grid-cols-2 gap-4">
+                    <div className="flex items-center gap-2">
+                      <Facebook className="w-5 h-5 text-blue-400" />
+                      <Input
+                        value={aboutInfo.socialLinks?.facebook || ""}
+                        onChange={(e) => setAboutInfo({...aboutInfo, socialLinks: {...aboutInfo.socialLinks, facebook: e.target.value}})}
+                        placeholder="Facebook URL"
+                        className="bg-gray-800 border-gray-700 text-white"
+                      />
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <Twitter className="w-5 h-5 text-gray-300" />
+                      <Input
+                        value={aboutInfo.socialLinks?.twitter || ""}
+                        onChange={(e) => setAboutInfo({...aboutInfo, socialLinks: {...aboutInfo.socialLinks, twitter: e.target.value}})}
+                        placeholder="X (Twitter) URL"
+                        className="bg-gray-800 border-gray-700 text-white"
+                      />
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <Instagram className="w-5 h-5 text-pink-400" />
+                      <Input
+                        value={aboutInfo.socialLinks?.instagram || ""}
+                        onChange={(e) => setAboutInfo({...aboutInfo, socialLinks: {...aboutInfo.socialLinks, instagram: e.target.value}})}
+                        placeholder="Instagram URL"
+                        className="bg-gray-800 border-gray-700 text-white"
+                      />
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <Youtube className="w-5 h-5 text-red-400" />
+                      <Input
+                        value={aboutInfo.socialLinks?.youtube || ""}
+                        onChange={(e) => setAboutInfo({...aboutInfo, socialLinks: {...aboutInfo.socialLinks, youtube: e.target.value}})}
+                        placeholder="YouTube URL"
+                        className="bg-gray-800 border-gray-700 text-white"
+                      />
+                    </div>
+                  </div>
+                </div>
+
+                <div className="grid md:grid-cols-2 gap-4">
+                  <div>
+                    <label className="text-gray-300 text-sm block mb-2">Terms of Service URL</label>
+                    <Input
+                      value={aboutInfo.termsUrl}
+                      onChange={(e) => setAboutInfo({...aboutInfo, termsUrl: e.target.value})}
+                      placeholder="https://docs.google.com/..."
+                      className="bg-gray-800 border-gray-700 text-white"
+                    />
+                    <p className="text-gray-500 text-xs mt-1">Link to your Terms document (Google Doc, PDF, etc.)</p>
+                  </div>
+                  <div>
+                    <label className="text-gray-300 text-sm block mb-2">Privacy Policy URL</label>
+                    <Input
+                      value={aboutInfo.privacyUrl}
+                      onChange={(e) => setAboutInfo({...aboutInfo, privacyUrl: e.target.value})}
+                      placeholder="https://docs.google.com/..."
+                      className="bg-gray-800 border-gray-700 text-white"
+                    />
+                    <p className="text-gray-500 text-xs mt-1">Link to your Privacy Policy document</p>
+                  </div>
+                </div>
+
+                <Button
+                  onClick={handleUpdateAbout}
+                  className="bg-green-600 hover:bg-green-700"
+                >
+                  <Check className="w-4 h-4 mr-2" />
+                  Save About Information
+                </Button>
+              </div>
+            ) : (
+              <div className="bg-gray-900/50 border border-gray-700 rounded-lg p-6 space-y-4">
+                <div>
+                  <h3 className="text-gray-400 text-sm font-medium mb-2">Current Description</h3>
+                  <p className="text-white">{aboutInfo.description || "Not set"}</p>
+                </div>
+                <div className="grid md:grid-cols-2 gap-4">
+                  <div>
+                    <h3 className="text-gray-400 text-sm font-medium mb-2">Phone</h3>
+                    <p className="text-white flex items-center gap-2">
+                      <Phone className="w-4 h-4 text-green-400" />
+                      {aboutInfo.phone || "Not set"}
+                    </p>
+                  </div>
+                  <div>
+                    <h3 className="text-gray-400 text-sm font-medium mb-2">Email</h3>
+                    <p className="text-white flex items-center gap-2">
+                      <Mail className="w-4 h-4 text-blue-400" />
+                      {aboutInfo.email || "Not set"}
+                    </p>
+                  </div>
+                </div>
+                <div>
+                  <h3 className="text-gray-400 text-sm font-medium mb-2">Legal Documents</h3>
+                  <div className="flex gap-4">
+                    <span className="text-white flex items-center gap-2">
+                      <FileText className="w-4 h-4 text-purple-400" />
+                      Terms: {aboutInfo.termsUrl ? "Set" : "Not set"}
+                    </span>
+                    <span className="text-white flex items-center gap-2">
+                      <Shield className="w-4 h-4 text-green-400" />
+                      Privacy: {aboutInfo.privacyUrl ? "Set" : "Not set"}
+                    </span>
+                  </div>
+                </div>
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* Delete Events/Cleanup Tab */}
+        {activeTab === "cleanup" && (
+          <div className="space-y-6" data-testid="cleanup-tab">
+            <div className="flex justify-between items-center">
+              <div>
+                <h2 className="text-white text-3xl font-bold">Delete Events</h2>
+                <p className="text-gray-400 text-sm mt-1">Remove test events, cancelled events, or paid-out events</p>
+              </div>
+            </div>
+
+            <div className="bg-yellow-900/20 border border-yellow-600/50 rounded-lg p-4">
+              <div className="flex items-start gap-3">
+                <AlertTriangle className="w-5 h-5 text-yellow-400 mt-0.5" />
+                <div>
+                  <p className="text-yellow-400 font-medium">Warning: Permanent Deletion</p>
+                  <p className="text-yellow-300/70 text-sm">Deleted events cannot be recovered. Make sure all refunds have been processed before deleting.</p>
+                </div>
+              </div>
+            </div>
+
+            <div className="bg-gray-900/50 border border-gray-700 rounded-lg overflow-hidden">
+              <table className="w-full">
+                <thead className="bg-gray-800">
+                  <tr>
+                    <th className="px-4 py-3 text-left text-gray-300 text-sm font-medium">Event</th>
+                    <th className="px-4 py-3 text-left text-gray-300 text-sm font-medium">Status</th>
+                    <th className="px-4 py-3 text-left text-gray-300 text-sm font-medium">Date</th>
+                    <th className="px-4 py-3 text-left text-gray-300 text-sm font-medium">Reason</th>
+                    <th className="px-4 py-3 text-left text-gray-300 text-sm font-medium">Action</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {deletableEvents.length === 0 ? (
+                    <tr>
+                      <td colSpan="5" className="text-center py-8 text-gray-500">
+                        No events eligible for deletion
+                      </td>
+                    </tr>
+                  ) : (
+                    deletableEvents.map((event) => (
+                      <tr key={event.id} className="border-t border-gray-800 hover:bg-gray-800/50">
+                        <td className="px-4 py-3">
+                          <div className="text-white font-medium">{event.title}</div>
+                          <div className="text-gray-500 text-xs">{event.category}</div>
+                        </td>
+                        <td className="px-4 py-3">
+                          <span className={`px-2 py-1 rounded text-xs ${
+                            event.status === "cancelled" ? "bg-red-600/20 text-red-400" :
+                            event.status === "completed" ? "bg-blue-600/20 text-blue-400" :
+                            "bg-gray-600/20 text-gray-400"
+                          }`}>
+                            {event.status}
+                          </span>
+                        </td>
+                        <td className="px-4 py-3 text-gray-300 text-sm">{event.date}</td>
+                        <td className="px-4 py-3 text-gray-400 text-sm">
+                          {event.title.toLowerCase().includes("test") && "Test event"}
+                          {event.status === "cancelled" && "Cancelled"}
+                          {event.status === "completed" && "Completed"}
+                          {event.payout_processed && "Paid out"}
+                        </td>
+                        <td className="px-4 py-3">
+                          <Button
+                            onClick={() => handleDeleteEvent(event.id, event.title)}
+                            variant="destructive"
+                            size="sm"
+                            className="bg-red-600 hover:bg-red-700"
+                          >
+                            <Trash2 className="w-4 h-4 mr-2" />
+                            Delete
+                          </Button>
+                        </td>
+                      </tr>
+                    ))
+                  )}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        )}
       </div>
     </div>
   );
