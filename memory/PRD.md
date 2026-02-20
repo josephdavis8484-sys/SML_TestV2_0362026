@@ -159,6 +159,11 @@ English
   - Viewers must have purchased ticket to watch live streams
   - `/api/livekit/join-as-viewer` endpoint provides viewer tokens
   - `/api/livekit/start-streaming` endpoint provides creator tokens
+  - **Mobile-Friendly Control Panel** (Feb 2026) - Completely redesigned for mobile use
+    - Settings button opens fullscreen overlay
+    - Each setting (Volume, Mic, Balance, Treble, Bass, Transitions) has its own large overlay
+    - Large sliders and buttons optimized for touch input
+    - Quick preset buttons (0%, 25%, 50%, 75%, 100%)
 - [x] ~~Implement WebSocket for Live Chat~~ → **FULLY IMPLEMENTED** (Feb 2026)
   - WebSocket endpoint: `/api/ws/chat/{event_id}`
   - Real-time message broadcast
