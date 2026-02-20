@@ -49,17 +49,21 @@ English
   - Copy link to clipboard option
 - Geo-access check before ticket purchase (radius-based)
 
-### 4. Admin Panel
-- User management (approve/reject creators, block/unblock users)
-- Event monitoring and management
-- Payment oversight and refund handling
-- Platform analytics
-- **Promo code management** (NEW - Feb 2026):
-  - Create promo codes with percentage or fixed discounts
-  - Set max uses limit
-  - Configure start date and expiration date
-  - Activate/deactivate codes
-  - Track usage statistics
+### 4. Admin Role & Panel
+- Separate login path (`/admin/login`)
+- Dashboard with:
+  - User management (block/unblock)
+  - Event management with financial breakdowns
+  - Promo code management
+  - Bank info management
+  - **About page management** (NEW - Feb 2026)
+    - Edit description, phone, email
+    - Social media links (Facebook, Twitter, Instagram, YouTube)
+    - Terms of Service URL
+    - Privacy Policy URL
+  - **Event deletion/cleanup** (NEW - Feb 2026)
+    - Delete test events, cancelled events, completed events
+    - Warning before permanent deletion
 
 ### 5. Security & Monetization
 - 20% platform fee on ticket sales
