@@ -410,7 +410,7 @@ const AdminDashboard = () => {
       <div className="bg-gray-900 border-b border-gray-800">
         <div className="max-w-7xl mx-auto px-6">
           <div className="flex gap-6 overflow-x-auto">
-            {["overview", "users", "events", "tickets", "live", "promos", "bank"].map((tab) => (
+            {["overview", "users", "events", "tickets", "live", "promos", "bank", "about", "cleanup"].map((tab) => (
               <button
                 key={tab}
                 onClick={() => setActiveTab(tab)}
@@ -421,7 +421,7 @@ const AdminDashboard = () => {
                 }`}
                 data-testid={`admin-tab-${tab}`}
               >
-                {tab === "promos" ? "Promo Codes" : tab}
+                {tab === "promos" ? "Promo Codes" : tab === "cleanup" ? "Delete Events" : tab}
               </button>
             ))}
           </div>
