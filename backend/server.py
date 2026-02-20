@@ -3048,8 +3048,11 @@ async def create_stripe_payout(
         if not account.payouts_enabled:
             raise HTTPException(status_code=400, detail="Please complete your Stripe account setup to enable payouts")
         
-        # Get available balance
-        events = await db.events.find({"creator_id": current_user.id}, {"_id": 0}).to_list(1000)
+        # Get available balance - only fetch total_revenue field
+        events = await db.events.find(
+            {"creator_id": current_user.id}, 
+            {"_id": 0, "total_revenue": 1}
+        ).to_list(1000)
         total_revenue = sum(e.get("total_revenue", 0.0) for e in events)
         platform_fee = total_revenue * (PLATFORM_FEE_PERCENTAGE / 100)
         available_balance = total_revenue - platform_fee
