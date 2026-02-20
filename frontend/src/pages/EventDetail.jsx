@@ -268,77 +268,140 @@ const EventDetail = ({ user, onLogout }) => {
             {/* Purchase Card */}
             <div className="md:col-span-1">
               <div className="bg-gray-900/80 backdrop-blur-md rounded-lg p-6 sticky top-24" data-testid="purchase-card">
-                <div className="flex items-center justify-between mb-6">
-                  <div className="flex items-center gap-2">
-                    <DollarSign className="w-6 h-6 text-green-500" />
-                    <span className="text-white text-3xl font-bold" data-testid="event-price">
-                      {isFreeEvent ? "FREE" : `$${event.price}`}
-                    </span>
-                  </div>
-                  {!isFreeEvent && <span className="text-gray-400">per ticket</span>}
-                </div>
-
-                <div className="mb-6">
-                  <label className="text-gray-300 text-sm font-medium mb-2 block">Quantity</label>
-                  <div className="flex items-center gap-3">
+                {/* Show Share button when live and user has ticket */}
+                {isLive && hasTicket ? (
+                  <>
+                    <div className="text-center mb-6">
+                      <div className="w-16 h-16 bg-green-600/20 rounded-full flex items-center justify-center mx-auto mb-4">
+                        <Ticket className="w-8 h-8 text-green-400" />
+                      </div>
+                      <h3 className="text-white text-xl font-bold">You're Watching Live!</h3>
+                      <p className="text-gray-400 text-sm mt-2">Enjoying the show? Share it with friends!</p>
+                    </div>
+                    
                     <Button
-                      onClick={() => setQuantity(Math.max(1, quantity - 1))}
-                      className="bg-gray-800 hover:bg-blue-600 text-white px-4 py-2 transition-colors"
-                      data-testid="decrease-quantity"
+                      onClick={() => {
+                        const shareUrl = `${window.location.origin}/event/${id}`;
+                        const shareText = `Check out "${event.title}" on ShowMeLive! ${shareUrl}`;
+                        
+                        if (navigator.share) {
+                          navigator.share({
+                            title: event.title,
+                            text: `Watch "${event.title}" live on ShowMeLive!`,
+                            url: shareUrl
+                          }).catch(console.error);
+                        } else {
+                          navigator.clipboard.writeText(shareText);
+                          toast.success("Link copied to clipboard!");
+                        }
+                      }}
+                      className="w-full bg-purple-600 hover:bg-purple-700 text-white font-bold text-lg py-6 transition-colors flex items-center justify-center gap-2"
+                      data-testid="share-button"
                     >
-                      -
+                      <Share2 className="w-5 h-5" />
+                      Share This Show
                     </Button>
-                    <span className="text-white text-xl font-bold w-12 text-center" data-testid="ticket-quantity">{quantity}</span>
+                    
+                    <div className="mt-4 grid grid-cols-3 gap-2">
+                      <button
+                        onClick={() => window.open(`https://twitter.com/intent/tweet?text=${encodeURIComponent(`Watch "${event.title}" live on ShowMeLive!`)}&url=${encodeURIComponent(`${window.location.origin}/event/${id}`)}`, '_blank')}
+                        className="bg-gray-800 hover:bg-gray-700 p-3 rounded-lg text-gray-300 transition-colors"
+                      >
+                        𝕏
+                      </button>
+                      <button
+                        onClick={() => window.open(`https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(`${window.location.origin}/event/${id}`)}`, '_blank')}
+                        className="bg-gray-800 hover:bg-gray-700 p-3 rounded-lg text-blue-400 transition-colors"
+                      >
+                        f
+                      </button>
+                      <button
+                        onClick={() => window.open(`https://wa.me/?text=${encodeURIComponent(`Watch "${event.title}" live on ShowMeLive! ${window.location.origin}/event/${id}`)}`, '_blank')}
+                        className="bg-gray-800 hover:bg-gray-700 p-3 rounded-lg text-green-400 transition-colors"
+                      >
+                        ✓
+                      </button>
+                    </div>
+                    
+                    <p className="text-gray-500 text-xs text-center mt-4">
+                      Help your friends discover amazing live content
+                    </p>
+                  </>
+                ) : (
+                  <>
+                    <div className="flex items-center justify-between mb-6">
+                      <div className="flex items-center gap-2">
+                        <DollarSign className="w-6 h-6 text-green-500" />
+                        <span className="text-white text-3xl font-bold" data-testid="event-price">
+                          {isFreeEvent ? "FREE" : `$${event.price}`}
+                        </span>
+                      </div>
+                      {!isFreeEvent && <span className="text-gray-400">per ticket</span>}
+                    </div>
+
+                    <div className="mb-6">
+                      <label className="text-gray-300 text-sm font-medium mb-2 block">Quantity</label>
+                      <div className="flex items-center gap-3">
+                        <Button
+                          onClick={() => setQuantity(Math.max(1, quantity - 1))}
+                          className="bg-gray-800 hover:bg-blue-600 text-white px-4 py-2 transition-colors"
+                          data-testid="decrease-quantity"
+                        >
+                          -
+                        </Button>
+                        <span className="text-white text-xl font-bold w-12 text-center" data-testid="ticket-quantity">{quantity}</span>
+                        <Button
+                          onClick={() => setQuantity(quantity + 1)}
+                          className="bg-gray-800 hover:bg-blue-600 text-white px-4 py-2 transition-colors"
+                          data-testid="increase-quantity"
+                        >
+                          +
+                        </Button>
+                      </div>
+                    </div>
+
+                    <div className="border-t border-gray-700 pt-4 mb-6">
+                      <div className="flex items-center justify-between text-lg">
+                        <span className="text-gray-300">Total</span>
+                        <span className="text-white font-bold text-2xl" data-testid="total-price">
+                          {isFreeEvent ? "FREE" : `$${totalPrice}`}
+                        </span>
+                      </div>
+                    </div>
+
                     <Button
-                      onClick={() => setQuantity(quantity + 1)}
-                      className="bg-gray-800 hover:bg-blue-600 text-white px-4 py-2 transition-colors"
-                      data-testid="increase-quantity"
+                      onClick={isFreeEvent ? handleFreePurchase : handlePurchase}
+                      disabled={purchasing}
+                      className="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold text-lg py-6 transition-colors flex items-center justify-center gap-2"
+                      data-testid="purchase-button"
                     >
-                      +
-                    </Button>
-                  </div>
-                </div>
-
-                <div className="border-t border-gray-700 pt-4 mb-6">
-                  <div className="flex items-center justify-between text-lg">
-                    <span className="text-gray-300">Total</span>
-                    <span className="text-white font-bold text-2xl" data-testid="total-price">
-                      {isFreeEvent ? "FREE" : `$${totalPrice}`}
-                    </span>
-                  </div>
-                </div>
-
-                <Button
-                  onClick={isFreeEvent ? handleFreePurchase : handlePurchase}
-                  disabled={purchasing}
-                  className="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold text-lg py-6 transition-colors flex items-center justify-center gap-2"
-                  data-testid="purchase-button"
-                >
-                  {purchasing ? (
-                    "Processing..."
-                  ) : user ? (
-                    <>
-                      {isFreeEvent ? (
+                      {purchasing ? (
+                        "Processing..."
+                      ) : user ? (
                         <>
-                          <Ticket className="w-5 h-5" />
-                          Claim Free Tickets
+                          {isFreeEvent ? (
+                            <>
+                              <Ticket className="w-5 h-5" />
+                              Claim Free Tickets
+                            </>
+                          ) : (
+                            <>
+                              <CreditCard className="w-5 h-5" />
+                              Pay ${totalPrice}
+                            </>
+                          )}
                         </>
                       ) : (
-                        <>
-                          <CreditCard className="w-5 h-5" />
-                          Pay ${totalPrice}
-                        </>
+                        "Sign in to Purchase"
                       )}
-                    </>
-                  ) : (
-                    "Sign in to Purchase"
-                  )}
-                </Button>
-                
-                {!isFreeEvent && (
-                  <p className="text-gray-500 text-xs text-center mt-3">
-                    Secure payment powered by Stripe
-                  </p>
+                    </Button>
+                    
+                    {!isFreeEvent && (
+                      <p className="text-gray-500 text-xs text-center mt-3">
+                        Secure payment powered by Stripe
+                      </p>
+                    )}
+                  </>
                 )}
               </div>
             </div>
