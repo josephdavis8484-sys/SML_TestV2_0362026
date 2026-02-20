@@ -168,6 +168,9 @@ function App() {
           <Route path="/payment-success" element={<PaymentSuccess user={user} onLogout={handleLogout} />} />
           <Route path="/payment-cancel" element={<PaymentCancel user={user} onLogout={handleLogout} />} />
           
+          {/* About page */}
+          <Route path="/about" element={<About user={user} onLogout={handleLogout} />} />
+          
           {/* Admin routes */}
           <Route path="/admin/login" element={<AdminLogin />} />
           <Route path="/admin/dashboard" element={<AdminDashboard />} />
