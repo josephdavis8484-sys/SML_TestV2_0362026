@@ -1851,7 +1851,7 @@ async def get_creator_analytics(current_user: User = Depends(get_current_user)):
         if isinstance(purchase_date, str):
             try:
                 purchase_date = datetime.fromisoformat(purchase_date.replace("Z", "+00:00"))
-            except:
+            except ValueError:
                 continue
         if purchase_date:
             month_key = purchase_date.strftime("%Y-%m")
