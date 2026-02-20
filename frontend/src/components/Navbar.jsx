@@ -51,6 +51,9 @@ const Navbar = ({ user, onLogout, isCreator = false }) => {
                       My Tickets
                     </Link>
                   )}
+                  <Link to="/about" className="text-gray-300 hover:text-white text-sm font-medium" data-testid="about-link">
+                    About
+                  </Link>
                 </>
               )}
             </div>
