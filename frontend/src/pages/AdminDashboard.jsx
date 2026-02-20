@@ -195,6 +195,32 @@ const AdminDashboard = () => {
     }
   };
 
+  const handleDeleteEvent = async (eventId, eventTitle) => {
+    const confirmed = window.confirm(`Are you sure you want to PERMANENTLY DELETE "${eventTitle}"? This action cannot be undone.`);
+    if (!confirmed) return;
+    
+    const adminAxios = getAdminAxios();
+    try {
+      await adminAxios.delete(`/admin/events/${eventId}`);
+      toast.success(`Event "${eventTitle}" deleted successfully`);
+      fetchAdminData();
+    } catch (error) {
+      toast.error("Failed to delete event");
+    }
+  };
+
+  const handleUpdateAbout = async () => {
+    const adminAxios = getAdminAxios();
+    try {
+      await adminAxios.put("/admin/platform/about", aboutInfo);
+      toast.success("About information updated successfully");
+      setShowAboutForm(false);
+      fetchAdminData();
+    } catch (error) {
+      toast.error("Failed to update about information");
+    }
+  };
+
   const handleRefund = async (ticketId) => {
     const reason = prompt("Enter refund reason:");
     if (!reason) return;
