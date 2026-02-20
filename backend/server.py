@@ -3103,8 +3103,11 @@ async def get_stripe_balance(current_user: User = Depends(get_current_user)):
     if current_user.role != "creator":
         raise HTTPException(status_code=403, detail="Only creators can check balance")
     
-    # Get available balance from events
-    events = await db.events.find({"creator_id": current_user.id}, {"_id": 0}).to_list(1000)
+    # Get available balance from events - only fetch total_revenue field
+    events = await db.events.find(
+        {"creator_id": current_user.id}, 
+        {"_id": 0, "total_revenue": 1}
+    ).to_list(1000)
     total_revenue = sum(e.get("total_revenue", 0.0) for e in events)
     platform_fee = total_revenue * (PLATFORM_FEE_PERCENTAGE / 100)
     available_balance = total_revenue - platform_fee
@@ -3113,7 +3116,7 @@ async def get_stripe_balance(current_user: User = Depends(get_current_user)):
     pending_payouts = await db.payouts.find({
         "creator_id": current_user.id,
         "status": "pending"
-    }).to_list(100)
+    }, {"_id": 0, "amount": 1}).to_list(100)
     pending_amount = sum(p.get("amount", 0) for p in pending_payouts)
     
     return {
