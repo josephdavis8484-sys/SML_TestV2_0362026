@@ -362,4 +362,35 @@ English
     - **Mobile-Friendly Calendar**: Uses fetch+blob download method
     - **Cancelled/Refunded Display**: Shows REFUNDED overlay, strikethrough on amount
     - Event status badges: LIVE NOW (pulse), Upcoming, Ended, Cancelled
+26. **NEW (Feb 2026): Control Panel Redesign** - Simplified Netflix-style live stream interface:
+    - **Design**: Full-screen video preview with bottom control bar
+    - **Controls**: Camera toggle, Microphone toggle, "Go Live" button, Settings
+    - **Red mute indicator**: Visual slash on mic icon when muted
+    - **Pre-stream preview**: Shows camera preview before going live using `navigator.mediaDevices`
+    - **LiveKit integration**: Properly syncs camera/mic state with LiveKit room
+    - **Audio controls**: Settings overlay for Mic Volume, Speaker Volume, Balance, Treble, Bass
+    - **Mobile-friendly**: Touch-optimized controls with responsive layout
+27. **NEW (Feb 2026): Questions Only Default** - CreateEvent form updates:
+    - "Live Chat" renamed to "Questions Only" with HelpCircle icon
+    - `chat_enabled: true` by default for new events
+    - `chat_mode: "questions_only"` as default selection
+    - Aligns with user request for educational content focus
+
+---
+
+## Pending Issues (as of Feb 2026)
+
+### P0 - Critical
+- **Script error on CreateEvent toggles**: Intermittent error when toggling switches. May be browser-specific or React state race condition. Needs debugging with console logs.
+
+### P1 - Medium
+- None currently identified
+
+---
+
+## Next Steps
+1. User to test the new Control Panel layout via Google OAuth login
+2. Test microphone functionality during live stream
+3. Verify "Questions Only" default works as expected
+4. Debug the intermittent Script error on CreateEvent page if reproducible
 
