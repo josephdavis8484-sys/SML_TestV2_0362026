@@ -587,15 +587,15 @@ const CreateEvent = ({ user, onLogout }) => {
             </p>
             
             <div className="bg-gray-900/50 rounded-lg p-6 space-y-6 border border-gray-700">
-              {/* Live Chat Toggle */}
+              {/* Questions Only Toggle */}
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-3">
                   <div className="w-10 h-10 bg-blue-600/20 rounded-lg flex items-center justify-center">
-                    <MessageCircle className="w-5 h-5 text-blue-400" />
+                    <HelpCircle className="w-5 h-5 text-blue-400" />
                   </div>
                   <div>
-                    <h4 className="text-white font-medium">Live Chat</h4>
-                    <p className="text-gray-400 text-sm">Allow viewers to send messages during the stream</p>
+                    <h4 className="text-white font-medium">Questions Only</h4>
+                    <p className="text-gray-400 text-sm">Allow viewers to submit questions during the stream</p>
                   </div>
                 </div>
                 <Switch
