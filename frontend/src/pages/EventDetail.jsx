@@ -120,63 +120,82 @@ const EventDetail = ({ user, onLogout }) => {
   const isLive = event.status === "live";
   const canWatchStream = isLive && user && hasTicket;
 
+  // Check if chat/reactions are enabled for full-screen view
+  const hasInteraction = event?.chat_enabled || event?.reactions_enabled;
+
   return (
     <AntiPiracy enabled={isLive}>
       <div className="min-h-screen bg-[#0f0f0f]" data-testid="event-detail-page">
-        <Navbar user={user} onLogout={onLogout} />
+        {/* Show Navbar only when not in full stream mode */}
+        {!(canWatchStream && hasInteraction) && (
+          <Navbar user={user} onLogout={onLogout} />
+        )}
         
-        <div className="pt-20">
+        <div className={canWatchStream && hasInteraction ? "" : "pt-20"}>
           {/* Live Stream or Hero Image */}
           {isLive ? (
-            <div className="relative h-[60vh] w-full bg-black">
-              {canWatchStream ? (
-                /* Actual LiveKit Video Stream for ticket holders */
+            canWatchStream && hasInteraction ? (
+              /* Full-screen stream view with chat/reactions */
+              <div className="h-screen w-full bg-black">
                 <LiveStreamViewer
                   eventId={id}
                   userId={user?.id}
                   userName={user?.name || user?.email}
+                  event={event}
                 />
-              ) : (
-                /* Placeholder for users without tickets */
-                <div className="w-full h-full flex items-center justify-center bg-gradient-to-b from-gray-900 to-black">
-                  <div className="text-center">
-                    <div className="flex items-center justify-center gap-2 mb-4">
-                      <div className="w-3 h-3 bg-red-500 rounded-full animate-pulse"></div>
-                      <span className="text-red-500 font-bold text-lg">LIVE NOW</span>
+              </div>
+            ) : (
+              <div className="relative h-[60vh] w-full bg-black">
+                {canWatchStream ? (
+                  /* Stream without chat/reactions - standard view */
+                  <LiveStreamViewer
+                    eventId={id}
+                    userId={user?.id}
+                    userName={user?.name || user?.email}
+                    event={event}
+                  />
+                ) : (
+                  /* Placeholder for users without tickets */
+                  <div className="w-full h-full flex items-center justify-center bg-gradient-to-b from-gray-900 to-black">
+                    <div className="text-center">
+                      <div className="flex items-center justify-center gap-2 mb-4">
+                        <div className="w-3 h-3 bg-red-500 rounded-full animate-pulse"></div>
+                        <span className="text-red-500 font-bold text-lg">LIVE NOW</span>
+                      </div>
+                      <img 
+                        src={event.image_url} 
+                        alt={event.title}
+                        className="max-h-80 mx-auto rounded-lg opacity-80"
+                        draggable="false"
+                        onContextMenu={(e) => e.preventDefault()}
+                      />
+                      {!user ? (
+                        <p className="text-yellow-400 mt-4 text-sm">
+                          Sign in and purchase a ticket to watch this live event
+                        </p>
+                      ) : !hasTicket ? (
+                        <p className="text-yellow-400 mt-4 text-sm">
+                          Purchase a ticket below to watch this live stream
+                        </p>
+                      ) : null}
+                      <p className="text-gray-400 mt-2 text-sm flex items-center justify-center gap-2">
+                        <Shield className="w-4 h-4" />
+                        Content protected • Recording disabled
+                      </p>
                     </div>
-                    <img 
-                      src={event.image_url} 
-                      alt={event.title}
-                      className="max-h-80 mx-auto rounded-lg opacity-80"
-                      draggable="false"
-                      onContextMenu={(e) => e.preventDefault()}
-                    />
-                    {!user ? (
-                      <p className="text-yellow-400 mt-4 text-sm">
-                        Sign in and purchase a ticket to watch this live event
-                      </p>
-                    ) : !hasTicket ? (
-                      <p className="text-yellow-400 mt-4 text-sm">
-                        Purchase a ticket below to watch this live stream
-                      </p>
-                    ) : null}
-                    <p className="text-gray-400 mt-2 text-sm flex items-center justify-center gap-2">
-                      <Shield className="w-4 h-4" />
-                      Content protected • Recording disabled
-                    </p>
                   </div>
-                </div>
-              )}
-              <div className="absolute inset-0 bg-gradient-to-t from-[#0f0f0f] via-transparent to-transparent pointer-events-none"></div>
-              
-              <button
-                onClick={() => navigate(-1)}
-                className="absolute top-8 left-8 bg-black/60 hover:bg-blue-600/80 text-white p-3 rounded-full transition-colors z-10"
-                data-testid="back-button"
-              >
-                <ArrowLeft className="w-6 h-6" />
-              </button>
-            </div>
+                )}
+                <div className="absolute inset-0 bg-gradient-to-t from-[#0f0f0f] via-transparent to-transparent pointer-events-none"></div>
+                
+                <button
+                  onClick={() => navigate(-1)}
+                  className="absolute top-8 left-8 bg-black/60 hover:bg-blue-600/80 text-white p-3 rounded-full transition-colors z-10"
+                  data-testid="back-button"
+                >
+                  <ArrowLeft className="w-6 h-6" />
+                </button>
+              </div>
+            )
           ) : (
             <div className="relative h-[60vh] w-full">
               <img 
