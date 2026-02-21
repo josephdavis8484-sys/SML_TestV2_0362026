@@ -9,112 +9,104 @@ The user wants to redesign the website  to have a clean, modern look similar to 
     *   **Authentication**: Google social login.
     *   **Content Creator**: Mandatory login, must accept Content Guidelines & a 20% platform fee.
 3.  **Content Creator Flow**:
-    *   **Dashboard**: Schedule New Show button, list of upcoming shows with a cancel option (triggers auto-refunds).
-    *   **Event Creation**: Form for Category, Title, Date/Time, Price, Poster/Image upload.
+    *   **Dashboard**: Schedule New Show button, list of upcoming shows.
+    *   **Event Creation**: Form for Category, Title, Date, Start/End Time, Price, Poster/Image upload.
         *   **Geo-Fencing**: Option to restrict by country or by a 1000-meter radius around a specified City/State.
-        *   Option to enable/disable live chat & reactions.
-    *   **Event Cancellation**: Creators can cancel events, which automatically refunds all ticket holders.
-    *   **Pro Mode**: A Pro mode for multi-camera streaming, with a one-time fee that supports promotional codes.
+        *   Option to enable Live Chat (as Questions Only) & Live Reactions.
+    *   **Pro Mode**: A Pro mode for multi-camera streaming, with a one-time fee.
     *   **Payouts**: Onboard to Stripe Connect to receive automatic payouts.
-    *   **Control Panel**: A dedicated UI to manage the live stream using LiveKit, including a Go Live button that triggers notifications.
-    *   **Analytics**: A dashboard for ticket sales, revenue, and demographics.
+    *   **Control Panel**: A dedicated, mobile-friendly UI to manage the live stream using LiveKit, including a Go Live button, microphone/camera controls, and settings.
 4.  **Content Viewer Flow**:
-    *   **Home Page**: Browse upcoming events with search/filter by City/State.
-    *   **Event Details**: Full event info, Buy Ticket button, and a live chat component if enabled.
-    *   **Post-Purchase**: Add to Calendar functionality and a Watch/Connect button on the ticket to join the event.
-    *   **Notifications**: Receive real-time notifications (e.g., when an event goes live, event reminders).
+    *   **Home Page**: Browse upcoming events with search/filter by City/State. Expired events should be hidden automatically.
+    *   **Event Details**: Full event info, Buy Ticket button, and a Share button during live events.
+    *   **Post-Purchase**: Add to Calendar and a Watch/Connect button on the ticket.
 5.  **Admin Role & Panel**:
     *   **Access**: A separate login path ().
     *   **Dashboard**: Manage users, categories, and site guidelines.
-    *   **Event Management**: View detailed event info including creator, total revenue, platform fees, and creator earnings. Ability to refund all attendees for an event.
-    *   **Promo Codes**: Full CRUD for promotional codes applicable to Pro Mode.
-    *   **Bank Info**: Manage the platform's bank account details for receiving funds.
+    *   **Event Management**: View detailed event info. Ability to delete old/test events.
+    *   **About Page Management**: Full CRUD for the site's About page content (description, contact info, Terms/Policies links).
 6.  **Monetization & Payouts**:
-    *   Viewer ticket payments are processed via Stripe and go to the platform's account.
-    *   The platform retains a 20% fee.
-    *   An automated background job processes payouts to creators' Stripe Connect accounts 24 hours after the ticket sale.
-7.  **Platform Features**:
-    *   **Live Chat**: Real-time via WebSockets.
-    *   **Anti-Piracy**: Basic measures to deter screen recording on the event viewing page.
+    *   Stripe for ticket payments. Platform retains a 20% fee. Automated payouts to creators' Stripe Connect accounts.
 
 **User's preferred language**: English
 
 **what currently exists?**
-The project is a full-stack application (FastAPI, React, MongoDB) with a Netflix-inspired dark theme. It features comprehensive role-based access for Admins, Content Creators, and Viewers.
+The application is a feature-rich, deployment-ready virtual event platform. Key functionalities include role-based access (Admin, Creator, Viewer), Stripe Connect for payments and automated payouts, and LiveKit for streaming.
 
-Key implemented features include:
-*   **Stripe & Stripe Connect**: Fully functional payment processing for ticket sales and automated 24-hour payouts to creators.
-*   **LiveKit Streaming**: Integrated for real-time video streaming.
-*   **Real-Time Features**: Live chat (WebSockets) and a push notification system for event alerts.
-*   **Creator Tools**: A dashboard for event management (including creation and cancellation with auto-refunds), and a control panel with a Go Live button.
-*   **Admin Panel**: A robust dashboard for managing users, events (with financial breakdowns), promotional codes, and platform bank info.
-*   **Viewer Experience**: Users can browse events, buy tickets, get calendar invites (mobile-friendly), receive notifications, and join events directly from their tickets.
-*   **Geo-Fencing**: Creators can restrict events by country. The backend is partially updated to support city/state radius-based fencing.
-*   **Security**: Basic anti-piracy measures are in place for video streams.
+Recent work focused on implementing advanced geo-fencing (city/state radius), a viewer-side location search, and adding start/end times to events for better filtering. A comprehensive About page, manageable by the admin, was created, along with the ability for admins to delete old events. The Creator's Control Panel has been completely redesigned for mobile-friendliness and to properly integrate with LiveKit for streaming. The backend has been optimized to resolve deployment blockers related to database performance.
 
 **Last working item**:
-- Last item agent was working: The agent was implementing a more advanced geo-fencing system. It updated the backend to support a 1000-meter radius restriction based on a City/State location by adding a  distance calculation function and updating the geo-check endpoint. It was in the process of updating the frontend  page to include City/State input fields.
+- Last item agent was working: Fixing a critical bug where the Content Creator's live stream would show a black screen. The agent identified that  was only showing a local camera preview and was not actually connecting to and publishing the stream to the LiveKit room. The component was rewritten to correctly use the  library, including the  component, to handle the full streaming lifecycle. The agent was also in the process of investigating a persistent Script error on the  page and setting the default chat mode to questions_only.
 - Status: IN PROGRESS
 - Agent Testing Done: N
 - Which testing method agent to use?: both
 - User Testing Done: N
 
 **All Pending/In progress Issue list**:
-- **Issue 1**: The creator-facing UI for geo-fencing needs to be updated. (Priority: P0)
+- **Issue 1**: Script error occurs on the Create Event page when toggling options. (Priority: P0)
+- **Issue 2**: The microphone is not working during the Live Stream. (Priority: P0)
 
 **Issues Detail**:
 - **Issue 1**:
-    - **Description**: The  page does not have input fields for  and  to support the new radius-based geo-fencing. The UI still reflects the old country-only restriction model.
-    - **Attempted fixes**: Backend logic in  was updated to handle radius-based checks. No corresponding frontend changes were completed.
+    - **Description**: The user reports receiving a generic Script error after clearing their browser cache when interacting with the toggle switches (Live Chat, Live Reactions, Geo-Fencing) on the  page. The agent has reviewed the code for the  component and its implementation and found no obvious syntax errors, suggesting it might be a runtime or React state issue.
+    - **Attempted fixes**: The agent verified the  component code, its imports, and the surrounding JSX structure. No backend errors were found in the logs.
     - **Next debug checklist**:
-        - In , replace the existing country-select UI with input fields for  and .
-        - Update the form submission logic to send the new location data to the backend.
-        - Ensure the frontend correctly communicates with the updated  endpoint.
-    - **Why fix this issue and what will be achieved with the fix?**: This will complete the user-requested feature for location-specific geo-fencing.
+        - In , wrap the  function and other state updates in  blocks with detailed  statements to pinpoint the exact line causing the failure.
+        - Use the browser's developer tools (via screenshot tool with ) to inspect the console for more specific error messages when the toggles are clicked.
+        - Simplify the state management for the toggles to see if a complex interaction is causing the problem.
+    - **Why fix this issue and what will be achieved with the fix?**: This is a blocker for creators trying to configure their events, making core features unusable.
+    - **Status**: IN PROGRESS
+    - **Is recurring issue?**: Y
+    - **Should Test frontend/backend/both after fix?**: frontend
+    - **Blocked on other issue**: None
+- **Issue 2**:
+    - **Description**: The user reports that while the live stream video now works, the microphone audio is not being transmitted.
+    - **Attempted fixes**: The  was rewritten to use LiveKit components, which should handle audio tracks.
+    - **Next debug checklist**:
+        - In , verify that the  component has  in its props to enable audio publishing.
+        - Check the  function to ensure it's correctly muting/unmuting the local audio track.
+        - Use  to inspect the state of  and the local audio track object to ensure it's being managed correctly.
+    - **Why fix this issue and what will be achieved with the fix?**: A silent live stream is not a viable feature. Audio is critical for the platform's purpose.
     - **Status**: IN PROGRESS
     - **Is recurring issue?**: N
-    - **Should Test frontend/backend/both after fix?**: both
+    - **Should Test frontend/backend/both after fix?**: frontend
     - **Blocked on other issue**: None
 
 **In progress Task List**:
-- **Task 1**: Complete City/State Geo-Fencing UI (Priority: P0)
-  - **Where to resume**: Modify the file .
-  - **What will be achieved with this?**: Creators will be able to define a precise location (City, State) for their event, enabling a 1000-meter geo-fenced radius.
-  - **Status**: IN PROGRESS
-  - **Should Test frontend/backend/both after fix?**: both
+- **Task 1**: Set default chat mode and update label (Priority: P1)
+  - **Where to resume**: 
+  - **What will be achieved with this?**: Fulfills the user request to change Live Chat to Questions Only by default for new events.
+  - **Status**: NOT STARTED
+  - **Should Test frontend/backend/both after fix?**: frontend
   - **Blocked on something**: None
 
 **Upcoming and Future Tasks**
 
 **Upcoming Tasks:**
--   **P0: Implement Viewer Search by Location**: Add a search/filter feature on the homepage allowing viewers to find events by City and State.
+-   **P1: Verify Control Panel Settings Functionality**: User reported that settings options (volume, video transitions, etc.) were not working in the old Control Panel. The new design needs to be tested to confirm all controls are functional.
 
 **Future Tasks:**
--   **P1: Additional Social Logins**: Integrate Facebook, Instagram, and Twitter/X for user authentication (user previously deferred this).
+-   **P1: Refactor **: The main backend file is very large. Plan a refactor to split routes, models, and services into separate modules for better maintainability.
+-   **P2: Additional Social Logins**: Integrate Facebook, Instagram, and Twitter/X for user authentication (user previously deferred this).
 
 **Completed work in this session**
--   **Stripe Connect Migration**: Completed the full migration from a mock component to a functional Stripe Connect integration for creator payouts, which was verified by the user.
--   **Automated Payout System**: Implemented an automated money flow where the platform takes a 20% fee and pays out the remaining 80% to creators 24 hours after a ticket sale.
--   **WebSocket Live Chat**: Upgraded the polling-based chat to a real-time WebSocket implementation.
--   **Push Notification System**: Created a notification system with a UI bell icon and backend logic to alert viewers when an event goes live.
--   **Promotional Code System**: Built a full-featured promo code system for the Pro Mode fee, including admin management and creator UI.
--   **Admin Panel Enhancements**:
-    - Fixed the non-functional Update Bank Info button.
-    - Overhauled the Events tab to show detailed financial breakdowns (revenue, fees, earnings) and a Refund All button.
--   **Creator & Viewer UX Improvements**:
-    - Implemented a Creator Cancel Event feature with automatic refunds.
-    - Added a Watch/Connect button to the  page for easy event access.
-    - Fixed the Add to Calendar button to be mobile-friendly.
--   **Event Reminder Scheduler**: Added a background job to automatically notify ticket holders one hour before an event.
--   **Anti-Piracy Measures**: Integrated a component to deter screen recording and screenshots during live events.
+-   **Live Stream Fix (Creator)**: Rewrote  to correctly use LiveKit components, fixing the black screen issue and enabling creators to actually broadcast.
+-   **Event Visibility Fix**: Corrected the backend logic in  to ensure events scheduled for the current day remain visible on the homepage even after their end time has passed.
+-   **Deployment Readiness**: Fixed 3 deployment-blocking issues and 2 warnings identified by the deployment agent, primarily by adding pagination to admin endpoints and optimizing database queries in .
+-   **About Page & Admin Management**: Created a new About page and added a section to the Admin Panel for managing its content, including new backend endpoints.
+-   **Admin Event Deletion**: Implemented functionality for admins to delete old or test events from the platform.
+-   **Share Button**: Replaced the Claim Free Tickets button with a Share button for viewers during live events on the  page.
+-   **Start/End Time for Events**: Added start/end time fields to the event creation form and database models, and updated backend filtering to hide events that have concluded.
+-   **Live Stream Viewer**: Implemented a  component and integrated it into , allowing ticket holders to watch live events.
+-   **Branding Fix**: Investigated and confirmed that all internal application pages consistently display the ShowMeLive brand name.
+-   **Image Upload & Event Filtering Bugs**: Fixed a critical bug where uploaded event images weren't being saved by adding  to the  model. Also fixed a bug where expired events were not being hidden from the homepage.
+-   **Geo-Fencing Feature Completion**: Fully implemented the City/State geo-fencing feature, including the creator-side UI (), viewer search (), and backend logic ().
 
 **Earlier issues found/mentioned but not fixed**
--   None. All issues raised by the user in this session were addressed.
+-   None.
 
 **Known issue recurrence from previous fork**
--   **Issue**: The sign-in and role selection flow was historically unstable.
--   **Recurrence count**: 1 (in a previous fork)
--   **Status**: RESOLVED (The flow has been stable and passed tests in this session, but should be monitored).
+-   None.
 
 **Code Architecture**
 
@@ -122,97 +114,79 @@ Key implemented features include:
 **Key Technical Concepts**
 -   **Backend**: FastAPI, Pydantic, MongoDB
 -   **Frontend**: React, Tailwind CSS, shadcn/ui
--   **Payments & Payouts**: Stripe, Stripe Connect
--   **Streaming**: LiveKit
--   **Real-time**: WebSockets,  for background jobs
--   **Geo-location**:  formula for distance calculation
+-   **Streaming**: LiveKit () - integration was deepened and fixed.
+-   **Database Optimization**: Implemented pagination (, ) for admin-facing queries to prevent performance bottlenecks.
 
 **key DB schema**
--   **users**: 
--   **events**: 
--   **tickets**: 
--   **promo_codes**: (New Collection) 
--   **notifications**: (New Collection) 
--   **platform_settings**: (New Collection) 
+-   **events**: added 
+-   **platform_info**: (New Collection) 
 
 **changes in tech stack**
--   Added  to backend dependencies for running scheduled jobs (payouts, reminders).
+-   None.
 
 **All files of reference**
--   : Contains all backend logic, including new schedulers, payout logic, geo-fencing, and promo codes.
--   : Needs to be updated for the city/state geo-fencing UI.
--   : Contains the updated UI for managing promo codes and bank info.
--   : Contains the fixed calendar button and new Watch button.
--   : Contains the latest product requirements.
+-   : Critical file. Was completely rewritten to fix live streaming for creators.
+-   : Source of a persistent Script error bug that needs to be solved.
+-   : Heavily modified with new endpoints for the About page, event deletion, and crucial performance optimizations for deployment.
+-   : Updated to manage the new About page content and to handle event deletion.
+-   : Updated to integrate the  component for viewers.
+-   : New file that contains the LiveKit viewing logic.
+-   : New file for the public-facing About page.
 
 **Areas that need refactoring**:
--    has grown significantly and now exceeds 3000 lines. It should be refactored into a more modular structure, separating routes, models, and business logic/services into different files for better maintainability.
+-    is now over 3000 lines. Refactoring into a modular structure (e.g., separating routes, database models, and services) is highly recommended for future maintainability.
 
 **key api endpoints**
--   **Payouts (Automated)**: No direct endpoint; handled by a background  job.
--   **Promo Codes (Admin)**: , , ,  
--   **Promo Codes (Validation)**: 
--   **Event Management**:
-    -   : Allows a creator to cancel an event and trigger refunds.
-    -   : Updated to perform radius-based geo-fencing.
--   **Notifications**:
-    -   : Fetches notifications for the logged-in user.
-    -   : Marks notifications as read.
-    -   : WebSocket endpoint for real-time notifications.
--   **Admin**:
-    -   / : To manage platform bank details.
-    -   : Enhanced to return financial data and creator info.
-    -   : To refund all tickets for an event.
+-   **LiveKit (Creator)**: 
+-   **LiveKit (Viewer)**: 
+-   **About Page (Public)**: 
+-   **About Page (Admin)**: 
+-   **Admin Delete Event**: 
+-   **Admin Endpoints (Optimized)**: ,  (now support pagination).
 
 **Critical Info for New Agent**
--   Your immediate task is to complete the geo-fencing feature. This involves updating the frontend in  to include  and  inputs. After that, you must implement the viewer-facing search functionality to filter events by location.
--   The application is configured with the user's real Stripe test key. All payment and payout functionalities are live for testing.
--   The user has explicitly deferred adding more social logins and rejected a virtual currency system. Do not work on these unless requested again.
--   Consider planning a refactor of  as a future task to improve code maintainability, as it has become monolithic.
+-   Your highest priority is to solve the two user-reported issues: the Script error on the  toggles and the non-functional microphone in the live stream.
+-   The creator's black screen issue has been resolved by rewriting the  to properly use LiveKit. You need to verify this fix with the user and address the microphone issue within that same component.
+-   The application passed a deployment health check, but any new changes should be made with performance in mind.
+-   The user wants the chat feature to be labeled Questions Only. This needs to be set as the default option on the  page.
 
 **documents and test reports created in this job**
 -    (Updated)
 -   
--   
--   
--   
--   
--   
 
 **Last 10 User Messages and any pending HUMAN messages**
-1.  **User**: Requested city/state option for event creation, a 1000m geo-fencing radius, and a viewer search by city/state.
-2.  **User**: Requested features: geo-fencing, creator event cancellation, fix for mobile calendar button, Watch button on tickets, and verification of event-ticket linking.
-3.  **User**: Explained the desired money flow: funds to admin account, 20% fee retained, and automatic 80% payout to creators after 24 hours. Also requested enhancements to the admin event management tab.
-4.  **User**: Reported that the Update Bank Info button was broken in the Admin Panel. (This was fixed).
-5.  **User**: Asked for the admin login credentials. (This was provided).
-6.  **User**: Confirmed the Stripe Connect flow worked after providing their real test key.
-7.  **User**: Confirmed testing of the Stripe functionality was working properly.
-8.  **User**: Approved working on event reminders, anti-piracy, and social logins, but rejected the virtual currency system.
-9.  **User**: When asked about social logins requiring developer keys, instructed the agent to stick with Google OAuth for now.
-10. **User**: Asked for an explanation of the money flow and payout timing.
+1.  **User**: Live stream is not working (black screen for creator), and script errors persist on Create Event toggles. Requested changing Live Chat to Questions Only.
+2.  **User**: Home page is not displaying newly created events.
+3.  **User**: Requested a deployment health check.
+4.  **User**: Requested a Share button for viewers, an admin-managed About page, and admin ability to delete old events. Also reported events not showing on the homepage.
+5.  **User**: Reported errors with Create Event toggles, a non-working microphone, and requested a mobile-friendly redesign of the Control Panel settings.
+6.  **User**: Requested the addition of Start/End times to events to control when they are hidden from the homepage.
+7.  **User**: Reported that live streaming is not working for viewers (led to implementing the viewer component).
+8.  **User**: Pointed out that login screens show the environment name (Creator Stage - 1) instead of ShowMeLive.
+9.  **User**: Reported that event images were not being accepted and that new/expired events were not being shown/hidden correctly on the homepage.
+10. **Agent**: Finished implementing the geo-fencing and search features, asking for the next steps.
 
 **Project Health Check:**
--   **Broken**: None.
+-   **Broken**: The Create Event page toggles and the creator's microphone during streaming are currently broken.
 -   **Mocked**: None.
 
 **3rd Party Integrations**
--   **Google OAuth**: For user authentication. Requires User-provided key.
--   **Stripe**: For ticket payments. Uses a real user-provided test key.
--   **Stripe Connect**: For creator payouts (automated). Uses the same Stripe key.
--   **LiveKit**: For WebRTC streaming. Uses User-provided API keys.
--   **iCalendar**:  Python library for calendar invites.
--   **APScheduler**: Python library for background job scheduling.
+-   **Google OAuth**: For user authentication.
+-   **Stripe**: For ticket payments.
+-   **Stripe Connect**: For creator payouts.
+-   **LiveKit**: For WebRTC streaming. Credentials are in . The integration was just significantly fixed.
+-   **iCalendar**: For calendar invites.
+-   **APScheduler**: For background job scheduling.
 
 **Testing status**
--   **Testing agent used after significant changes**: YES, extensively after each feature.
+-   **Testing agent used after significant changes**: YES
 -   **Troubleshoot agent used after agent stuck in loop**: NO
--   **Test files created**: None. Testing was performed by the testing agent.
--   **Known regressions**: None.
+-   **Test files created**: None.
+-   **Known regressions**: The toggles on the  page seem to have a recurring runtime error.
 
 **Credentials to test flow:**
 -   **Admin**:  / 
 -   **Creator/Viewer**: Use Google Sign-in flow.
 
 **What agent forgot to execute**
--   The agent was in the middle of a task. It updated the backend for city/state geo-fencing but did not complete the corresponding frontend changes in .
--   The agent has not yet started implementing the viewer-facing search functionality to find events by city/state, which was part of the same user request.</analysis>
+-   While the agent correctly identified that Questions Only was an available chat mode option, it did not implement the user's implicit request to make it the **default** selection for new events in .</analysis>

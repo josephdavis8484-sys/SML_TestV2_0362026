@@ -13,7 +13,7 @@ import json
 from datetime import datetime, timezone, timedelta
 import subprocess
 
-BASE_URL = os.environ.get('REACT_APP_BACKEND_URL', 'https://creator-stage-1.preview.emergentagent.com').rstrip('/')
+BASE_URL = os.environ.get('REACT_APP_BACKEND_URL', 'https://virtual-events-2.preview.emergentagent.com').rstrip('/')
 
 # Test data prefix for cleanup
 TEST_PREFIX = "TEST_NOTIF_"
