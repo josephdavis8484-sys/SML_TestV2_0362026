@@ -383,6 +383,16 @@ English
       - WebSocket integration for real-time updates
       - Auto-scrolling chat messages
     - **Mobile-friendly**: Touch-optimized controls with responsive layout
+28. **NEW (Feb 2026): Viewer Live Stream View** - Enhanced viewer experience:
+    - **Full-screen mode**: When chat/reactions enabled, takes full viewport
+    - **Video overlays**:
+      - LIVE indicator with viewer count (top-left)
+      - Stream timer HH:MM:SS (top-right)
+      - Share button with modal (X, Facebook, WhatsApp, Copy Link)
+    - **Live Chat Panel** (left side): Shows real-time messages with colored usernames
+    - **Live Reactions Panel** (right side): Floating emoji animations
+    - **Chat Input**: Bottom input field with Send button for viewers to participate
+    - **Share Modal**: Social sharing options when Share button clicked
 27. **NEW (Feb 2026): Questions Only Default** - CreateEvent form updates:
     - "Live Chat" renamed to "Questions Only" with HelpCircle icon
     - `chat_enabled: true` by default for new events
