@@ -8,26 +8,31 @@ import {
   Users, 
   Share2,
   X,
-  ArrowLeft
+  ArrowLeft,
+  Volume2,
+  VolumeX
 } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import {
   LiveKitRoom,
-  RoomAudioRenderer,
   useRemoteParticipants,
-  useTrack,
   useTracks,
   VideoTrack,
+  AudioTrack,
 } from "@livekit/components-react";
 import "@livekit/components-styles";
 import { Track } from "livekit-client";
 
 const BACKEND_URL = process.env.REACT_APP_BACKEND_URL;
 
-// Simple Remote Video Component
-const RemoteVideo = () => {
+// Video and Audio Player Component
+const RemoteMediaPlayer = ({ onAudioStatus }) => {
   const remoteParticipants = useRemoteParticipants();
-  const tracks = useTracks([Track.Source.Camera, Track.Source.ScreenShare]);
+  const tracks = useTracks([
+    Track.Source.Camera, 
+    Track.Source.ScreenShare,
+    Track.Source.Microphone
+  ]);
   
   // Find video track from remote participants
   const remoteVideoTrack = tracks.find(
@@ -35,9 +40,30 @@ const RemoteVideo = () => {
     (track.source === Track.Source.Camera || track.source === Track.Source.ScreenShare)
   );
 
-  console.log("Remote participants:", remoteParticipants.length);
-  console.log("All tracks:", tracks.length);
-  console.log("Remote video track found:", !!remoteVideoTrack);
+  // Find ALL audio tracks from remote participants
+  const remoteAudioTracks = tracks.filter(
+    (track) => !track.participant.isLocal && track.source === Track.Source.Microphone
+  );
+
+  // Debug logging
+  useEffect(() => {
+    console.log("=== LiveKit Debug ===");
+    console.log("Remote participants:", remoteParticipants.length);
+    console.log("Total tracks:", tracks.length);
+    console.log("Video track found:", !!remoteVideoTrack);
+    console.log("Audio tracks found:", remoteAudioTracks.length);
+    
+    if (remoteAudioTracks.length > 0) {
+      console.log("Audio tracks details:", remoteAudioTracks.map(t => ({
+        trackSid: t.publication?.trackSid,
+        isSubscribed: t.publication?.isSubscribed,
+        isMuted: t.publication?.isMuted
+      })));
+    }
+    
+    // Report audio status to parent
+    onAudioStatus(remoteAudioTracks.length > 0);
+  }, [tracks, remoteParticipants, remoteVideoTrack, remoteAudioTracks, onAudioStatus]);
 
   if (!remoteVideoTrack) {
     return (
@@ -47,7 +73,7 @@ const RemoteVideo = () => {
           <p className="text-gray-400">Waiting for creator to start streaming...</p>
           <p className="text-gray-500 text-sm mt-2">
             {remoteParticipants.length > 0 
-              ? "Creator is connected, waiting for video..." 
+              ? "Creator connected, waiting for video..." 
               : "Connecting to stream..."}
           </p>
         </div>
@@ -56,10 +82,21 @@ const RemoteVideo = () => {
   }
 
   return (
-    <VideoTrack
-      trackRef={remoteVideoTrack}
-      className="w-full h-full object-contain rounded-xl"
-    />
+    <>
+      {/* Video Track */}
+      <VideoTrack
+        trackRef={remoteVideoTrack}
+        className="w-full h-full object-contain rounded-xl"
+      />
+      
+      {/* Audio Tracks - Render each one explicitly */}
+      {remoteAudioTracks.map((track, index) => (
+        <AudioTrack 
+          key={track.publication?.trackSid || `audio-${index}`} 
+          trackRef={track}
+        />
+      ))}
+    </>
   );
 };
 
@@ -106,7 +143,7 @@ const ShareModal = ({ isOpen, onClose, eventTitle, eventUrl }) => {
 };
 
 // Stream Info Overlay
-const StreamOverlay = ({ streamTime, onShare, participantCount }) => {
+const StreamOverlay = ({ streamTime, onShare, participantCount, hasAudio }) => {
   const formatTime = (seconds) => {
     const hrs = Math.floor(seconds / 3600);
     const mins = Math.floor((seconds % 3600) / 60);
@@ -125,6 +162,11 @@ const StreamOverlay = ({ streamTime, onShare, participantCount }) => {
         <div className="bg-black/60 px-2 py-1 rounded flex items-center gap-1.5">
           <Users className="w-3 h-3 text-white" />
           <span className="text-white font-medium text-xs">{participantCount}</span>
+        </div>
+        {/* Audio indicator */}
+        <div className={`px-2 py-1 rounded flex items-center gap-1.5 ${hasAudio ? 'bg-green-600/80' : 'bg-red-600/80'}`}>
+          {hasAudio ? <Volume2 className="w-3 h-3 text-white" /> : <VolumeX className="w-3 h-3 text-white" />}
+          <span className="text-white text-xs">{hasAudio ? 'Audio' : 'No Audio'}</span>
         </div>
       </div>
       
@@ -148,20 +190,19 @@ const StreamOverlay = ({ streamTime, onShare, participantCount }) => {
 // Main Video Player with all LiveKit components
 const VideoPlayerRoom = ({ streamTime, onShare }) => {
   const remoteParticipants = useRemoteParticipants();
+  const [hasAudio, setHasAudio] = useState(false);
   
   return (
     <div className="relative w-full h-full bg-black rounded-xl overflow-hidden">
-      {/* This automatically renders all remote audio - CRITICAL for sound */}
-      <RoomAudioRenderer />
-      
-      {/* Video display */}
-      <RemoteVideo />
+      {/* Video and Audio rendering */}
+      <RemoteMediaPlayer onAudioStatus={setHasAudio} />
       
       {/* Overlay with LIVE badge, timer, share */}
       <StreamOverlay 
         streamTime={streamTime} 
         onShare={onShare}
         participantCount={remoteParticipants.length + 1}
+        hasAudio={hasAudio}
       />
     </div>
   );
@@ -201,7 +242,6 @@ const LiveStreamViewer = ({ eventId, userId, userName, event }) => {
         
         if (response.data.token && response.data.url) {
           console.log("LiveKit URL:", response.data.url);
-          console.log("Room name:", response.data.room_name);
           setToken(response.data.token);
           setWsUrl(response.data.url);
         } else {
@@ -233,9 +273,7 @@ const LiveStreamViewer = ({ eventId, userId, userName, event }) => {
     }
 
     return () => {
-      if (chatWsRef.current) {
-        chatWsRef.current.close();
-      }
+      if (chatWsRef.current) chatWsRef.current.close();
     };
   }, [eventId, token]);
 
@@ -277,7 +315,6 @@ const LiveStreamViewer = ({ eventId, userId, userName, event }) => {
   const showInteraction = chatEnabled || reactionsEnabled;
   const reactionEmojis = ["👍", "😄", "❤️", "👏"];
 
-  // Loading state
   if (loading) {
     return (
       <div className="h-screen w-full flex items-center justify-center bg-black">
@@ -289,7 +326,6 @@ const LiveStreamViewer = ({ eventId, userId, userName, event }) => {
     );
   }
 
-  // Error state
   if (error) {
     return (
       <div className="h-screen w-full flex items-center justify-center bg-black">
@@ -297,19 +333,14 @@ const LiveStreamViewer = ({ eventId, userId, userName, event }) => {
           <VideoOff className="w-10 h-10 text-red-500 mx-auto mb-3" />
           <p className="text-white mb-2">Unable to connect</p>
           <p className="text-gray-400 text-sm mb-4">{error}</p>
-          <button
-            onClick={() => window.location.reload()}
-            className="bg-blue-600 hover:bg-blue-700 text-white px-5 py-2 rounded-lg flex items-center gap-2 mx-auto text-sm"
-          >
-            <RefreshCw className="w-4 h-4" />
-            Retry
+          <button onClick={() => window.location.reload()} className="bg-blue-600 hover:bg-blue-700 text-white px-5 py-2 rounded-lg flex items-center gap-2 mx-auto text-sm">
+            <RefreshCw className="w-4 h-4" /> Retry
           </button>
         </div>
       </div>
     );
   }
 
-  // No token state
   if (!token || !wsUrl) {
     return (
       <div className="h-screen w-full flex items-center justify-center bg-black">
@@ -340,9 +371,7 @@ const LiveStreamViewer = ({ eventId, userId, userName, event }) => {
           connect={true}
           audio={false}
           video={false}
-          onConnected={() => console.log("LiveKit connected!")}
-          onDisconnected={() => console.log("LiveKit disconnected")}
-          onError={(err) => console.error("LiveKit error:", err)}
+          onConnected={() => console.log("✅ LiveKit connected!")}
         >
           <VideoPlayerRoom streamTime={streamTime} onShare={handleShare} />
         </LiveKitRoom>
@@ -362,11 +391,7 @@ const LiveStreamViewer = ({ eventId, userId, userName, event }) => {
                   placeholder="Send a message..."
                   className="flex-1 bg-gray-800 border border-gray-700 rounded-lg px-3 py-2.5 text-white text-sm placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-blue-500"
                 />
-                <button
-                  onClick={handleSendChat}
-                  disabled={!chatMessage.trim()}
-                  className="bg-blue-600 hover:bg-blue-700 disabled:bg-gray-700 text-white px-4 py-2.5 rounded-lg font-medium text-sm transition-colors"
-                >
+                <button onClick={handleSendChat} disabled={!chatMessage.trim()} className="bg-blue-600 hover:bg-blue-700 disabled:bg-gray-700 text-white px-4 py-2.5 rounded-lg font-medium text-sm transition-colors">
                   Send
                 </button>
               </div>
@@ -374,11 +399,7 @@ const LiveStreamViewer = ({ eventId, userId, userName, event }) => {
             {reactionsEnabled && (
               <div className="flex gap-1.5">
                 {reactionEmojis.map((emoji) => (
-                  <button
-                    key={emoji}
-                    onClick={() => handleSendReaction(emoji)}
-                    className="w-11 h-11 bg-gray-800 hover:bg-gray-700 rounded-lg flex items-center justify-center text-xl transition-all hover:scale-105"
-                  >
+                  <button key={emoji} onClick={() => handleSendReaction(emoji)} className="w-11 h-11 bg-gray-800 hover:bg-gray-700 rounded-lg flex items-center justify-center text-xl transition-all hover:scale-105">
                     {emoji}
                   </button>
                 ))}
@@ -388,12 +409,7 @@ const LiveStreamViewer = ({ eventId, userId, userName, event }) => {
         </div>
       )}
 
-      <ShareModal
-        isOpen={showShareModal}
-        onClose={() => setShowShareModal(false)}
-        eventTitle={event?.title || "Live Stream"}
-        eventUrl={eventUrl}
-      />
+      <ShareModal isOpen={showShareModal} onClose={() => setShowShareModal(false)} eventTitle={event?.title || "Live Stream"} eventUrl={eventUrl} />
     </div>
   );
 };
