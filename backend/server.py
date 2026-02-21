@@ -494,11 +494,9 @@ async def logout(request: Request, response: Response):
 # Event Routes
 @api_router.get("/events", response_model=List[Event])
 async def get_events():
-    """Get all upcoming events that haven't expired (based on date and end_time)"""
-    # Get current datetime for filtering
-    now = datetime.now(timezone.utc)
-    today = now.date()
-    current_time = now.strftime("%H:%M")
+    """Get all upcoming events that haven't expired (based on date)"""
+    # Get current date for filtering
+    today = datetime.now(timezone.utc).date()
     
     # Find events that are upcoming/live and not cancelled/blocked
     events = await db.events.find({
@@ -506,7 +504,7 @@ async def get_events():
         "is_blocked": {"$ne": True}
     }, {"_id": 0}).to_list(1000)
     
-    # Filter out expired events (date has passed OR end_time has passed)
+    # Filter out expired events (date has passed)
     valid_events = []
     for event in events:
         if isinstance(event.get('created_at'), str):
@@ -527,34 +525,9 @@ async def get_events():
             valid_events.append(event)
             continue
         
-        # If the event date is in the future, include it
-        if event_date > today:
+        # Include events from today or future (show all day events even after they end)
+        if event_date >= today:
             valid_events.append(event)
-            continue
-        
-        # If event is today, check the end_time
-        if event_date == today:
-            end_time = event.get('end_time', '')
-            if not end_time:
-                # No end time specified, include the event
-                valid_events.append(event)
-            else:
-                # Parse end_time and compare
-                try:
-                    # Handle different time formats
-                    end_time_parsed = None
-                    for tfmt in ['%H:%M', '%I:%M %p', '%I:%M%p']:
-                        try:
-                            end_time_parsed = datetime.strptime(end_time.strip(), tfmt).strftime("%H:%M")
-                            break
-                        except ValueError:
-                            continue
-                    
-                    if end_time_parsed is None or end_time_parsed >= current_time:
-                        valid_events.append(event)
-                    # Else: event has ended, don't include
-                except Exception:
-                    valid_events.append(event)
         # Else: event_date < today, skip it (expired)
     
     return valid_events
