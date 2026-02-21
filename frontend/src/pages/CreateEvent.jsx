@@ -51,7 +51,7 @@ const CreateEvent = ({ user, onLogout }) => {
     venue: "",
     price: "",
     streaming_package: "free",
-    chat_enabled: false,
+    chat_enabled: true,
     reactions_enabled: false,
     chat_mode: "questions_only",
     // Geo-fencing with city/state
