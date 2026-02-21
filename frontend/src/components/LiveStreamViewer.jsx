@@ -18,34 +18,55 @@ import {
   AudioTrack,
   useTracks,
   useParticipants,
-  useConnectionState,
+  useRoomContext,
 } from "@livekit/components-react";
 import "@livekit/components-styles";
-import { Track, ConnectionState } from "livekit-client";
+import { Track, RoomEvent } from "livekit-client";
 
 const BACKEND_URL = process.env.REACT_APP_BACKEND_URL;
 
 // Video Player Component inside LiveKitRoom
 const VideoPlayer = ({ streamTime, onShare }) => {
-  const tracks = useTracks([Track.Source.Camera, Track.Source.ScreenShare, Track.Source.Microphone]);
+  const room = useRoomContext();
   const participants = useParticipants();
-  const connectionState = useConnectionState();
+  const allTracks = useTracks([
+    Track.Source.Camera,
+    Track.Source.ScreenShare,
+    Track.Source.Microphone,
+  ]);
   
-  // Find video track from remote participant (creator)
-  const videoTrack = tracks.find(
-    (track) => 
-      !track.participant.isLocal && 
-      track.publication?.kind === "video" && 
-      track.publication?.isSubscribed
-  );
+  const [videoReady, setVideoReady] = useState(false);
 
-  // Find audio tracks from remote participant
-  const audioTracks = tracks.filter(
-    (track) => 
-      !track.participant.isLocal && 
-      track.publication?.kind === "audio" && 
-      track.publication?.isSubscribed
-  );
+  // Debug: Log all tracks
+  useEffect(() => {
+    console.log("All tracks:", allTracks.map(t => ({
+      source: t.source,
+      isLocal: t.participant?.isLocal,
+      kind: t.publication?.kind,
+      isSubscribed: t.publication?.isSubscribed,
+      trackSid: t.publication?.trackSid
+    })));
+  }, [allTracks]);
+
+  // Find video track from any remote participant (the creator)
+  const videoTrack = allTracks.find((track) => {
+    const isRemote = !track.participant?.isLocal;
+    const isVideo = track.source === Track.Source.Camera || track.source === Track.Source.ScreenShare;
+    const isSubscribed = track.publication?.isSubscribed;
+    console.log("Checking track:", { isRemote, isVideo, isSubscribed, source: track.source });
+    return isRemote && isVideo && isSubscribed;
+  });
+
+  // Find audio tracks from remote participants
+  const audioTracks = allTracks.filter((track) => {
+    const isRemote = !track.participant?.isLocal;
+    const isAudio = track.source === Track.Source.Microphone;
+    const isSubscribed = track.publication?.isSubscribed;
+    return isRemote && isAudio && isSubscribed;
+  });
+
+  // Check for remote participants (creators)
+  const remoteParticipants = participants.filter(p => !p.isLocal);
 
   const formatTime = (seconds) => {
     const hrs = Math.floor(seconds / 3600);
@@ -54,33 +75,29 @@ const VideoPlayer = ({ streamTime, onShare }) => {
     return `${hrs.toString().padStart(2, '0')}:${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
   };
 
-  // Show connecting state
-  if (connectionState === ConnectionState.Connecting) {
-    return (
-      <div className="w-full h-full flex items-center justify-center bg-gray-900 rounded-xl">
-        <div className="text-center">
-          <RefreshCw className="w-10 h-10 text-blue-500 mx-auto mb-3 animate-spin" />
-          <p className="text-white">Connecting to stream...</p>
-        </div>
-      </div>
-    );
-  }
-
-  // Show waiting for video
+  // Show waiting if no video track yet
   if (!videoTrack) {
     return (
       <div className="w-full h-full flex items-center justify-center bg-gray-900 rounded-xl relative">
         <div className="text-center">
           <Video className="w-12 h-12 text-gray-500 mx-auto mb-3" />
           <p className="text-gray-400">Waiting for creator to start streaming...</p>
-          <p className="text-gray-500 text-sm mt-1">{participants.length} viewer(s) connected</p>
+          <p className="text-gray-500 text-sm mt-1">
+            {remoteParticipants.length > 0 
+              ? `Creator connected, waiting for video...` 
+              : `${participants.length} viewer(s) connected`}
+          </p>
         </div>
         
-        {/* Live indicator even without video */}
+        {/* Live indicator */}
         <div className="absolute top-3 left-3 flex items-center gap-2">
           <div className="bg-yellow-600 px-2.5 py-1 rounded flex items-center gap-1.5">
             <div className="w-2 h-2 bg-white rounded-full animate-pulse"></div>
             <span className="text-white font-bold text-xs">WAITING</span>
+          </div>
+          <div className="bg-black/60 px-2 py-1 rounded flex items-center gap-1.5">
+            <Users className="w-3 h-3 text-white" />
+            <span className="text-white font-medium text-xs">{participants.length}</span>
           </div>
         </div>
       </div>
@@ -89,14 +106,15 @@ const VideoPlayer = ({ streamTime, onShare }) => {
 
   return (
     <div className="relative w-full h-full bg-black rounded-xl overflow-hidden">
+      {/* Video from creator */}
       <VideoTrack
         trackRef={videoTrack}
         className="w-full h-full object-contain"
       />
       
-      {/* Render audio tracks */}
+      {/* Audio tracks from creator - IMPORTANT for hearing the stream */}
       {audioTracks.map((track) => (
-        <AudioTrack key={track.publication?.trackSid} trackRef={track} />
+        <AudioTrack key={track.publication?.trackSid || track.source} trackRef={track} />
       ))}
       
       {/* Live indicator - Top Left */}
@@ -209,6 +227,7 @@ const LiveStreamViewer = ({ eventId, userId, userName, event }) => {
         });
         
         if (response.data.token && response.data.url) {
+          console.log("Got LiveKit token, URL:", response.data.url);
           setToken(response.data.token);
           setWsUrl(response.data.url);
         } else {
@@ -340,13 +359,13 @@ const LiveStreamViewer = ({ eventId, userId, userName, event }) => {
         </button>
       </div>
 
-      {/* Video Player Area */}
+      {/* Video Player Area - NO audio/video publishing for viewers */}
       <div className="flex-1 p-3 min-h-0">
         <LiveKitRoom
           serverUrl={wsUrl}
           token={token}
           connect={true}
-          audio={true}
+          audio={false}
           video={false}
         >
           <VideoPlayer streamTime={streamTime} onShare={handleShare} />
