@@ -369,6 +369,7 @@ English
     - **On/Off status**: Green/Red indicators under Camera and Mic buttons
     - **Pre-stream preview**: Shows camera preview before going live using `navigator.mediaDevices`
     - **LiveKit integration**: Properly syncs camera/mic state with LiveKit room
+    - **Stream Timer**: Shows elapsed time (HH:MM:SS) when streaming
     - **Audio Settings Dropdown (Basic Mode)**: Settings button opens dropdown panel with:
       - Speaker Volume slider with percentage display
       - Microphone Volume slider with percentage display
@@ -376,6 +377,11 @@ English
       - Treble slider with +/- buttons
       - Bass slider with +/- buttons
       - Reset button to restore defaults
+    - **Live Chat & Reactions Panel**: When event has chat/reactions enabled AND streaming:
+      - Left side: Live Chat messages with usernames and color coding
+      - Right side: Floating emoji reactions with bounce animations
+      - WebSocket integration for real-time updates
+      - Auto-scrolling chat messages
     - **Mobile-friendly**: Touch-optimized controls with responsive layout
 27. **NEW (Feb 2026): Questions Only Default** - CreateEvent form updates:
     - "Live Chat" renamed to "Questions Only" with HelpCircle icon
