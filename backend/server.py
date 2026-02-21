@@ -2223,15 +2223,39 @@ async def websocket_chat(websocket: WebSocket, event_id: str):
             if data == "ping":
                 await websocket.send_text("pong")
             else:
-                # Parse JSON messages for potential future features
+                # Parse JSON messages
                 try:
                     message_data = json.loads(data)
-                    # Handle typing indicators or other real-time features here
-                    if message_data.get("type") == "typing":
+                    msg_type = message_data.get("type")
+                    
+                    # Handle chat messages
+                    if msg_type == "message":
+                        # Broadcast message to all connected clients including creator
+                        await chat_manager.broadcast_to_event(event_id, {
+                            "type": "message",
+                            "username": message_data.get("username", "Anonymous"),
+                            "message": message_data.get("message", ""),
+                            "color": message_data.get("color", "#60a5fa"),
+                            "timestamp": datetime.now(timezone.utc).isoformat()
+                        })
+                    
+                    # Handle reactions
+                    elif msg_type == "reaction":
+                        # Broadcast reaction to all connected clients including creator
+                        await chat_manager.broadcast_to_event(event_id, {
+                            "type": "reaction",
+                            "emoji": message_data.get("emoji", "👍"),
+                            "username": message_data.get("username", "Anonymous"),
+                            "timestamp": datetime.now(timezone.utc).isoformat()
+                        })
+                    
+                    # Handle typing indicators
+                    elif msg_type == "typing":
                         await chat_manager.broadcast_to_event(event_id, {
                             "type": "typing",
                             "user_name": message_data.get("user_name", "Someone")
                         })
+                        
                 except json.JSONDecodeError:
                     pass
                     
