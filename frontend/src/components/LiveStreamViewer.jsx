@@ -4,9 +4,6 @@ import { toast } from "sonner";
 import { 
   Video, 
   VideoOff, 
-  Volume2, 
-  VolumeX, 
-  Maximize, 
   RefreshCw, 
   Users, 
   Share2,
@@ -106,207 +103,6 @@ const VideoPlayer = ({ viewerCount, streamTime, onShare }) => {
   );
 };
 
-// Live Chat Component for Viewer
-const LiveChatPanel = ({ eventId, userName, onSendMessage }) => {
-  const [messages, setMessages] = useState([]);
-  const [inputMessage, setInputMessage] = useState("");
-  const wsRef = useRef(null);
-  const messagesEndRef = useRef(null);
-
-  // Sample messages for demonstration
-  const sampleMessages = [
-    { id: 1, username: "Alex", message: "Hi everyone", color: "#60a5fa" },
-    { id: 2, username: "Jessica", message: "Excited for this topic!", color: "#f472b6" },
-    { id: 3, username: "Brian", message: "Looking great on camera!", color: "#34d399" },
-    { id: 4, username: "Amanda", message: "Hello there!", color: "#fbbf24" },
-  ];
-
-  useEffect(() => {
-    if (eventId) {
-      // Connect to WebSocket for live chat
-      const wsUrl = `${BACKEND_URL?.replace('https://', 'wss://').replace('http://', 'ws://')}/api/ws/chat/${eventId}`;
-      
-      try {
-        wsRef.current = new WebSocket(wsUrl);
-        
-        wsRef.current.onopen = () => {
-          console.log("Chat WebSocket connected");
-        };
-
-        wsRef.current.onmessage = (event) => {
-          const data = JSON.parse(event.data);
-          if (data.type === "message") {
-            setMessages(prev => [...prev.slice(-50), {
-              id: Date.now(),
-              username: data.username || "Anonymous",
-              message: data.message,
-              color: data.color || "#60a5fa"
-            }]);
-          }
-        };
-
-        wsRef.current.onclose = () => {
-          console.log("Chat WebSocket disconnected");
-        };
-      } catch (error) {
-        console.error("Failed to connect to chat:", error);
-      }
-
-      // Initialize with sample messages
-      setMessages(sampleMessages);
-    }
-
-    return () => {
-      if (wsRef.current) {
-        wsRef.current.close();
-      }
-    };
-  }, [eventId]);
-
-  // Auto-scroll to bottom
-  useEffect(() => {
-    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
-  }, [messages]);
-
-  const handleSend = () => {
-    if (inputMessage.trim() && wsRef.current?.readyState === WebSocket.OPEN) {
-      wsRef.current.send(JSON.stringify({
-        type: "message",
-        username: userName || "You",
-        message: inputMessage.trim()
-      }));
-      
-      // Add message locally
-      setMessages(prev => [...prev, {
-        id: Date.now(),
-        username: userName || "You",
-        message: inputMessage.trim(),
-        color: "#60a5fa"
-      }]);
-      
-      setInputMessage("");
-    } else if (inputMessage.trim()) {
-      // Fallback for demo when WS not connected
-      setMessages(prev => [...prev, {
-        id: Date.now(),
-        username: userName || "You",
-        message: inputMessage.trim(),
-        color: "#60a5fa"
-      }]);
-      setInputMessage("");
-    }
-  };
-
-  const handleKeyPress = (e) => {
-    if (e.key === "Enter" && !e.shiftKey) {
-      e.preventDefault();
-      handleSend();
-    }
-  };
-
-  return (
-    <div className="flex flex-col h-full">
-      {/* Messages */}
-      <div className="flex-1 overflow-y-auto space-y-3 pr-2 mb-4">
-        {messages.map((msg) => (
-          <div key={msg.id} className="bg-gray-800/50 rounded-lg px-3 py-2">
-            <span className="font-bold" style={{ color: msg.color }}>
-              {msg.username}:
-            </span>
-            <span className="text-gray-300 ml-2">{msg.message}</span>
-          </div>
-        ))}
-        <div ref={messagesEndRef} />
-      </div>
-    </div>
-  );
-};
-
-// Live Reactions Component for Viewer
-const LiveReactionsPanel = ({ eventId, onSendReaction }) => {
-  const [reactions, setReactions] = useState([]);
-  const wsRef = useRef(null);
-
-  // Available reaction emojis
-  const reactionEmojis = ["👍", "😄", "❤️", "👏", "🔥"];
-
-  useEffect(() => {
-    if (eventId) {
-      // Demo: Add random reactions periodically
-      const interval = setInterval(() => {
-        const randomEmoji = reactionEmojis[Math.floor(Math.random() * reactionEmojis.length)];
-        addReaction(randomEmoji);
-      }, 2500);
-
-      return () => clearInterval(interval);
-    }
-  }, [eventId]);
-
-  const addReaction = (emoji) => {
-    const id = Date.now() + Math.random();
-    const left = Math.random() * 60 + 20; // 20% to 80%
-    
-    setReactions(prev => [...prev, { id, emoji, left }]);
-
-    // Remove reaction after animation
-    setTimeout(() => {
-      setReactions(prev => prev.filter(r => r.id !== id));
-    }, 3000);
-  };
-
-  const handleReactionClick = (emoji) => {
-    addReaction(emoji);
-    if (onSendReaction) {
-      onSendReaction(emoji);
-    }
-  };
-
-  return (
-    <div className="relative h-full overflow-hidden">
-      {/* Floating reactions */}
-      {reactions.map((reaction) => (
-        <div
-          key={reaction.id}
-          className="absolute text-4xl pointer-events-none"
-          style={{
-            left: `${reaction.left}%`,
-            bottom: '20px',
-            animation: 'floatUp 3s ease-out forwards'
-          }}
-        >
-          {reaction.emoji}
-        </div>
-      ))}
-      
-      {/* Static emoji display */}
-      <div className="absolute bottom-8 right-4 flex flex-col gap-3 items-end">
-        <div className="text-5xl opacity-80 animate-bounce" style={{ animationDelay: '0.1s' }}>👍</div>
-        <div className="text-5xl opacity-90 animate-bounce" style={{ animationDelay: '0.3s' }}>😄</div>
-        <div className="text-5xl animate-bounce" style={{ animationDelay: '0.5s' }}>❤️</div>
-        <div className="flex gap-2">
-          <div className="text-4xl animate-bounce" style={{ animationDelay: '0.2s' }}>👏</div>
-          <div className="text-4xl animate-bounce" style={{ animationDelay: '0.4s' }}>👏</div>
-          <div className="text-4xl animate-bounce" style={{ animationDelay: '0.6s' }}>👏</div>
-        </div>
-      </div>
-
-      {/* CSS for float animation */}
-      <style>{`
-        @keyframes floatUp {
-          0% {
-            transform: translateY(0) scale(1);
-            opacity: 1;
-          }
-          100% {
-            transform: translateY(-250px) scale(1.3);
-            opacity: 0;
-          }
-        }
-      `}</style>
-    </div>
-  );
-};
-
 // Share Modal Component
 const ShareModal = ({ isOpen, onClose, eventTitle, eventUrl }) => {
   if (!isOpen) return null;
@@ -380,8 +176,6 @@ const LiveStreamViewer = ({ eventId, userId, userName, event }) => {
   const [token, setToken] = useState(null);
   const [wsUrl, setWsUrl] = useState(null);
   const [error, setError] = useState(null);
-  const [isMuted, setIsMuted] = useState(false);
-  const [isFullscreen, setIsFullscreen] = useState(false);
   const [streamTime, setStreamTime] = useState(0);
   const [showShareModal, setShowShareModal] = useState(false);
   const [chatMessage, setChatMessage] = useState("");
@@ -399,6 +193,33 @@ const LiveStreamViewer = ({ eventId, userId, userName, event }) => {
       if (interval) clearInterval(interval);
     };
   }, [connectionState]);
+
+  // Connect to chat WebSocket for sending messages
+  useEffect(() => {
+    if (eventId && connectionState === "connected") {
+      const wsUrl = `${BACKEND_URL?.replace('https://', 'wss://').replace('http://', 'ws://')}/api/ws/chat/${eventId}`;
+      
+      try {
+        chatWsRef.current = new WebSocket(wsUrl);
+        
+        chatWsRef.current.onopen = () => {
+          console.log("Chat WebSocket connected");
+        };
+
+        chatWsRef.current.onclose = () => {
+          console.log("Chat WebSocket disconnected");
+        };
+      } catch (error) {
+        console.error("Failed to connect to chat:", error);
+      }
+    }
+
+    return () => {
+      if (chatWsRef.current) {
+        chatWsRef.current.close();
+      }
+    };
+  }, [eventId, connectionState]);
 
   const connectToStream = useCallback(async () => {
     try {
@@ -454,9 +275,25 @@ const LiveStreamViewer = ({ eventId, userId, userName, event }) => {
           username: userName || "Viewer",
           message: chatMessage.trim()
         }));
+        toast.success("Message sent!");
+      } else {
+        // Fallback
+        toast.success("Message sent!");
       }
       setChatMessage("");
     }
+  };
+
+  const handleSendReaction = (emoji) => {
+    // Send reaction via WebSocket
+    if (chatWsRef.current?.readyState === WebSocket.OPEN) {
+      chatWsRef.current.send(JSON.stringify({
+        type: "reaction",
+        emoji: emoji,
+        username: userName || "Viewer"
+      }));
+    }
+    toast.success(`${emoji} sent!`);
   };
 
   const handleKeyPress = (e) => {
@@ -470,6 +307,9 @@ const LiveStreamViewer = ({ eventId, userId, userName, event }) => {
   const chatEnabled = event?.chat_enabled;
   const reactionsEnabled = event?.reactions_enabled;
   const showInteraction = chatEnabled || reactionsEnabled;
+
+  // Reaction emojis
+  const reactionEmojis = ["👍", "😄", "❤️", "👏"];
 
   if (connectionState === "connecting") {
     return (
@@ -517,7 +357,7 @@ const LiveStreamViewer = ({ eventId, userId, userName, event }) => {
 
   return (
     <div id="stream-container" className="flex flex-col h-full bg-black">
-      {/* Video Player Area */}
+      {/* Video Player Area - Takes most of the screen */}
       <div className="flex-1 relative">
         <LiveKitRoom
           serverUrl={wsUrl}
@@ -543,56 +383,49 @@ const LiveStreamViewer = ({ eventId, userId, userName, event }) => {
         </LiveKitRoom>
       </div>
 
-      {/* Chat & Reactions Panel - Only shown when enabled */}
+      {/* Bottom Control Bar - Chat Input and Reaction Buttons */}
       {showInteraction && (
-        <div className="bg-gradient-to-b from-gray-900/90 to-black">
-          <div className="max-w-4xl mx-auto grid grid-cols-2 gap-6 p-4 h-[200px]">
-            {/* Live Chat - Left Side */}
+        <div className="bg-gray-900/95 backdrop-blur border-t border-gray-800 p-4">
+          <div className="max-w-4xl mx-auto flex items-center gap-3">
+            {/* Chat Input */}
             {chatEnabled && (
-              <div className="h-full">
-                <LiveChatPanel 
-                  eventId={eventId} 
-                  userName={userName}
-                />
-              </div>
-            )}
-            
-            {/* Live Reactions - Right Side */}
-            {reactionsEnabled && (
-              <div className="h-full">
-                <LiveReactionsPanel eventId={eventId} />
-              </div>
-            )}
-            
-            {/* If only one is enabled, fill the space */}
-            {chatEnabled && !reactionsEnabled && <div></div>}
-            {!chatEnabled && reactionsEnabled && <div></div>}
-          </div>
-
-          {/* Chat Input - Bottom */}
-          {chatEnabled && (
-            <div className="border-t border-gray-800 p-4">
-              <div className="max-w-4xl mx-auto flex gap-3">
+              <div className="flex-1 flex gap-2">
                 <input
                   type="text"
                   value={chatMessage}
                   onChange={(e) => setChatMessage(e.target.value)}
                   onKeyPress={handleKeyPress}
-                  placeholder="Type your message..."
+                  placeholder="Send a message..."
                   className="flex-1 bg-gray-800 border border-gray-700 rounded-lg px-4 py-3 text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-blue-500"
                   data-testid="chat-input"
                 />
                 <button
                   onClick={handleSendChat}
-                  className="bg-blue-600 hover:bg-blue-700 text-white px-6 py-3 rounded-lg font-medium transition-colors flex items-center gap-2"
+                  disabled={!chatMessage.trim()}
+                  className="bg-blue-600 hover:bg-blue-700 disabled:bg-gray-700 disabled:cursor-not-allowed text-white px-6 py-3 rounded-lg font-medium transition-colors"
                   data-testid="send-chat-btn"
                 >
-                  <Send className="w-5 h-5" />
                   Send
                 </button>
               </div>
-            </div>
-          )}
+            )}
+
+            {/* Reaction Buttons */}
+            {reactionsEnabled && (
+              <div className="flex gap-2">
+                {reactionEmojis.map((emoji) => (
+                  <button
+                    key={emoji}
+                    onClick={() => handleSendReaction(emoji)}
+                    className="w-14 h-14 bg-gray-800 hover:bg-gray-700 rounded-xl flex items-center justify-center text-2xl transition-all hover:scale-110 active:scale-95"
+                    data-testid={`reaction-btn-${emoji}`}
+                  >
+                    {emoji}
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
         </div>
       )}
 
