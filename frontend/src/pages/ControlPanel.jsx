@@ -1,27 +1,19 @@
-import React, { useState, useEffect, useCallback, useRef } from "react";
+import React, { useState, useEffect } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { axiosInstance } from "@/App";
-import { Button } from "@/components/ui/button";
-import { Slider } from "@/components/ui/slider";
 import { 
-  ArrowLeft, 
-  Plus, 
   Mic, 
   MicOff, 
-  Volume2, 
   Settings, 
-  Play,
-  Pause,
   X,
   Video,
   VideoOff,
   Users,
+  ChevronLeft,
+  Volume2,
   Music,
   Sliders,
-  ChevronRight,
-  ChevronLeft,
-  Camera,
-  CameraOff
+  ChevronRight
 } from "lucide-react";
 import { toast } from "sonner";
 import {
@@ -30,22 +22,22 @@ import {
   useRoomContext,
   useTracks,
   VideoTrack,
-  AudioTrack,
 } from "@livekit/components-react";
 import "@livekit/components-styles";
 import { Track } from "livekit-client";
+import { Slider } from "@/components/ui/slider";
 
-// Mobile-friendly Settings Overlay Component
-const SettingsOverlay = ({ isOpen, onClose, children, title }) => {
+// Settings Panel Overlay
+const SettingsOverlay = ({ isOpen, onClose, children }) => {
   if (!isOpen) return null;
   
   return (
-    <div className="fixed inset-0 z-50 bg-black/95 flex flex-col">
-      <div className="flex items-center justify-between p-4 border-b border-gray-700">
-        <button onClick={onClose} className="text-white p-2">
+    <div className="fixed inset-0 z-50 bg-black flex flex-col">
+      <div className="flex items-center justify-between p-4 border-b border-gray-800">
+        <button onClick={onClose} className="text-white p-2 hover:bg-gray-800 rounded-lg">
           <ChevronLeft className="w-6 h-6" />
         </button>
-        <h2 className="text-white text-xl font-bold">{title}</h2>
+        <h2 className="text-white text-xl font-bold">Settings</h2>
         <div className="w-10" />
       </div>
       <div className="flex-1 overflow-auto p-6">
@@ -55,33 +47,33 @@ const SettingsOverlay = ({ isOpen, onClose, children, title }) => {
   );
 };
 
-// Individual Setting Control Component
-const SettingControl = ({ icon: Icon, label, onClick, value, color = "blue" }) => (
+// Setting Control Item
+const SettingControl = ({ icon: Icon, label, value, onClick, color = "blue" }) => (
   <button
     onClick={onClick}
-    className="w-full bg-gray-800 hover:bg-gray-700 rounded-xl p-6 flex items-center justify-between transition-all"
+    className="w-full bg-gray-900 hover:bg-gray-800 rounded-xl p-5 flex items-center justify-between transition-all border border-gray-800"
   >
     <div className="flex items-center gap-4">
-      <div className={`w-14 h-14 bg-${color}-600/20 rounded-xl flex items-center justify-center`}>
-        <Icon className={`w-7 h-7 text-${color}-400`} />
+      <div className={`w-12 h-12 bg-${color}-600/20 rounded-xl flex items-center justify-center`}>
+        <Icon className={`w-6 h-6 text-${color}-400`} />
       </div>
       <div className="text-left">
-        <h3 className="text-white text-lg font-semibold">{label}</h3>
-        <p className="text-gray-400 text-sm">{value}</p>
+        <h3 className="text-white text-lg font-medium">{label}</h3>
+        <p className="text-gray-500 text-sm">{value}</p>
       </div>
     </div>
-    <ChevronRight className="w-6 h-6 text-gray-400" />
+    <ChevronRight className="w-5 h-5 text-gray-600" />
   </button>
 );
 
-// Large Slider Overlay for individual controls
-const SliderOverlay = ({ isOpen, onClose, title, value, onChange, min = 0, max = 100, icon: Icon, color = "blue" }) => {
+// Slider Overlay for Individual Controls
+const SliderOverlay = ({ isOpen, onClose, title, value, onChange, icon: Icon, color = "blue" }) => {
   if (!isOpen) return null;
   
   return (
-    <div className="fixed inset-0 z-[60] bg-black/98 flex flex-col">
-      <div className="flex items-center justify-between p-4 border-b border-gray-700">
-        <button onClick={onClose} className="text-white p-2">
+    <div className="fixed inset-0 z-[60] bg-black flex flex-col">
+      <div className="flex items-center justify-between p-4 border-b border-gray-800">
+        <button onClick={onClose} className="text-white p-2 hover:bg-gray-800 rounded-lg">
           <ChevronLeft className="w-6 h-6" />
         </button>
         <h2 className="text-white text-xl font-bold">{title}</h2>
@@ -89,34 +81,34 @@ const SliderOverlay = ({ isOpen, onClose, title, value, onChange, min = 0, max =
       </div>
       
       <div className="flex-1 flex flex-col items-center justify-center p-8">
-        <div className={`w-24 h-24 bg-${color}-600/20 rounded-2xl flex items-center justify-center mb-8`}>
-          <Icon className={`w-12 h-12 text-${color}-400`} />
+        <div className={`w-20 h-20 bg-${color}-600/20 rounded-2xl flex items-center justify-center mb-6`}>
+          <Icon className={`w-10 h-10 text-${color}-400`} />
         </div>
         
-        <div className="text-white text-7xl font-bold mb-12">
+        <div className="text-white text-6xl font-bold mb-10">
           {value}%
         </div>
         
-        <div className="w-full max-w-md">
+        <div className="w-full max-w-sm">
           <Slider
             value={[value]}
             onValueChange={(v) => onChange(v[0])}
-            min={min}
-            max={max}
+            min={0}
+            max={100}
             step={1}
-            className="w-full h-4"
+            className="w-full"
           />
         </div>
         
-        <div className="flex gap-4 mt-8">
+        <div className="flex gap-3 mt-8">
           {[0, 25, 50, 75, 100].map((preset) => (
             <button
               key={preset}
               onClick={() => onChange(preset)}
-              className={`px-6 py-3 rounded-xl text-lg font-semibold transition-all ${
+              className={`px-5 py-2.5 rounded-lg text-base font-semibold transition-all ${
                 value === preset
                   ? "bg-blue-600 text-white"
-                  : "bg-gray-800 text-gray-300 hover:bg-gray-700"
+                  : "bg-gray-800 text-gray-400 hover:bg-gray-700"
               }`}
             >
               {preset}%
@@ -128,13 +120,11 @@ const SliderOverlay = ({ isOpen, onClose, title, value, onChange, min = 0, max =
   );
 };
 
-// LiveKit Stream Publisher Component - This actually publishes the stream
-const StreamPublisher = ({ onViewerCount }) => {
+// LiveKit Stream Publisher Component
+const StreamPublisher = ({ onViewerCount, isCameraOn, isMicOn, onToggleCamera, onToggleMic }) => {
   const { localParticipant } = useLocalParticipant();
   const room = useRoomContext();
   const tracks = useTracks([Track.Source.Camera, Track.Source.Microphone]);
-  const [isCameraEnabled, setIsCameraEnabled] = useState(true);
-  const [isMicEnabled, setIsMicEnabled] = useState(true);
   
   // Get local camera track
   const cameraTrack = tracks.find(
@@ -160,14 +150,14 @@ const StreamPublisher = ({ onViewerCount }) => {
     }
   }, [room, onViewerCount]);
 
-  // Enable camera and mic on mount
+  // Enable camera and mic on mount and sync with parent state
   useEffect(() => {
     const enableMedia = async () => {
       if (localParticipant) {
         try {
-          await localParticipant.setCameraEnabled(true);
-          await localParticipant.setMicrophoneEnabled(true);
-          console.log("Camera and microphone enabled");
+          await localParticipant.setCameraEnabled(isCameraOn);
+          await localParticipant.setMicrophoneEnabled(isMicOn);
+          console.log("Media enabled - Camera:", isCameraOn, "Mic:", isMicOn);
         } catch (error) {
           console.error("Error enabling media:", error);
           toast.error("Failed to enable camera/microphone");
@@ -175,78 +165,110 @@ const StreamPublisher = ({ onViewerCount }) => {
       }
     };
     enableMedia();
-  }, [localParticipant]);
+  }, [localParticipant, isCameraOn, isMicOn]);
 
-  const toggleCamera = async () => {
-    if (localParticipant) {
-      const newState = !isCameraEnabled;
-      await localParticipant.setCameraEnabled(newState);
-      setIsCameraEnabled(newState);
-      toast.info(newState ? "Camera enabled" : "Camera disabled");
-    }
-  };
+  // Handle toggle camera
+  useEffect(() => {
+    const syncCamera = async () => {
+      if (localParticipant) {
+        await localParticipant.setCameraEnabled(isCameraOn);
+      }
+    };
+    syncCamera();
+  }, [localParticipant, isCameraOn]);
 
-  const toggleMic = async () => {
-    if (localParticipant) {
-      const newState = !isMicEnabled;
-      await localParticipant.setMicrophoneEnabled(newState);
-      setIsMicEnabled(newState);
-      toast.info(newState ? "Microphone enabled" : "Microphone muted");
-    }
-  };
+  // Handle toggle mic
+  useEffect(() => {
+    const syncMic = async () => {
+      if (localParticipant) {
+        await localParticipant.setMicrophoneEnabled(isMicOn);
+      }
+    };
+    syncMic();
+  }, [localParticipant, isMicOn]);
 
   return (
-    <div className="relative w-full h-full bg-black">
-      {/* Video Preview */}
-      {cameraTrack ? (
+    <div className="w-full h-full bg-black flex items-center justify-center">
+      {cameraTrack && isCameraOn ? (
         <VideoTrack
           trackRef={cameraTrack}
           className="w-full h-full object-cover"
         />
       ) : (
-        <div className="w-full h-full flex items-center justify-center">
-          <div className="text-center">
-            <CameraOff className="w-16 h-16 text-gray-600 mx-auto mb-4" />
-            <p className="text-gray-400">Camera is disabled or loading...</p>
-          </div>
+        <div className="text-center">
+          <VideoOff className="w-20 h-20 text-gray-700 mx-auto mb-4" />
+          <p className="text-gray-500 text-lg">Camera is off</p>
         </div>
       )}
       
-      {/* Control buttons overlay */}
-      <div className="absolute bottom-4 left-1/2 -translate-x-1/2 flex items-center gap-4 bg-black/60 px-6 py-3 rounded-full">
-        <button
-          onClick={toggleCamera}
-          className={`p-3 rounded-full transition-colors ${
-            isCameraEnabled ? "bg-gray-700 hover:bg-gray-600" : "bg-red-600 hover:bg-red-700"
-          }`}
-        >
-          {isCameraEnabled ? (
-            <Camera className="w-6 h-6 text-white" />
-          ) : (
-            <CameraOff className="w-6 h-6 text-white" />
-          )}
-        </button>
-        
-        <button
-          onClick={toggleMic}
-          className={`p-3 rounded-full transition-colors ${
-            isMicEnabled ? "bg-gray-700 hover:bg-gray-600" : "bg-red-600 hover:bg-red-700"
-          }`}
-        >
-          {isMicEnabled ? (
-            <Mic className="w-6 h-6 text-white" />
-          ) : (
-            <MicOff className="w-6 h-6 text-white" />
-          )}
-        </button>
+      {/* Live indicator overlay */}
+      <div className="absolute top-4 left-4 bg-red-600 px-4 py-2 rounded-lg flex items-center gap-2">
+        <div className="w-2.5 h-2.5 bg-white rounded-full animate-pulse"></div>
+        <span className="text-white font-bold text-sm">LIVE</span>
       </div>
       
-      {/* Live indicator */}
-      <div className="absolute top-4 left-4 bg-red-600 px-4 py-2 rounded-full flex items-center gap-2">
-        <div className="w-3 h-3 bg-white rounded-full animate-pulse"></div>
-        <span className="text-white font-bold">LIVE</span>
+      {/* Viewer count overlay */}
+      <div className="absolute top-4 right-4 bg-black/60 px-3 py-2 rounded-lg flex items-center gap-2">
+        <Users className="w-4 h-4 text-white" />
+        <span className="text-white font-medium text-sm">{room?.remoteParticipants?.size || 0}</span>
       </div>
     </div>
+  );
+};
+
+// Pre-stream Camera Preview
+const CameraPreview = ({ isCameraOn }) => {
+  const videoRef = React.useRef(null);
+  const [stream, setStream] = useState(null);
+
+  useEffect(() => {
+    let mediaStream = null;
+    
+    const startPreview = async () => {
+      if (isCameraOn) {
+        try {
+          mediaStream = await navigator.mediaDevices.getUserMedia({ 
+            video: true, 
+            audio: false 
+          });
+          setStream(mediaStream);
+          if (videoRef.current) {
+            videoRef.current.srcObject = mediaStream;
+          }
+        } catch (error) {
+          console.error("Error accessing camera:", error);
+        }
+      }
+    };
+
+    startPreview();
+
+    return () => {
+      if (mediaStream) {
+        mediaStream.getTracks().forEach(track => track.stop());
+      }
+    };
+  }, [isCameraOn]);
+
+  if (!isCameraOn) {
+    return (
+      <div className="w-full h-full bg-black flex items-center justify-center">
+        <div className="text-center">
+          <VideoOff className="w-20 h-20 text-gray-700 mx-auto mb-4" />
+          <p className="text-gray-500 text-lg">Camera is off</p>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <video 
+      ref={videoRef} 
+      autoPlay 
+      playsInline 
+      muted 
+      className="w-full h-full object-cover"
+    />
   );
 };
 
@@ -254,12 +276,14 @@ const ControlPanel = ({ user, onLogout }) => {
   const { eventId } = useParams();
   const navigate = useNavigate();
   const [event, setEvent] = useState(null);
-  const [devices, setDevices] = useState([]);
-  const [showQR, setShowQR] = useState(null);
   const [isStreaming, setIsStreaming] = useState(false);
   const [liveKitToken, setLiveKitToken] = useState(null);
   const [liveKitUrl, setLiveKitUrl] = useState(null);
   const [viewerCount, setViewerCount] = useState(0);
+  
+  // Camera and Mic state
+  const [isCameraOn, setIsCameraOn] = useState(true);
+  const [isMicOn, setIsMicOn] = useState(true);
   
   // Audio controls
   const [micVolume, setMicVolume] = useState(75);
@@ -281,9 +305,7 @@ const ControlPanel = ({ user, onLogout }) => {
       const eventRes = await axiosInstance.get(`/events/${eventId}`);
       setEvent(eventRes.data);
       
-      // Check if already live
       if (eventRes.data.status === "live") {
-        // Try to reconnect
         handleStartStream();
       }
     } catch (error) {
@@ -308,7 +330,7 @@ const ControlPanel = ({ user, onLogout }) => {
         toast.error("Failed to end stream");
       }
     } else {
-      // Start stream - get LiveKit token for publishing
+      // Start stream
       try {
         const response = await axiosInstance.post("/livekit/join-as-creator", {
           event_id: eventId,
@@ -321,7 +343,6 @@ const ControlPanel = ({ user, onLogout }) => {
           setLiveKitUrl(response.data.url);
           setIsStreaming(true);
           
-          // Set event to live and notify all ticket holders
           try {
             const goLiveRes = await axiosInstance.post(`/events/${eventId}/go-live`);
             toast.success(`You're Live! ${goLiveRes.data.notified_count || 0} viewers notified.`);
@@ -346,148 +367,139 @@ const ControlPanel = ({ user, onLogout }) => {
     toast.info("Disconnected from stream");
   };
 
+  const toggleCamera = () => {
+    setIsCameraOn(!isCameraOn);
+    toast.info(isCameraOn ? "Camera off" : "Camera on");
+  };
+
+  const toggleMic = () => {
+    setIsMicOn(!isMicOn);
+    toast.info(isMicOn ? "Microphone muted" : "Microphone on");
+  };
+
   if (!event) {
     return (
-      <div className="min-h-screen bg-[#0a0a0f] flex items-center justify-center">
+      <div className="min-h-screen bg-black flex items-center justify-center">
         <div className="text-white text-xl">Loading...</div>
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-[#0a0a0f] text-white">
-      {/* Header */}
-      <div className="bg-gray-900/80 border-b border-gray-700 p-4">
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-4">
-            <button
-              onClick={() => navigate(-1)}
-              className="p-2 hover:bg-gray-700 rounded-lg transition-colors"
+    <div className="h-screen bg-black flex flex-col overflow-hidden">
+      {/* Video Preview Area - Takes most of the screen */}
+      <div className="flex-1 relative">
+        <div className="absolute inset-4 bg-gray-900 rounded-2xl overflow-hidden shadow-2xl">
+          {isStreaming && liveKitToken && liveKitUrl ? (
+            <LiveKitRoom
+              serverUrl={liveKitUrl}
+              token={liveKitToken}
+              connect={true}
+              video={true}
+              audio={true}
+              onDisconnected={handleDisconnect}
+              onError={(error) => {
+                console.error("LiveKit error:", error);
+                toast.error("Stream connection error");
+              }}
             >
-              <ArrowLeft className="w-6 h-6" />
-            </button>
-            <div>
-              <h1 className="text-xl font-bold">{event.title}</h1>
-              <p className="text-gray-400 text-sm">Control Panel</p>
-            </div>
-          </div>
-          
-          <div className="flex items-center gap-4">
-            {/* Settings Button */}
-            <button
-              onClick={() => setShowSettings(true)}
-              className="bg-gray-800 hover:bg-gray-700 p-3 rounded-xl transition-all flex items-center gap-2"
-              data-testid="settings-button"
-            >
-              <Settings className="w-6 h-6" />
-              <span className="hidden sm:inline font-medium">Settings</span>
-            </button>
-            
-            {/* Live Indicator */}
-            {isStreaming && (
-              <div className="flex items-center gap-3">
-                <div className="flex items-center gap-2 bg-red-600 px-4 py-2 rounded-full">
-                  <div className="w-3 h-3 bg-white rounded-full animate-pulse"></div>
-                  <span className="font-bold">LIVE</span>
-                </div>
-                <div className="flex items-center gap-2 bg-gray-800 px-3 py-2 rounded-full">
-                  <Users className="w-4 h-4" />
-                  <span>{viewerCount}</span>
-                </div>
-              </div>
-            )}
-          </div>
+              <StreamPublisher 
+                onViewerCount={setViewerCount}
+                isCameraOn={isCameraOn}
+                isMicOn={isMicOn}
+                onToggleCamera={toggleCamera}
+                onToggleMic={toggleMic}
+              />
+            </LiveKitRoom>
+          ) : (
+            <CameraPreview isCameraOn={isCameraOn} />
+          )}
         </div>
       </div>
 
-      {/* Main Content */}
-      <div className="p-4 space-y-4">
-        {/* Video Preview / LiveKit Room */}
-        <div className="bg-gray-900 rounded-xl overflow-hidden">
-          <div className="aspect-video bg-black relative">
-            {isStreaming && liveKitToken && liveKitUrl ? (
-              <LiveKitRoom
-                serverUrl={liveKitUrl}
-                token={liveKitToken}
-                connect={true}
-                video={true}
-                audio={true}
-                onDisconnected={handleDisconnect}
-                onError={(error) => {
-                  console.error("LiveKit error:", error);
-                  toast.error("Stream connection error");
-                }}
-              >
-                <StreamPublisher onViewerCount={setViewerCount} />
-              </LiveKitRoom>
+      {/* Bottom Control Bar */}
+      <div className="bg-gray-900 px-4 py-4 sm:px-6 sm:py-5 border-t border-gray-800">
+        <div className="flex items-center justify-center gap-4 sm:gap-6 max-w-xl mx-auto">
+          {/* Camera Toggle */}
+          <button
+            onClick={toggleCamera}
+            data-testid="camera-toggle-btn"
+            className={`w-14 h-14 sm:w-16 sm:h-16 rounded-xl flex items-center justify-center transition-all ${
+              isCameraOn 
+                ? "bg-gray-800 hover:bg-gray-700 text-white" 
+                : "bg-gray-800 hover:bg-gray-700 text-white"
+            }`}
+          >
+            {isCameraOn ? (
+              <Video className="w-6 h-6 sm:w-7 sm:h-7" />
             ) : (
-              <div className="w-full h-full flex items-center justify-center">
-                <div className="text-center">
-                  <Video className="w-16 h-16 text-gray-600 mx-auto mb-4" />
-                  <p className="text-gray-400 text-lg">Ready to go live</p>
-                  <p className="text-gray-500 text-sm mt-2">Click "Go Live" to start streaming</p>
-                </div>
-              </div>
+              <VideoOff className="w-6 h-6 sm:w-7 sm:h-7" />
             )}
-          </div>
+          </button>
+
+          {/* Microphone Toggle */}
+          <button
+            onClick={toggleMic}
+            data-testid="mic-toggle-btn"
+            className={`w-14 h-14 sm:w-16 sm:h-16 rounded-xl flex items-center justify-center transition-all relative ${
+              isMicOn 
+                ? "bg-gray-800 hover:bg-gray-700 text-white" 
+                : "bg-gray-800 hover:bg-gray-700 text-white"
+            }`}
+          >
+            {isMicOn ? (
+              <Mic className="w-6 h-6 sm:w-7 sm:h-7" />
+            ) : (
+              <>
+                <Mic className="w-6 h-6 sm:w-7 sm:h-7" />
+                {/* Red slash line */}
+                <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
+                  <div className="w-8 h-0.5 bg-red-500 rotate-45 rounded-full"></div>
+                </div>
+              </>
+            )}
+          </button>
+
+          {/* Go Live / End Stream Button */}
+          <button
+            onClick={handleStartStream}
+            data-testid="go-live-button"
+            className={`px-8 sm:px-12 py-4 sm:py-5 rounded-xl font-bold text-lg sm:text-xl transition-all shadow-lg ${
+              isStreaming
+                ? "bg-red-600 hover:bg-red-700 text-white"
+                : "bg-gradient-to-r from-red-600 to-red-500 hover:from-red-700 hover:to-red-600 text-white"
+            }`}
+            style={{
+              background: isStreaming 
+                ? undefined 
+                : "linear-gradient(180deg, #dc2626 0%, #b91c1c 100%)",
+              boxShadow: "0 4px 14px rgba(220, 38, 38, 0.4)"
+            }}
+          >
+            {isStreaming ? "End Stream" : "Go Live"}
+          </button>
+
+          {/* Settings Button */}
+          <button
+            onClick={() => setShowSettings(true)}
+            data-testid="settings-button"
+            className="w-14 h-14 sm:w-16 sm:h-16 bg-gray-800 hover:bg-gray-700 rounded-xl flex flex-col items-center justify-center transition-all text-white"
+          >
+            <Settings className="w-5 h-5 sm:w-6 sm:h-6 mb-1" />
+            <span className="text-[10px] sm:text-xs text-gray-400">Settings</span>
+          </button>
         </div>
 
-        {/* Stream Info */}
-        {isStreaming && (
-          <div className="bg-green-900/20 border border-green-600/50 rounded-xl p-4">
-            <div className="flex items-center gap-3">
-              <div className="w-3 h-3 bg-green-500 rounded-full animate-pulse"></div>
-              <div>
-                <p className="text-green-400 font-medium">Your stream is live!</p>
-                <p className="text-green-300/70 text-sm">Viewers can now watch your event.</p>
-              </div>
-            </div>
-          </div>
-        )}
-
-        {/* Go Live Button */}
-        <Button
-          onClick={handleStartStream}
-          className={`w-full py-8 text-xl font-bold rounded-xl transition-all ${
-            isStreaming
-              ? "bg-red-600 hover:bg-red-700"
-              : "bg-green-600 hover:bg-green-700"
-          }`}
-          data-testid="go-live-button"
-        >
-          {isStreaming ? (
-            <>
-              <Pause className="w-7 h-7 mr-3" />
-              End Stream
-            </>
-          ) : (
-            <>
-              <Play className="w-7 h-7 mr-3" />
-              Go Live
-            </>
-          )}
-        </Button>
-
-        {/* Chat Mode Indicator */}
-        {event.chat_enabled && (
-          <div className="bg-blue-900/20 border border-blue-600/30 rounded-xl p-4">
-            <p className="text-blue-400 text-sm">
-              <strong>Chat Mode:</strong> {event.chat_mode === "questions_only" ? "Questions Only" : event.chat_mode === "moderated" ? "Moderated" : "Open Chat"}
-            </p>
-            {event.reactions_enabled && (
-              <p className="text-pink-400 text-sm mt-1">
-                <strong>Live Reactions:</strong> Enabled
-              </p>
-            )}
-          </div>
-        )}
+        {/* Event Title - Small text below controls */}
+        <div className="text-center mt-3">
+          <p className="text-gray-500 text-sm truncate max-w-md mx-auto">{event.title}</p>
+        </div>
       </div>
 
       {/* Settings Panel Overlay */}
       <SettingsOverlay 
         isOpen={showSettings} 
         onClose={() => setShowSettings(false)}
-        title="Settings"
       >
         <div className="space-y-4">
           <SettingControl
@@ -582,26 +594,6 @@ const ControlPanel = ({ user, onLogout }) => {
         icon={Music}
         color="orange"
       />
-
-      {/* QR Code Modal */}
-      {showQR && (
-        <div className="fixed inset-0 bg-black/80 flex items-center justify-center z-50 p-4">
-          <div className="bg-gray-900 rounded-xl p-6 max-w-sm w-full">
-            <div className="flex items-center justify-between mb-4">
-              <h3 className="text-white text-lg font-bold">Add Camera Device</h3>
-              <button onClick={() => setShowQR(null)} className="text-gray-400 hover:text-white">
-                <X className="w-6 h-6" />
-              </button>
-            </div>
-            <div className="bg-white p-4 rounded-lg mb-4">
-              <img src={showQR.qr_code} alt="QR Code" className="w-full" />
-            </div>
-            <p className="text-gray-400 text-sm text-center">
-              Scan this QR code with your mobile device to add it as a streaming camera
-            </p>
-          </div>
-        </div>
-      )}
     </div>
   );
 };
