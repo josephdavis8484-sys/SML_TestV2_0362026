@@ -11,7 +11,8 @@ import {
   Volume2,
   Plus,
   Minus,
-  RotateCcw
+  RotateCcw,
+  Radio
 } from "lucide-react";
 import { toast } from "sonner";
 import {
@@ -23,6 +24,8 @@ import {
 } from "@livekit/components-react";
 import "@livekit/components-styles";
 import { Track } from "livekit-client";
+
+const BACKEND_URL = process.env.REACT_APP_BACKEND_URL;
 
 // Audio Settings Dropdown Component
 const AudioSettingsDropdown = ({ 
@@ -240,8 +243,194 @@ const AudioSettingsDropdown = ({
   );
 };
 
+// Live Chat Component for Creator
+const LiveChatPanel = ({ eventId, isStreaming }) => {
+  const [messages, setMessages] = useState([]);
+  const wsRef = useRef(null);
+  const messagesEndRef = useRef(null);
+
+  // Sample messages for demonstration (will be replaced by WebSocket messages)
+  const sampleMessages = [
+    { id: 1, username: "Alex", message: "Hi everyone", color: "#60a5fa" },
+    { id: 2, username: "Jessica", message: "Excited for this topic!", color: "#f472b6" },
+    { id: 3, username: "Brian", message: "Looking great on camera!", color: "#34d399" },
+    { id: 4, username: "Amanda", message: "Hello there!", color: "#fbbf24" },
+  ];
+
+  useEffect(() => {
+    if (isStreaming && eventId) {
+      // Connect to WebSocket for live chat
+      const wsUrl = `${BACKEND_URL?.replace('https://', 'wss://').replace('http://', 'ws://')}/api/ws/chat/${eventId}`;
+      
+      try {
+        wsRef.current = new WebSocket(wsUrl);
+        
+        wsRef.current.onopen = () => {
+          console.log("Chat WebSocket connected");
+        };
+
+        wsRef.current.onmessage = (event) => {
+          const data = JSON.parse(event.data);
+          if (data.type === "message") {
+            setMessages(prev => [...prev.slice(-50), {
+              id: Date.now(),
+              username: data.username || "Anonymous",
+              message: data.message,
+              color: data.color || "#60a5fa"
+            }]);
+          }
+        };
+
+        wsRef.current.onclose = () => {
+          console.log("Chat WebSocket disconnected");
+        };
+
+        wsRef.current.onerror = (error) => {
+          console.error("Chat WebSocket error:", error);
+        };
+      } catch (error) {
+        console.error("Failed to connect to chat:", error);
+      }
+
+      // Initialize with sample messages for demo
+      setMessages(sampleMessages);
+    }
+
+    return () => {
+      if (wsRef.current) {
+        wsRef.current.close();
+      }
+    };
+  }, [isStreaming, eventId]);
+
+  // Auto-scroll to bottom
+  useEffect(() => {
+    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+  }, [messages]);
+
+  return (
+    <div className="flex flex-col h-full">
+      <div className="flex-1 overflow-y-auto space-y-3 pr-2 scrollbar-thin scrollbar-thumb-gray-700 scrollbar-track-transparent">
+        {messages.map((msg) => (
+          <div key={msg.id} className="flex items-start gap-2">
+            <span className="font-bold text-white" style={{ color: msg.color }}>
+              {msg.username}:
+            </span>
+            <span className="text-gray-300">{msg.message}</span>
+          </div>
+        ))}
+        <div ref={messagesEndRef} />
+      </div>
+    </div>
+  );
+};
+
+// Live Reactions Component for Creator
+const LiveReactionsPanel = ({ eventId, isStreaming }) => {
+  const [reactions, setReactions] = useState([]);
+  const wsRef = useRef(null);
+
+  // Available reaction emojis
+  const reactionEmojis = ["👍", "😄", "❤️", "👏", "🔥", "😮", "🎉"];
+
+  useEffect(() => {
+    if (isStreaming && eventId) {
+      // Connect to WebSocket for reactions
+      const wsUrl = `${BACKEND_URL?.replace('https://', 'wss://').replace('http://', 'ws://')}/api/ws/chat/${eventId}`;
+      
+      try {
+        wsRef.current = new WebSocket(wsUrl);
+        
+        wsRef.current.onmessage = (event) => {
+          const data = JSON.parse(event.data);
+          if (data.type === "reaction") {
+            addReaction(data.emoji);
+          }
+        };
+      } catch (error) {
+        console.error("Failed to connect to reactions:", error);
+      }
+
+      // Demo: Add random reactions periodically
+      const interval = setInterval(() => {
+        const randomEmoji = reactionEmojis[Math.floor(Math.random() * reactionEmojis.length)];
+        addReaction(randomEmoji);
+      }, 2000);
+
+      return () => {
+        clearInterval(interval);
+        if (wsRef.current) {
+          wsRef.current.close();
+        }
+      };
+    }
+  }, [isStreaming, eventId]);
+
+  const addReaction = (emoji) => {
+    const id = Date.now() + Math.random();
+    const left = Math.random() * 80 + 10; // 10% to 90%
+    const delay = Math.random() * 0.5;
+    
+    setReactions(prev => [...prev, { id, emoji, left, delay }]);
+
+    // Remove reaction after animation
+    setTimeout(() => {
+      setReactions(prev => prev.filter(r => r.id !== id));
+    }, 3000);
+  };
+
+  return (
+    <div className="relative h-full overflow-hidden">
+      {/* Floating reactions */}
+      {reactions.map((reaction) => (
+        <div
+          key={reaction.id}
+          className="absolute text-4xl animate-float-up"
+          style={{
+            left: `${reaction.left}%`,
+            bottom: 0,
+            animationDelay: `${reaction.delay}s`,
+            animation: 'floatUp 3s ease-out forwards'
+          }}
+        >
+          {reaction.emoji}
+        </div>
+      ))}
+      
+      {/* Static emoji display for visual */}
+      <div className="absolute bottom-4 right-4 flex flex-col gap-2 items-end">
+        <div className="text-4xl opacity-80 animate-bounce" style={{ animationDelay: '0.1s' }}>👍</div>
+        <div className="text-4xl opacity-90 animate-bounce" style={{ animationDelay: '0.3s' }}>😄</div>
+        <div className="text-4xl animate-bounce" style={{ animationDelay: '0.5s' }}>❤️</div>
+        <div className="flex gap-1">
+          <div className="text-3xl animate-bounce" style={{ animationDelay: '0.2s' }}>👏</div>
+          <div className="text-3xl animate-bounce" style={{ animationDelay: '0.4s' }}>👏</div>
+          <div className="text-3xl animate-bounce" style={{ animationDelay: '0.6s' }}>👏</div>
+        </div>
+      </div>
+
+      {/* CSS for float animation */}
+      <style>{`
+        @keyframes floatUp {
+          0% {
+            transform: translateY(0) scale(1);
+            opacity: 1;
+          }
+          100% {
+            transform: translateY(-200px) scale(1.2);
+            opacity: 0;
+          }
+        }
+        .animate-float-up {
+          animation: floatUp 3s ease-out forwards;
+        }
+      `}</style>
+    </div>
+  );
+};
+
 // LiveKit Stream Publisher Component
-const StreamPublisher = ({ onViewerCount, isCameraOn, isMicOn }) => {
+const StreamPublisher = ({ onViewerCount, isCameraOn, isMicOn, streamTime }) => {
   const { localParticipant } = useLocalParticipant();
   const room = useRoomContext();
   const tracks = useTracks([Track.Source.Camera, Track.Source.Microphone]);
@@ -287,6 +476,14 @@ const StreamPublisher = ({ onViewerCount, isCameraOn, isMicOn }) => {
     enableMedia();
   }, [localParticipant, isCameraOn, isMicOn]);
 
+  // Format stream time
+  const formatTime = (seconds) => {
+    const hrs = Math.floor(seconds / 3600);
+    const mins = Math.floor((seconds % 3600) / 60);
+    const secs = seconds % 60;
+    return `${hrs.toString().padStart(2, '0')}:${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
+  };
+
   return (
     <div className="w-full h-full bg-black flex items-center justify-center">
       {cameraTrack && isCameraOn ? (
@@ -301,7 +498,7 @@ const StreamPublisher = ({ onViewerCount, isCameraOn, isMicOn }) => {
         </div>
       )}
       
-      {/* Live indicator overlay */}
+      {/* Live indicator overlay - Top Left */}
       <div className="absolute top-4 left-4 flex items-center gap-3">
         <div className="bg-red-600 px-3 py-1.5 rounded flex items-center gap-2">
           <div className="w-2 h-2 bg-white rounded-full animate-pulse"></div>
@@ -313,10 +510,11 @@ const StreamPublisher = ({ onViewerCount, isCameraOn, isMicOn }) => {
         </div>
       </div>
       
-      {/* Stream time overlay */}
+      {/* Stream time overlay - Top Right */}
       <div className="absolute top-4 right-4 bg-black/60 px-3 py-1.5 rounded flex items-center gap-2">
         <div className="w-2 h-2 bg-red-500 rounded-full"></div>
-        <span className="text-white font-mono text-sm">LIVE</span>
+        <span className="text-white font-mono text-sm">LIVE {formatTime(streamTime)}</span>
+        <span className="text-green-400 text-sm">▶</span>
       </div>
     </div>
   );
@@ -386,6 +584,7 @@ const ControlPanel = ({ user, onLogout }) => {
   const [liveKitToken, setLiveKitToken] = useState(null);
   const [liveKitUrl, setLiveKitUrl] = useState(null);
   const [viewerCount, setViewerCount] = useState(0);
+  const [streamTime, setStreamTime] = useState(0);
   
   // Camera and Mic state
   const [isCameraOn, setIsCameraOn] = useState(true);
@@ -400,6 +599,19 @@ const ControlPanel = ({ user, onLogout }) => {
 
   // Settings Panel State
   const [showSettings, setShowSettings] = useState(false);
+
+  // Stream timer
+  useEffect(() => {
+    let interval;
+    if (isStreaming) {
+      interval = setInterval(() => {
+        setStreamTime(prev => prev + 1);
+      }, 1000);
+    }
+    return () => {
+      if (interval) clearInterval(interval);
+    };
+  }, [isStreaming]);
 
   useEffect(() => {
     fetchData();
@@ -428,6 +640,7 @@ const ControlPanel = ({ user, onLogout }) => {
         setIsStreaming(false);
         setLiveKitToken(null);
         setLiveKitUrl(null);
+        setStreamTime(0);
         toast.success("Stream ended");
         fetchData();
       } catch (error) {
@@ -447,6 +660,7 @@ const ControlPanel = ({ user, onLogout }) => {
           setLiveKitToken(response.data.token);
           setLiveKitUrl(response.data.url);
           setIsStreaming(true);
+          setStreamTime(0);
           
           try {
             const goLiveRes = await axiosInstance.post(`/events/${eventId}/go-live`);
@@ -469,6 +683,7 @@ const ControlPanel = ({ user, onLogout }) => {
     setIsStreaming(false);
     setLiveKitToken(null);
     setLiveKitUrl(null);
+    setStreamTime(0);
     toast.info("Disconnected from stream");
   };
 
@@ -491,6 +706,9 @@ const ControlPanel = ({ user, onLogout }) => {
     toast.info("Audio settings reset to defaults");
   };
 
+  // Check if chat/reactions are enabled
+  const showChatReactions = event?.chat_enabled || event?.reactions_enabled;
+
   if (!event) {
     return (
       <div className="min-h-screen bg-black flex items-center justify-center">
@@ -501,36 +719,40 @@ const ControlPanel = ({ user, onLogout }) => {
 
   return (
     <div className="h-screen bg-black flex flex-col overflow-hidden">
-      {/* Video Preview Area - Takes most of the screen */}
-      <div className="flex-1 relative">
-        <div className="absolute inset-4 bg-gray-900 rounded-2xl overflow-hidden shadow-2xl">
-          {isStreaming && liveKitToken && liveKitUrl ? (
-            <LiveKitRoom
-              serverUrl={liveKitUrl}
-              token={liveKitToken}
-              connect={true}
-              video={true}
-              audio={true}
-              onDisconnected={handleDisconnect}
-              onError={(error) => {
-                console.error("LiveKit error:", error);
-                toast.error("Stream connection error");
-              }}
-            >
-              <StreamPublisher 
-                onViewerCount={setViewerCount}
-                isCameraOn={isCameraOn}
-                isMicOn={isMicOn}
-              />
-            </LiveKitRoom>
-          ) : (
-            <CameraPreview isCameraOn={isCameraOn} />
-          )}
+      {/* Main Content Area */}
+      <div className="flex-1 flex flex-col relative">
+        {/* Video Preview Area */}
+        <div className={`relative ${showChatReactions && isStreaming ? 'flex-1' : 'flex-1'}`}>
+          <div className="absolute inset-4 bg-gray-900 rounded-2xl overflow-hidden shadow-2xl">
+            {isStreaming && liveKitToken && liveKitUrl ? (
+              <LiveKitRoom
+                serverUrl={liveKitUrl}
+                token={liveKitToken}
+                connect={true}
+                video={true}
+                audio={true}
+                onDisconnected={handleDisconnect}
+                onError={(error) => {
+                  console.error("LiveKit error:", error);
+                  toast.error("Stream connection error");
+                }}
+              >
+                <StreamPublisher 
+                  onViewerCount={setViewerCount}
+                  isCameraOn={isCameraOn}
+                  isMicOn={isMicOn}
+                  streamTime={streamTime}
+                />
+              </LiveKitRoom>
+            ) : (
+              <CameraPreview isCameraOn={isCameraOn} />
+            )}
+          </div>
         </div>
       </div>
 
       {/* Bottom Control Bar */}
-      <div className="bg-gray-900 px-4 py-4 sm:px-6 sm:py-5 border-t border-gray-800 relative">
+      <div className="bg-gray-900/95 backdrop-blur px-4 py-4 sm:px-6 sm:py-5 border-t border-gray-800 relative">
         <div className="flex items-center justify-center gap-4 sm:gap-6 max-w-2xl mx-auto">
           {/* Camera Toggle */}
           <div className="flex flex-col items-center">
@@ -577,30 +799,32 @@ const ControlPanel = ({ user, onLogout }) => {
             </span>
           </div>
 
-          {/* End Live Button (shown when streaming) */}
-          {isStreaming && (
-            <button
-              onClick={handleStartStream}
-              data-testid="end-live-button"
-              className="px-6 sm:px-8 py-3 sm:py-4 bg-red-600 hover:bg-red-700 rounded-xl font-bold text-base sm:text-lg text-white transition-all shadow-lg flex items-center gap-2"
-            >
-              <div className="w-3 h-3 bg-white rounded-sm"></div>
-              End Live
-            </button>
-          )}
-
-          {/* Go Live Button */}
+          {/* Go Live Button (Red, prominent) */}
           <button
             onClick={handleStartStream}
             data-testid="go-live-button"
-            className={`px-6 sm:px-8 py-3 sm:py-4 rounded-xl font-bold text-base sm:text-lg transition-all shadow-lg flex items-center gap-2 ${
+            className={`px-8 sm:px-10 py-4 sm:py-5 rounded-xl font-bold text-lg sm:text-xl transition-all shadow-lg ${
               isStreaming 
-                ? 'bg-gray-700 text-gray-400 cursor-default'
+                ? 'bg-red-600 hover:bg-red-700 text-white'
                 : 'bg-gradient-to-b from-red-500 to-red-700 hover:from-red-600 hover:to-red-800 text-white'
             }`}
-            style={!isStreaming ? { boxShadow: "0 4px 14px rgba(220, 38, 38, 0.4)" } : {}}
+            style={{ boxShadow: "0 4px 14px rgba(220, 38, 38, 0.4)" }}
           >
-            <div className={`w-2 h-2 rounded-full ${isStreaming ? 'bg-gray-500' : 'bg-white'}`}></div>
+            {isStreaming ? 'End Live' : 'Go Live'}
+          </button>
+
+          {/* Secondary Go Live Button (darker) */}
+          <button
+            onClick={handleStartStream}
+            disabled={isStreaming}
+            data-testid="go-live-secondary-button"
+            className={`px-6 sm:px-8 py-3 sm:py-4 rounded-xl font-bold text-base transition-all flex items-center gap-2 ${
+              isStreaming 
+                ? 'bg-gray-700 text-gray-500 cursor-not-allowed'
+                : 'bg-gray-800 hover:bg-gray-700 text-white'
+            }`}
+          >
+            <Radio className="w-4 h-4" />
             Go Live
           </button>
 
@@ -638,11 +862,42 @@ const ControlPanel = ({ user, onLogout }) => {
           </div>
         </div>
 
-        {/* Event Title */}
-        <div className="text-center mt-3">
-          <p className="text-gray-500 text-sm truncate max-w-md mx-auto">{event.title}</p>
-        </div>
+        {/* Arrow indicator for dropdown */}
+        {showChatReactions && isStreaming && (
+          <div className="absolute left-1/2 -translate-x-1/2 -bottom-2">
+            <div className="w-4 h-4 bg-gray-900 border-l border-t border-gray-700 transform rotate-[225deg]"></div>
+          </div>
+        )}
       </div>
+
+      {/* Live Chat & Reactions Panel - Only shown when enabled AND streaming */}
+      {showChatReactions && isStreaming && (
+        <div className="bg-gradient-to-b from-gray-900/80 to-black px-4 py-6 min-h-[200px]">
+          <div className="max-w-4xl mx-auto grid grid-cols-2 gap-8 h-full">
+            {/* Live Chat - Left Side */}
+            {event?.chat_enabled && (
+              <div className="h-[180px]">
+                <LiveChatPanel eventId={eventId} isStreaming={isStreaming} />
+              </div>
+            )}
+            
+            {/* Live Reactions - Right Side */}
+            {event?.reactions_enabled && (
+              <div className="h-[180px]">
+                <LiveReactionsPanel eventId={eventId} isStreaming={isStreaming} />
+              </div>
+            )}
+            
+            {/* If only one is enabled, center it */}
+            {event?.chat_enabled && !event?.reactions_enabled && (
+              <div></div>
+            )}
+            {!event?.chat_enabled && event?.reactions_enabled && (
+              <div></div>
+            )}
+          </div>
+        </div>
+      )}
     </div>
   );
 };
