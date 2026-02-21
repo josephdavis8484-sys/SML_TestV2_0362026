@@ -3,14 +3,93 @@ import { useNavigate } from "react-router-dom";
 import Navbar from "@/components/Navbar";
 import { axiosInstance } from "@/App";
 import { Button } from "@/components/ui/button";
-import { Ticket as TicketIcon, Calendar, Play, Clock, MapPin, CheckCircle, XCircle, Download } from "lucide-react";
+import { 
+  Ticket as TicketIcon, 
+  Calendar, 
+  ArrowRight, 
+  Clock, 
+  MapPin, 
+  CheckCircle, 
+  XCircle,
+  Share2,
+  X
+} from "lucide-react";
 import { toast } from "sonner";
+
+// Share Modal Component
+const ShareModal = ({ isOpen, onClose, eventTitle, eventUrl }) => {
+  if (!isOpen) return null;
+
+  const shareLinks = [
+    {
+      name: "X (Twitter)",
+      icon: "𝕏",
+      url: `https://twitter.com/intent/tweet?text=${encodeURIComponent(`Check out ${eventTitle} on ShowMeLive!`)}&url=${encodeURIComponent(eventUrl)}`
+    },
+    {
+      name: "Facebook",
+      icon: "f",
+      url: `https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(eventUrl)}`
+    },
+    {
+      name: "WhatsApp",
+      icon: "📱",
+      url: `https://wa.me/?text=${encodeURIComponent(`Check out ${eventTitle}! ${eventUrl}`)}`
+    }
+  ];
+
+  const copyLink = () => {
+    navigator.clipboard.writeText(eventUrl);
+    toast.success("Link copied to clipboard!");
+  };
+
+  return (
+    <div className="fixed inset-0 bg-black/80 flex items-center justify-center z-50" onClick={onClose}>
+      <div className="bg-gray-900 rounded-xl p-6 max-w-md w-full mx-4" onClick={(e) => e.stopPropagation()}>
+        <div className="flex items-center justify-between mb-4">
+          <h3 className="text-white text-xl font-bold">Share This Show</h3>
+          <button onClick={onClose} className="text-gray-400 hover:text-white">
+            <X className="w-6 h-6" />
+          </button>
+        </div>
+        
+        <div className="space-y-3">
+          {shareLinks.map((link) => (
+            <a
+              key={link.name}
+              href={link.url}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="flex items-center gap-3 w-full bg-gray-800 hover:bg-gray-700 text-white p-3 rounded-lg transition-colors"
+            >
+              <span className="w-8 h-8 bg-gray-700 rounded-full flex items-center justify-center text-lg">
+                {link.icon}
+              </span>
+              <span>{link.name}</span>
+            </a>
+          ))}
+          
+          <button
+            onClick={copyLink}
+            className="flex items-center gap-3 w-full bg-blue-600 hover:bg-blue-700 text-white p-3 rounded-lg transition-colors"
+          >
+            <span className="w-8 h-8 bg-blue-500 rounded-full flex items-center justify-center">
+              🔗
+            </span>
+            <span>Copy Link</span>
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+};
 
 const MyTickets = ({ user, onLogout }) => {
   const navigate = useNavigate();
   const [tickets, setTickets] = useState([]);
   const [events, setEvents] = useState({});
   const [loading, setLoading] = useState(true);
+  const [shareModal, setShareModal] = useState({ isOpen: false, eventTitle: "", eventUrl: "" });
 
   useEffect(() => {
     fetchTickets();
@@ -76,8 +155,18 @@ const MyTickets = ({ user, onLogout }) => {
   };
 
   // Navigate to watch event
-  const handleWatchEvent = (eventId) => {
+  const handleViewEvent = (eventId) => {
     navigate(`/event/${eventId}`);
+  };
+
+  // Share event
+  const handleShare = (event) => {
+    const eventUrl = `${window.location.origin}/event/${event.id}`;
+    setShareModal({
+      isOpen: true,
+      eventTitle: event.title,
+      eventUrl: eventUrl
+    });
   };
 
   // Get status badge for event
@@ -87,33 +176,46 @@ const MyTickets = ({ user, onLogout }) => {
     switch (event.status) {
       case "live":
         return (
-          <div className="flex items-center gap-1 bg-red-600 text-white px-3 py-1 rounded-full text-sm font-bold animate-pulse">
-            <div className="w-2 h-2 bg-white rounded-full"></div>
+          <div className="flex items-center gap-1.5 bg-red-600 text-white px-3 py-1.5 rounded-full text-sm font-bold">
+            <div className="w-2 h-2 bg-white rounded-full animate-pulse"></div>
             LIVE NOW
           </div>
         );
       case "completed":
         return (
-          <div className="flex items-center gap-1 bg-gray-600 text-white px-3 py-1 rounded-full text-sm">
-            <CheckCircle className="w-3 h-3" />
+          <div className="flex items-center gap-1.5 bg-gray-600 text-white px-3 py-1.5 rounded-full text-sm font-medium">
+            <CheckCircle className="w-3.5 h-3.5" />
             Ended
           </div>
         );
       case "cancelled":
         return (
-          <div className="flex items-center gap-1 bg-red-800 text-white px-3 py-1 rounded-full text-sm">
-            <XCircle className="w-3 h-3" />
+          <div className="flex items-center gap-1.5 bg-red-800 text-white px-3 py-1.5 rounded-full text-sm font-medium">
+            <XCircle className="w-3.5 h-3.5" />
             Cancelled
           </div>
         );
       default:
         return (
-          <div className="flex items-center gap-1 bg-blue-600 text-white px-3 py-1 rounded-full text-sm">
-            <Clock className="w-3 h-3" />
+          <div className="flex items-center gap-1.5 bg-green-600 text-white px-3 py-1.5 rounded-full text-sm font-medium">
+            <Clock className="w-3.5 h-3.5" />
             Upcoming
           </div>
         );
     }
+  };
+
+  // Format date for display
+  const formatEventDate = (event) => {
+    if (!event) return "";
+    
+    let dateStr = event.date;
+    if (event.start_time) {
+      dateStr += ` at ${event.start_time}`;
+    } else if (event.time) {
+      dateStr += ` at ${event.time}`;
+    }
+    return dateStr;
   };
 
   if (loading) {
@@ -128,8 +230,10 @@ const MyTickets = ({ user, onLogout }) => {
     <div className="min-h-screen bg-[#0f0f0f]" data-testid="my-tickets-page">
       <Navbar user={user} onLogout={onLogout} />
       
-      <div className="pt-24 px-4 sm:px-6 lg:px-8 max-w-7xl mx-auto pb-20">
-        <h1 className="text-white text-4xl md:text-5xl font-black mb-8" data-testid="tickets-title">My Tickets</h1>
+      <div className="pt-24 px-4 sm:px-6 lg:px-8 max-w-2xl mx-auto pb-20">
+        <h1 className="text-white text-3xl md:text-4xl font-black mb-8 text-center" data-testid="tickets-title">
+          My Tickets
+        </h1>
         
         {tickets.length === 0 ? (
           <div className="text-center py-20" data-testid="no-tickets-message">
@@ -143,130 +247,136 @@ const MyTickets = ({ user, onLogout }) => {
             </Button>
           </div>
         ) : (
-          <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
+          <div className="space-y-6">
             {tickets.map((ticket) => {
               const event = events[ticket.event_id];
               const isLive = event?.status === "live";
-              const isUpcoming = event?.status === "upcoming";
               const isCancelled = event?.status === "cancelled";
               const isRefunded = ticket.refunded;
               
               return (
                 <div 
                   key={ticket.id} 
-                  className={`bg-gray-900/50 rounded-lg overflow-hidden transition-all ${
+                  className={`bg-gray-900 rounded-2xl overflow-hidden border-2 ${
                     isLive 
-                      ? "ring-2 ring-red-500 hover:ring-red-400" 
+                      ? "border-red-500" 
                       : isRefunded || isCancelled
-                      ? "opacity-60"
-                      : "hover:bg-gray-900/70 hover:ring-2 hover:ring-blue-500"
+                      ? "border-gray-700 opacity-70"
+                      : "border-blue-600"
                   }`}
                   data-testid={`ticket-card-${ticket.id}`}
                 >
-                  <div className="aspect-[3/4] w-full relative">
+                  {/* Event Image with Badges */}
+                  <div className="relative">
                     <img 
                       src={event?.image_url || "https://images.unsplash.com/photo-1540039155733-5bb30b53aa14?w=400"} 
                       alt={event?.title || "Event"}
-                      className="w-full h-full object-cover"
+                      className="w-full aspect-[4/3] object-cover"
                     />
                     
-                    {/* Ticket quantity badge */}
-                    <div className="absolute top-2 right-2 bg-blue-600 text-white px-3 py-1 rounded-full text-sm font-bold" data-testid={`ticket-quantity-${ticket.id}`}>
-                      x{ticket.quantity}
+                    {/* Status badge - Top Left */}
+                    <div className="absolute top-3 left-3">
+                      {getStatusBadge(event)}
                     </div>
                     
-                    {/* Status badge */}
-                    <div className="absolute top-2 left-2">
-                      {getStatusBadge(event)}
+                    {/* Ticket quantity badge - Top Right */}
+                    <div 
+                      className="absolute top-3 right-3 bg-blue-600 text-white w-10 h-10 rounded-full flex items-center justify-center text-sm font-bold"
+                      data-testid={`ticket-quantity-${ticket.id}`}
+                    >
+                      x{ticket.quantity}
                     </div>
                     
                     {/* Refunded overlay */}
                     {isRefunded && (
                       <div className="absolute inset-0 bg-black/60 flex items-center justify-center">
-                        <div className="bg-yellow-600 text-white px-4 py-2 rounded-lg font-bold">
+                        <div className="bg-yellow-600 text-white px-6 py-3 rounded-lg font-bold text-lg">
                           REFUNDED
                         </div>
                       </div>
                     )}
                   </div>
                   
-                  <div className="p-6">
-                    <h3 className="text-white text-xl font-bold mb-2" data-testid={`ticket-event-title-${ticket.id}`}>
+                  {/* Event Details */}
+                  <div className="p-5">
+                    <h3 className="text-white text-xl font-bold mb-3" data-testid={`ticket-event-title-${ticket.id}`}>
                       {event?.title || "Event Unavailable"}
                     </h3>
                     
                     {event && (
-                      <>
-                        <div className="flex items-center gap-2 text-gray-300 mb-2">
-                          <Calendar className="w-4 h-4" />
+                      <div className="space-y-2 mb-4">
+                        <div className="flex items-center gap-2 text-gray-300">
+                          <Calendar className="w-4 h-4 text-gray-500" />
                           <span className="text-sm" data-testid={`ticket-event-date-${ticket.id}`}>
-                            {event.date} at {event.time}
+                            {formatEventDate(event)}
                           </span>
                         </div>
                         
-                        {event.venue && (
-                          <div className="flex items-center gap-2 text-gray-400 mb-4">
-                            <MapPin className="w-4 h-4" />
-                            <span className="text-sm" data-testid={`ticket-event-venue-${ticket.id}`}>
-                              {event.venue}
-                            </span>
-                          </div>
-                        )}
-                      </>
+                        <div className="flex items-center gap-2 text-gray-300">
+                          <MapPin className="w-4 h-4 text-gray-500" />
+                          <span className="text-sm" data-testid={`ticket-event-venue-${ticket.id}`}>
+                            {event.venue || "Online"}
+                          </span>
+                        </div>
+                      </div>
                     )}
                     
-                    <div className="border-t border-gray-700 pt-4 mb-4 flex justify-between items-center">
-                      <span className="text-gray-400 text-sm">Purchased</span>
-                      <span className="text-white text-sm" data-testid={`ticket-purchase-date-${ticket.id}`}>
-                        {new Date(ticket.purchase_date).toLocaleDateString()}
-                      </span>
-                    </div>
-                    
-                    {/* Amount paid */}
-                    <div className="flex justify-between items-center mb-4">
-                      <span className="text-gray-400 text-sm">Amount Paid</span>
-                      <span className={`font-bold ${isRefunded ? "text-yellow-500 line-through" : "text-green-400"}`}>
-                        ${ticket.amount_paid?.toFixed(2) || "0.00"}
-                      </span>
+                    {/* Purchase Info */}
+                    <div className="space-y-2 py-3 border-t border-gray-800">
+                      <div className="flex justify-between items-center">
+                        <span className="text-gray-400 text-sm">Purchased</span>
+                        <span className="text-white text-sm" data-testid={`ticket-purchase-date-${ticket.id}`}>
+                          {new Date(ticket.purchase_date).toLocaleDateString()}
+                        </span>
+                      </div>
+                      
+                      <div className="flex justify-between items-center">
+                        <span className="text-gray-400 text-sm">Amount Paid</span>
+                        <span className={`font-bold text-lg ${isRefunded ? "text-yellow-500 line-through" : "text-green-400"}`}>
+                          ${ticket.amount_paid?.toFixed(2) || "0.00"}
+                        </span>
+                      </div>
                     </div>
                     
                     {/* Action Buttons */}
                     {!isRefunded && !isCancelled && (
-                      <div className="space-y-3">
-                        {/* Watch/Connect Button - Primary action for live/upcoming events */}
-                        {(isLive || isUpcoming) && (
-                          <Button
-                            onClick={() => handleWatchEvent(event.id)}
-                            className={`w-full font-bold py-3 ${
-                              isLive 
-                                ? "bg-red-600 hover:bg-red-700 animate-pulse" 
-                                : "bg-blue-600 hover:bg-blue-700"
-                            }`}
-                            data-testid={`watch-event-${ticket.id}`}
-                          >
-                            <Play className="w-5 h-5 mr-2" />
-                            {isLive ? "Watch Now" : "View Event"}
-                          </Button>
-                        )}
+                      <div className="space-y-3 pt-3">
+                        {/* View Event Button - Green */}
+                        <Button
+                          onClick={() => handleViewEvent(event?.id)}
+                          className="w-full bg-green-600 hover:bg-green-700 text-white font-bold py-4 text-base rounded-lg"
+                          data-testid={`view-event-${ticket.id}`}
+                        >
+                          <ArrowRight className="w-5 h-5 mr-2" />
+                          View Event
+                        </Button>
                         
-                        {/* Add to Calendar Button - Works on mobile */}
-                        {isUpcoming && (
-                          <Button
-                            onClick={() => handleAddToCalendar(ticket.id, event?.title || "Event")}
-                            variant="outline"
-                            className="w-full border-gray-600 text-gray-300 hover:bg-gray-800"
-                            data-testid={`add-to-calendar-${ticket.id}`}
-                          >
-                            <Download className="w-4 h-4 mr-2" />
-                            Add to Calendar
-                          </Button>
-                        )}
+                        {/* Add to Calendar Button - Blue */}
+                        <Button
+                          onClick={() => handleAddToCalendar(ticket.id, event?.title || "Event")}
+                          className="w-full bg-blue-600 hover:bg-blue-700 text-white font-medium py-4 text-base rounded-lg"
+                          data-testid={`add-to-calendar-${ticket.id}`}
+                        >
+                          <Calendar className="w-5 h-5 mr-2" />
+                          Add to Calendar
+                        </Button>
+                        
+                        {/* Share This Show Button - Outlined */}
+                        <Button
+                          onClick={() => handleShare(event)}
+                          variant="outline"
+                          className="w-full border-gray-600 text-gray-300 hover:bg-gray-800 font-medium py-4 text-base rounded-lg"
+                          data-testid={`share-event-${ticket.id}`}
+                        >
+                          <Share2 className="w-5 h-5 mr-2" />
+                          Share This Show
+                        </Button>
                       </div>
                     )}
                     
                     {/* Refund info */}
                     {isRefunded && ticket.refund_reason && (
-                      <div className="text-yellow-500 text-sm text-center p-2 bg-yellow-500/10 rounded">
+                      <div className="text-yellow-500 text-sm text-center p-3 bg-yellow-500/10 rounded-lg mt-3">
                         {ticket.refund_reason}
                       </div>
                     )}
@@ -277,6 +387,14 @@ const MyTickets = ({ user, onLogout }) => {
           </div>
         )}
       </div>
+
+      {/* Share Modal */}
+      <ShareModal
+        isOpen={shareModal.isOpen}
+        onClose={() => setShareModal({ ...shareModal, isOpen: false })}
+        eventTitle={shareModal.eventTitle}
+        eventUrl={shareModal.eventUrl}
+      />
     </div>
   );
 };
