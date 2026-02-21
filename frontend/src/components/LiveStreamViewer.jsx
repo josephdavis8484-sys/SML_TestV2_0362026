@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback, useRef } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import { axiosInstance } from "@/App";
 import { toast } from "sonner";
 import { 
@@ -7,142 +7,59 @@ import {
   RefreshCw, 
   Users, 
   Share2,
-  Send,
   X,
   ArrowLeft
 } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import {
   LiveKitRoom,
-  VideoTrack,
-  AudioTrack,
+  RoomAudioRenderer,
+  useRemoteParticipants,
+  useTrack,
   useTracks,
-  useParticipants,
-  useRoomContext,
+  VideoTrack,
 } from "@livekit/components-react";
 import "@livekit/components-styles";
-import { Track, RoomEvent } from "livekit-client";
+import { Track } from "livekit-client";
 
 const BACKEND_URL = process.env.REACT_APP_BACKEND_URL;
 
-// Video Player Component inside LiveKitRoom
-const VideoPlayer = ({ streamTime, onShare }) => {
-  const room = useRoomContext();
-  const participants = useParticipants();
-  const allTracks = useTracks([
-    Track.Source.Camera,
-    Track.Source.ScreenShare,
-    Track.Source.Microphone,
-  ]);
+// Simple Remote Video Component
+const RemoteVideo = () => {
+  const remoteParticipants = useRemoteParticipants();
+  const tracks = useTracks([Track.Source.Camera, Track.Source.ScreenShare]);
   
-  const [videoReady, setVideoReady] = useState(false);
+  // Find video track from remote participants
+  const remoteVideoTrack = tracks.find(
+    (track) => !track.participant.isLocal && 
+    (track.source === Track.Source.Camera || track.source === Track.Source.ScreenShare)
+  );
 
-  // Debug: Log all tracks
-  useEffect(() => {
-    console.log("All tracks:", allTracks.map(t => ({
-      source: t.source,
-      isLocal: t.participant?.isLocal,
-      kind: t.publication?.kind,
-      isSubscribed: t.publication?.isSubscribed,
-      trackSid: t.publication?.trackSid
-    })));
-  }, [allTracks]);
+  console.log("Remote participants:", remoteParticipants.length);
+  console.log("All tracks:", tracks.length);
+  console.log("Remote video track found:", !!remoteVideoTrack);
 
-  // Find video track from any remote participant (the creator)
-  const videoTrack = allTracks.find((track) => {
-    const isRemote = !track.participant?.isLocal;
-    const isVideo = track.source === Track.Source.Camera || track.source === Track.Source.ScreenShare;
-    const isSubscribed = track.publication?.isSubscribed;
-    console.log("Checking track:", { isRemote, isVideo, isSubscribed, source: track.source });
-    return isRemote && isVideo && isSubscribed;
-  });
-
-  // Find audio tracks from remote participants
-  const audioTracks = allTracks.filter((track) => {
-    const isRemote = !track.participant?.isLocal;
-    const isAudio = track.source === Track.Source.Microphone;
-    const isSubscribed = track.publication?.isSubscribed;
-    return isRemote && isAudio && isSubscribed;
-  });
-
-  // Check for remote participants (creators)
-  const remoteParticipants = participants.filter(p => !p.isLocal);
-
-  const formatTime = (seconds) => {
-    const hrs = Math.floor(seconds / 3600);
-    const mins = Math.floor((seconds % 3600) / 60);
-    const secs = seconds % 60;
-    return `${hrs.toString().padStart(2, '0')}:${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
-  };
-
-  // Show waiting if no video track yet
-  if (!videoTrack) {
+  if (!remoteVideoTrack) {
     return (
-      <div className="w-full h-full flex items-center justify-center bg-gray-900 rounded-xl relative">
+      <div className="w-full h-full flex items-center justify-center bg-gray-900 rounded-xl">
         <div className="text-center">
           <Video className="w-12 h-12 text-gray-500 mx-auto mb-3" />
           <p className="text-gray-400">Waiting for creator to start streaming...</p>
-          <p className="text-gray-500 text-sm mt-1">
+          <p className="text-gray-500 text-sm mt-2">
             {remoteParticipants.length > 0 
-              ? `Creator connected, waiting for video...` 
-              : `${participants.length} viewer(s) connected`}
+              ? "Creator is connected, waiting for video..." 
+              : "Connecting to stream..."}
           </p>
-        </div>
-        
-        {/* Live indicator */}
-        <div className="absolute top-3 left-3 flex items-center gap-2">
-          <div className="bg-yellow-600 px-2.5 py-1 rounded flex items-center gap-1.5">
-            <div className="w-2 h-2 bg-white rounded-full animate-pulse"></div>
-            <span className="text-white font-bold text-xs">WAITING</span>
-          </div>
-          <div className="bg-black/60 px-2 py-1 rounded flex items-center gap-1.5">
-            <Users className="w-3 h-3 text-white" />
-            <span className="text-white font-medium text-xs">{participants.length}</span>
-          </div>
         </div>
       </div>
     );
   }
 
   return (
-    <div className="relative w-full h-full bg-black rounded-xl overflow-hidden">
-      {/* Video from creator */}
-      <VideoTrack
-        trackRef={videoTrack}
-        className="w-full h-full object-contain"
-      />
-      
-      {/* Audio tracks from creator - IMPORTANT for hearing the stream */}
-      {audioTracks.map((track) => (
-        <AudioTrack key={track.publication?.trackSid || track.source} trackRef={track} />
-      ))}
-      
-      {/* Live indicator - Top Left */}
-      <div className="absolute top-3 left-3 flex items-center gap-2">
-        <div className="bg-red-600 px-2.5 py-1 rounded flex items-center gap-1.5">
-          <div className="w-2 h-2 bg-white rounded-full animate-pulse"></div>
-          <span className="text-white font-bold text-xs">LIVE</span>
-        </div>
-        <div className="bg-black/60 px-2 py-1 rounded flex items-center gap-1.5">
-          <Users className="w-3 h-3 text-white" />
-          <span className="text-white font-medium text-xs">{participants.length}</span>
-        </div>
-      </div>
-      
-      {/* Stream time and Share - Top Right */}
-      <div className="absolute top-3 right-3 flex items-center gap-2">
-        <div className="bg-black/60 px-2 py-1 rounded">
-          <span className="text-white font-mono text-xs">{formatTime(streamTime)}</span>
-        </div>
-        <button
-          onClick={onShare}
-          className="bg-black/60 hover:bg-black/80 px-2 py-1 rounded flex items-center gap-1 transition-colors"
-        >
-          <Share2 className="w-3 h-3 text-white" />
-          <span className="text-white text-xs">Share</span>
-        </button>
-      </div>
-    </div>
+    <VideoTrack
+      trackRef={remoteVideoTrack}
+      className="w-full h-full object-contain rounded-xl"
+    />
   );
 };
 
@@ -188,6 +105,68 @@ const ShareModal = ({ isOpen, onClose, eventTitle, eventUrl }) => {
   );
 };
 
+// Stream Info Overlay
+const StreamOverlay = ({ streamTime, onShare, participantCount }) => {
+  const formatTime = (seconds) => {
+    const hrs = Math.floor(seconds / 3600);
+    const mins = Math.floor((seconds % 3600) / 60);
+    const secs = seconds % 60;
+    return `${hrs.toString().padStart(2, '0')}:${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
+  };
+
+  return (
+    <>
+      {/* Live indicator - Top Left */}
+      <div className="absolute top-3 left-3 flex items-center gap-2 z-10">
+        <div className="bg-red-600 px-2.5 py-1 rounded flex items-center gap-1.5">
+          <div className="w-2 h-2 bg-white rounded-full animate-pulse"></div>
+          <span className="text-white font-bold text-xs">LIVE</span>
+        </div>
+        <div className="bg-black/60 px-2 py-1 rounded flex items-center gap-1.5">
+          <Users className="w-3 h-3 text-white" />
+          <span className="text-white font-medium text-xs">{participantCount}</span>
+        </div>
+      </div>
+      
+      {/* Stream time and Share - Top Right */}
+      <div className="absolute top-3 right-3 flex items-center gap-2 z-10">
+        <div className="bg-black/60 px-2 py-1 rounded">
+          <span className="text-white font-mono text-xs">{formatTime(streamTime)}</span>
+        </div>
+        <button
+          onClick={onShare}
+          className="bg-black/60 hover:bg-black/80 px-2 py-1 rounded flex items-center gap-1 transition-colors"
+        >
+          <Share2 className="w-3 h-3 text-white" />
+          <span className="text-white text-xs">Share</span>
+        </button>
+      </div>
+    </>
+  );
+};
+
+// Main Video Player with all LiveKit components
+const VideoPlayerRoom = ({ streamTime, onShare }) => {
+  const remoteParticipants = useRemoteParticipants();
+  
+  return (
+    <div className="relative w-full h-full bg-black rounded-xl overflow-hidden">
+      {/* This automatically renders all remote audio - CRITICAL for sound */}
+      <RoomAudioRenderer />
+      
+      {/* Video display */}
+      <RemoteVideo />
+      
+      {/* Overlay with LIVE badge, timer, share */}
+      <StreamOverlay 
+        streamTime={streamTime} 
+        onShare={onShare}
+        participantCount={remoteParticipants.length + 1}
+      />
+    </div>
+  );
+};
+
 const LiveStreamViewer = ({ eventId, userId, userName, event }) => {
   const navigate = useNavigate();
   const [token, setToken] = useState(null);
@@ -198,19 +177,13 @@ const LiveStreamViewer = ({ eventId, userId, userName, event }) => {
   const [showShareModal, setShowShareModal] = useState(false);
   const [chatMessage, setChatMessage] = useState("");
   const chatWsRef = useRef(null);
-  const streamTimerRef = useRef(null);
 
   // Stream timer
   useEffect(() => {
-    streamTimerRef.current = setInterval(() => {
+    const timer = setInterval(() => {
       setStreamTime(prev => prev + 1);
     }, 1000);
-    
-    return () => {
-      if (streamTimerRef.current) {
-        clearInterval(streamTimerRef.current);
-      }
-    };
+    return () => clearInterval(timer);
   }, []);
 
   // Get LiveKit token
@@ -227,7 +200,8 @@ const LiveStreamViewer = ({ eventId, userId, userName, event }) => {
         });
         
         if (response.data.token && response.data.url) {
-          console.log("Got LiveKit token, URL:", response.data.url);
+          console.log("LiveKit URL:", response.data.url);
+          console.log("Room name:", response.data.room_name);
           setToken(response.data.token);
           setWsUrl(response.data.url);
         } else {
@@ -253,7 +227,6 @@ const LiveStreamViewer = ({ eventId, userId, userName, event }) => {
         chatWsRef.current = new WebSocket(chatWsUrl);
         chatWsRef.current.onopen = () => console.log("Chat connected");
         chatWsRef.current.onclose = () => console.log("Chat disconnected");
-        chatWsRef.current.onerror = (err) => console.error("Chat error:", err);
       } catch (error) {
         console.error("Failed to connect chat:", error);
       }
@@ -359,7 +332,7 @@ const LiveStreamViewer = ({ eventId, userId, userName, event }) => {
         </button>
       </div>
 
-      {/* Video Player Area - NO audio/video publishing for viewers */}
+      {/* Video Player Area */}
       <div className="flex-1 p-3 min-h-0">
         <LiveKitRoom
           serverUrl={wsUrl}
@@ -367,8 +340,11 @@ const LiveStreamViewer = ({ eventId, userId, userName, event }) => {
           connect={true}
           audio={false}
           video={false}
+          onConnected={() => console.log("LiveKit connected!")}
+          onDisconnected={() => console.log("LiveKit disconnected")}
+          onError={(err) => console.error("LiveKit error:", err)}
         >
-          <VideoPlayer streamTime={streamTime} onShare={handleShare} />
+          <VideoPlayerRoom streamTime={streamTime} onShare={handleShare} />
         </LiveKitRoom>
       </div>
 
