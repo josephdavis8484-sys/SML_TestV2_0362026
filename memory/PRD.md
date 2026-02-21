@@ -364,11 +364,18 @@ English
     - Event status badges: LIVE NOW (pulse), Upcoming, Ended, Cancelled
 26. **NEW (Feb 2026): Control Panel Redesign** - Simplified Netflix-style live stream interface:
     - **Design**: Full-screen video preview with bottom control bar
-    - **Controls**: Camera toggle, Microphone toggle, "Go Live" button, Settings
+    - **Controls**: Camera toggle, Microphone toggle, "End Live" button, "Go Live" button, and Settings
     - **Red mute indicator**: Visual slash on mic icon when muted
+    - **On/Off status**: Green/Red indicators under Camera and Mic buttons
     - **Pre-stream preview**: Shows camera preview before going live using `navigator.mediaDevices`
     - **LiveKit integration**: Properly syncs camera/mic state with LiveKit room
-    - **Audio controls**: Settings overlay for Mic Volume, Speaker Volume, Balance, Treble, Bass
+    - **Audio Settings Dropdown (Basic Mode)**: Settings button opens dropdown panel with:
+      - Speaker Volume slider with percentage display
+      - Microphone Volume slider with percentage display
+      - Audio Balance slider (L/R) with center marker and waveform visualization
+      - Treble slider with +/- buttons
+      - Bass slider with +/- buttons
+      - Reset button to restore defaults
     - **Mobile-friendly**: Touch-optimized controls with responsive layout
 27. **NEW (Feb 2026): Questions Only Default** - CreateEvent form updates:
     - "Live Chat" renamed to "Questions Only" with HelpCircle icon
