@@ -176,6 +176,8 @@ const StreamPublisher = ({ onViewerCount, isCameraOn, isMicOn, streamTime }) => 
         try {
           await localParticipant.setCameraEnabled(isCameraOn);
           await localParticipant.setMicrophoneEnabled(isMicOn);
+          console.log("✅ Media sync - Camera:", isCameraOn, "Mic:", isMicOn);
+          console.log("Mic track published:", localParticipant.isMicrophoneEnabled);
         } catch (error) {
           console.error("Error syncing media:", error);
         }
