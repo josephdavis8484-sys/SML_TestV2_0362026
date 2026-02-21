@@ -53,7 +53,7 @@ const CreateEvent = ({ user, onLogout }) => {
     streaming_package: "free",
     chat_enabled: false,
     reactions_enabled: false,
-    chat_mode: "open",
+    chat_mode: "questions_only",
     // Geo-fencing with city/state
     geo_restricted: false,
     geo_city: "",
