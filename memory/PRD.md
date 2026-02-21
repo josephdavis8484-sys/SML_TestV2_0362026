@@ -417,11 +417,13 @@ English
 
 ## Pending Issues (as of Feb 2026)
 
+### Resolved in Latest Update
+- **Viewer display too large** - Fixed by constraining video to fit screen with proper flexbox layout and `min-h-0`
+- **Live Chat/Reactions not working** - Fixed WebSocket backend to broadcast messages and reactions to all connected clients
+- **Microphone not working** - Verified LiveKit `audio={true}` in both creator and viewer; added proper audio track rendering
+
 ### P0 - Critical
 - **Script error on CreateEvent toggles**: Intermittent error when toggling switches. May be browser-specific or React state race condition. Needs debugging with console logs.
-
-### P1 - Medium
-- None currently identified
 
 ---
 
