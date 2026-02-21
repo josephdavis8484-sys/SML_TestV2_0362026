@@ -394,6 +394,19 @@ English
       - Reaction buttons: 👍 😄 ❤️ 👏 (clickable to send)
     - **Key behavior**: Viewers can SEND messages/reactions but do NOT see other viewers' messages or reactions - keeps the interface clean and focused on the stream
     - **Share Modal**: Social sharing options when Share button clicked
+29. **NEW (Feb 2026): MyTickets Page Redesign** - Clean card-based ticket layout:
+    - **Card design**: Blue border, rounded corners, full-width on mobile
+    - **Image section**: Event poster with status badge (Upcoming/LIVE/Ended) top-left, quantity badge (x1) top-right
+    - **Event details**:
+      - Title in bold white
+      - Date/time with calendar icon
+      - Location with map pin icon (or "Online")
+    - **Purchase info**: Purchased date and Amount Paid ($0.00 in green)
+    - **Action buttons** (3 stacked):
+      - "View Event" (green with arrow icon)
+      - "Add to Calendar" (blue with calendar icon)
+      - "Share This Show" (outlined with share icon)
+    - **Share Modal**: Social sharing popup (X, Facebook, WhatsApp, Copy Link)
 27. **NEW (Feb 2026): Questions Only Default** - CreateEvent form updates:
     - "Live Chat" renamed to "Questions Only" with HelpCircle icon
     - `chat_enabled: true` by default for new events
