@@ -33,12 +33,10 @@ const Stage = () => {
     { onlySubscribed: false }
   );
 
-  // Filter to only show remote tracks
   const remoteTracks = tracks.filter((track) => !track.participant.isLocal);
 
   return (
     <div className="w-full h-full">
-      {/* This handles ALL audio automatically */}
       <RoomAudioRenderer />
       
       {remoteTracks.length > 0 ? (
@@ -143,6 +141,7 @@ const LiveStreamViewer = ({ eventId, userId, userName, event }) => {
   const [streamTime, setStreamTime] = useState(0);
   const [showShareModal, setShowShareModal] = useState(false);
   const [chatMessage, setChatMessage] = useState("");
+  const [chatConnected, setChatConnected] = useState(false);
   const chatWsRef = useRef(null);
 
   // Stream timer
@@ -177,27 +176,86 @@ const LiveStreamViewer = ({ eventId, userId, userName, event }) => {
     getToken();
   }, [eventId, userId, userName]);
 
-  // Chat WebSocket
+  // Chat WebSocket - Connect when we have eventId and chat/reactions enabled
   useEffect(() => {
-    if (eventId && token) {
-      const chatWsUrl = `${BACKEND_URL?.replace('https://', 'wss://').replace('http://', 'ws://')}/api/ws/chat/${eventId}`;
-      chatWsRef.current = new WebSocket(chatWsUrl);
+    const chatEnabled = event?.chat_enabled;
+    const reactionsEnabled = event?.reactions_enabled;
+    
+    if (eventId && (chatEnabled || reactionsEnabled)) {
+      // Build WebSocket URL
+      let chatWsUrl = BACKEND_URL;
+      if (chatWsUrl) {
+        chatWsUrl = chatWsUrl.replace('https://', 'wss://').replace('http://', 'ws://');
+        chatWsUrl = `${chatWsUrl}/api/ws/chat/${eventId}`;
+      }
+      
+      console.log("🔌 Connecting to chat WebSocket:", chatWsUrl);
+      
+      try {
+        chatWsRef.current = new WebSocket(chatWsUrl);
+        
+        chatWsRef.current.onopen = () => {
+          console.log("✅ Viewer chat WebSocket connected!");
+          setChatConnected(true);
+        };
+        
+        chatWsRef.current.onmessage = (event) => {
+          console.log("📩 Viewer received:", event.data);
+        };
+        
+        chatWsRef.current.onclose = (event) => {
+          console.log("❌ Viewer chat WebSocket closed:", event.code, event.reason);
+          setChatConnected(false);
+        };
+        
+        chatWsRef.current.onerror = (error) => {
+          console.error("⚠️ Viewer chat WebSocket error:", error);
+          setChatConnected(false);
+        };
+      } catch (err) {
+        console.error("Failed to create WebSocket:", err);
+      }
     }
-    return () => chatWsRef.current?.close();
-  }, [eventId, token]);
+    
+    return () => {
+      if (chatWsRef.current) {
+        chatWsRef.current.close();
+      }
+    };
+  }, [eventId, event?.chat_enabled, event?.reactions_enabled]);
 
   const handleSendChat = () => {
-    if (chatMessage.trim() && chatWsRef.current?.readyState === WebSocket.OPEN) {
-      chatWsRef.current.send(JSON.stringify({ type: "message", username: userName || "Viewer", message: chatMessage.trim() }));
+    if (!chatMessage.trim()) return;
+    
+    if (chatWsRef.current?.readyState === WebSocket.OPEN) {
+      const msg = { 
+        type: "message", 
+        username: userName || "Viewer", 
+        message: chatMessage.trim() 
+      };
+      console.log("📤 Sending chat message:", msg);
+      chatWsRef.current.send(JSON.stringify(msg));
       toast.success("Message sent!");
       setChatMessage("");
+    } else {
+      console.error("WebSocket not open. State:", chatWsRef.current?.readyState);
+      toast.error("Chat not connected. Please refresh.");
     }
   };
 
   const handleSendReaction = (emoji) => {
     if (chatWsRef.current?.readyState === WebSocket.OPEN) {
-      chatWsRef.current.send(JSON.stringify({ type: "reaction", emoji, username: userName || "Viewer" }));
+      const msg = { 
+        type: "reaction", 
+        emoji, 
+        username: userName || "Viewer" 
+      };
+      console.log("📤 Sending reaction:", msg);
+      chatWsRef.current.send(JSON.stringify(msg));
       toast.success(`${emoji} sent!`);
+    } else {
+      console.error("WebSocket not open. State:", chatWsRef.current?.readyState);
+      toast.error("Chat not connected. Please refresh.");
     }
   };
 
@@ -262,10 +320,15 @@ const LiveStreamViewer = ({ eventId, userId, userName, event }) => {
                   value={chatMessage}
                   onChange={(e) => setChatMessage(e.target.value)}
                   onKeyPress={(e) => e.key === "Enter" && handleSendChat()}
-                  placeholder="Send a message..."
-                  className="flex-1 bg-gray-800 border border-gray-700 rounded-lg px-3 py-2.5 text-white text-sm placeholder-gray-500"
+                  placeholder={chatConnected ? "Send a message..." : "Connecting to chat..."}
+                  disabled={!chatConnected}
+                  className="flex-1 bg-gray-800 border border-gray-700 rounded-lg px-3 py-2.5 text-white text-sm placeholder-gray-500 disabled:opacity-50"
                 />
-                <button onClick={handleSendChat} disabled={!chatMessage.trim()} className="bg-blue-600 hover:bg-blue-700 disabled:bg-gray-700 text-white px-4 py-2.5 rounded-lg text-sm">
+                <button 
+                  onClick={handleSendChat} 
+                  disabled={!chatMessage.trim() || !chatConnected} 
+                  className="bg-blue-600 hover:bg-blue-700 disabled:bg-gray-700 disabled:opacity-50 text-white px-4 py-2.5 rounded-lg text-sm"
+                >
                   Send
                 </button>
               </div>
@@ -273,12 +336,23 @@ const LiveStreamViewer = ({ eventId, userId, userName, event }) => {
             {reactionsEnabled && (
               <div className="flex gap-1.5">
                 {["👍", "😄", "❤️", "👏"].map((emoji) => (
-                  <button key={emoji} onClick={() => handleSendReaction(emoji)} className="w-11 h-11 bg-gray-800 hover:bg-gray-700 rounded-lg text-xl">
+                  <button 
+                    key={emoji} 
+                    onClick={() => handleSendReaction(emoji)} 
+                    disabled={!chatConnected}
+                    className="w-11 h-11 bg-gray-800 hover:bg-gray-700 disabled:opacity-50 rounded-lg text-xl"
+                  >
                     {emoji}
                   </button>
                 ))}
               </div>
             )}
+          </div>
+          {/* Connection status indicator */}
+          <div className="text-center mt-2">
+            <span className={`text-xs ${chatConnected ? 'text-green-400' : 'text-yellow-400'}`}>
+              {chatConnected ? '● Chat connected' : '○ Connecting to chat...'}
+            </span>
           </div>
         </div>
       )}
