@@ -157,6 +157,19 @@ const StreamPublisher = ({ onViewerCount, isCameraOn, isMicOn, streamTime }) => 
     (t) => t.participant.isLocal && t.source === Track.Source.Camera
   );
   
+  // Debug logging for tracks
+  useEffect(() => {
+    console.log("🎬 StreamPublisher - tracks:", tracks.length);
+    tracks.forEach((t, i) => {
+      console.log(`  Creator Track ${i}: source=${t.source}, isLocal=${t.participant.isLocal}`);
+    });
+    console.log("🎬 Camera track found:", !!cameraTrack);
+    if (localParticipant) {
+      console.log("🎬 LocalParticipant camera enabled:", localParticipant.isCameraEnabled);
+      console.log("🎬 LocalParticipant mic enabled:", localParticipant.isMicrophoneEnabled);
+    }
+  }, [tracks, cameraTrack, localParticipant]);
+  
   useEffect(() => {
     if (room) {
       const updateCount = () => onViewerCount(room.remoteParticipants.size);
@@ -174,12 +187,12 @@ const StreamPublisher = ({ onViewerCount, isCameraOn, isMicOn, streamTime }) => 
     const syncMedia = async () => {
       if (localParticipant) {
         try {
+          console.log("🎬 Syncing media - Setting Camera:", isCameraOn, "Mic:", isMicOn);
           await localParticipant.setCameraEnabled(isCameraOn);
           await localParticipant.setMicrophoneEnabled(isMicOn);
-          console.log("✅ Media sync - Camera:", isCameraOn, "Mic:", isMicOn);
-          console.log("Mic track published:", localParticipant.isMicrophoneEnabled);
+          console.log("✅ Media sync complete - Camera:", localParticipant.isCameraEnabled, "Mic:", localParticipant.isMicrophoneEnabled);
         } catch (error) {
-          console.error("Error syncing media:", error);
+          console.error("❌ Error syncing media:", error);
         }
       }
     };
