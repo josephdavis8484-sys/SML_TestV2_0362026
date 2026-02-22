@@ -300,46 +300,55 @@ const ControlPanel = ({ user, onLogout }) => {
   const reconnectAttemptsRef = useRef(0);
   const maxReconnectAttempts = 10;
 
-  // WebSocket connection - connects when event loads (to always be ready to receive messages)
+  const isConnectingRef = useRef(false);
+  const pingIntervalRef = useRef(null);
+
+  // WebSocket connection - robust connection with auto-reconnect
   const connectWebSocket = useCallback(() => {
-    if (!eventId) {
-      console.log("❌ No eventId, skipping WebSocket connection");
-      return;
-    }
+    if (!eventId) return;
+    if (isConnectingRef.current) return; // Prevent multiple simultaneous connections
     
     // Build WebSocket URL
     let wsUrl = BACKEND_URL;
-    if (!wsUrl) {
-      console.error("❌ BACKEND_URL is not defined!");
-      return;
-    }
+    if (!wsUrl) return;
     
     wsUrl = wsUrl.replace('https://', 'wss://').replace('http://', 'ws://');
     wsUrl = `${wsUrl}/api/ws/chat/${eventId}`;
     
-    console.log("🔌 Creator connecting to WebSocket:", wsUrl);
-    
-    // Close existing connection if any
-    if (chatWsRef.current && chatWsRef.current.readyState !== WebSocket.CLOSED) {
-      console.log("📤 Closing existing WebSocket connection");
-      chatWsRef.current.close();
+    // Close existing connection cleanly
+    if (chatWsRef.current) {
+      if (chatWsRef.current.readyState === WebSocket.OPEN || 
+          chatWsRef.current.readyState === WebSocket.CONNECTING) {
+        chatWsRef.current.close(1000, 'Reconnecting');
+      }
     }
     
+    isConnectingRef.current = true;
+    
     try {
-      chatWsRef.current = new WebSocket(wsUrl);
+      const ws = new WebSocket(wsUrl);
       
-      chatWsRef.current.onopen = () => {
-        console.log("✅ Creator WebSocket CONNECTED successfully!");
+      ws.onopen = () => {
+        isConnectingRef.current = false;
         setChatConnected(true);
-        reconnectAttemptsRef.current = 0; // Reset on successful connection
-        toast.success("Chat connected!");
+        reconnectAttemptsRef.current = 0;
+        
+        // Only show toast on first connection
+        if (reconnectAttemptsRef.current === 0) {
+          toast.success("Chat connected!");
+        }
+        
+        // Setup ping interval - every 10 seconds for aggressive keepalive
+        if (pingIntervalRef.current) clearInterval(pingIntervalRef.current);
+        pingIntervalRef.current = setInterval(() => {
+          if (ws.readyState === WebSocket.OPEN) {
+            ws.send("ping");
+          }
+        }, 10000);
       };
 
-      chatWsRef.current.onmessage = (wsEvent) => {
-        // Handle pong response
-        if (wsEvent.data === "pong") {
-          return; // Silent pong handling
-        }
+      ws.onmessage = (wsEvent) => {
+        if (wsEvent.data === "pong") return;
         
         try {
           const data = JSON.parse(wsEvent.data);
@@ -363,30 +372,34 @@ const ControlPanel = ({ user, onLogout }) => {
             }, 3000);
           }
         } catch (e) {
-          // Silent error handling for parse errors
+          // Silent error handling
         }
       };
 
-      chatWsRef.current.onclose = (closeEvent) => {
-        console.log("❌ Creator WebSocket CLOSED:", closeEvent.code, closeEvent.reason);
+      ws.onclose = (closeEvent) => {
+        isConnectingRef.current = false;
         setChatConnected(false);
         
-        // Auto-reconnect with exponential backoff
+        if (pingIntervalRef.current) {
+          clearInterval(pingIntervalRef.current);
+          pingIntervalRef.current = null;
+        }
+        
+        // Auto-reconnect with faster exponential backoff
         if (closeEvent.code !== 1000 && reconnectAttemptsRef.current < maxReconnectAttempts) {
-          const delay = Math.min(1000 * Math.pow(1.5, reconnectAttemptsRef.current), 10000);
+          const delay = Math.min(500 * Math.pow(1.3, reconnectAttemptsRef.current), 5000);
           reconnectAttemptsRef.current += 1;
-          console.log(`🔄 Reconnecting in ${delay/1000}s (attempt ${reconnectAttemptsRef.current}/${maxReconnectAttempts})`);
-          setTimeout(() => {
-            if (eventId) connectWebSocket();
-          }, delay);
+          setTimeout(connectWebSocket, delay);
         }
       };
 
-      chatWsRef.current.onerror = (error) => {
-        console.error("⚠️ Creator WebSocket ERROR:", error);
+      ws.onerror = () => {
+        isConnectingRef.current = false;
       };
+      
+      chatWsRef.current = ws;
     } catch (error) {
-      console.error("❌ Failed to create WebSocket:", error);
+      isConnectingRef.current = false;
     }
   }, [eventId]);
 
@@ -399,16 +412,10 @@ const ControlPanel = ({ user, onLogout }) => {
       connectWebSocket();
     }
     
-    // Aggressive keepalive ping every 15 seconds to prevent timeout
-    const pingInterval = setInterval(() => {
-      if (chatWsRef.current && chatWsRef.current.readyState === WebSocket.OPEN) {
-        chatWsRef.current.send("ping");
-      }
-    }, 15000);
-    
     return () => {
-      clearInterval(pingInterval);
+      if (pingIntervalRef.current) clearInterval(pingIntervalRef.current);
       if (chatWsRef.current) {
+        chatWsRef.current.close(1000, 'Component unmounting');
         chatWsRef.current.close();
       }
     };
