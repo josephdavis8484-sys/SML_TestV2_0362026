@@ -345,6 +345,12 @@ const ControlPanel = ({ user, onLogout }) => {
       };
 
       chatWsRef.current.onmessage = (wsEvent) => {
+        // Handle pong response
+        if (wsEvent.data === "pong") {
+          console.log("🏓 Creator received pong");
+          return;
+        }
+        
         console.log("📩 Creator received raw data:", wsEvent.data);
         try {
           const data = JSON.parse(wsEvent.data);
@@ -382,6 +388,13 @@ const ControlPanel = ({ user, onLogout }) => {
 
       chatWsRef.current.onclose = (closeEvent) => {
         console.log("❌ Creator WebSocket CLOSED:", closeEvent.code, closeEvent.reason);
+        // Auto-reconnect after 3 seconds if not a normal close
+        if (closeEvent.code !== 1000) {
+          console.log("🔄 Auto-reconnecting in 3 seconds...");
+          setTimeout(() => {
+            if (eventId) connectWebSocket();
+          }, 3000);
+        }
       };
 
       chatWsRef.current.onerror = (error) => {
