@@ -103,16 +103,22 @@ class ChatConnectionManager:
     async def broadcast_to_event(self, event_id: str, message: dict):
         """Broadcast a message to all connections for an event"""
         if event_id in self.active_connections:
+            connections = self.active_connections[event_id]
+            logging.info(f"📢 Broadcasting to event {event_id}: {message.get('type')} to {len(connections)} connections")
+            
             disconnected = []
-            for connection in self.active_connections[event_id]:
+            for i, connection in enumerate(connections):
                 try:
                     await connection.send_json(message)
+                    logging.info(f"  ✅ Sent to connection {i+1}/{len(connections)}")
                 except Exception as e:
-                    logging.error(f"Error sending to WebSocket: {e}")
+                    logging.error(f"  ❌ Error sending to WebSocket {i+1}: {e}")
                     disconnected.append(connection)
             # Clean up disconnected sockets
             for conn in disconnected:
                 self.disconnect(conn, event_id)
+        else:
+            logging.warning(f"⚠️ No active connections for event {event_id}")
     
     def get_connection_count(self, event_id: str) -> int:
         return len(self.active_connections.get(event_id, []))
