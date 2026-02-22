@@ -251,7 +251,12 @@ const LiveStreamViewer = ({ eventId, userId, userName, event }) => {
   }, [eventId, event?.chat_enabled, event?.reactions_enabled]);
 
   const handleSendChat = () => {
-    if (!chatMessage.trim()) return;
+    if (!chatMessage.trim()) {
+      console.log("❌ Empty message, not sending");
+      return;
+    }
+    
+    console.log("🔍 WebSocket state:", chatWsRef.current?.readyState, "OPEN state is:", WebSocket.OPEN);
     
     if (chatWsRef.current?.readyState === WebSocket.OPEN) {
       const msg = { 
@@ -259,28 +264,30 @@ const LiveStreamViewer = ({ eventId, userId, userName, event }) => {
         username: userName || "Viewer", 
         message: chatMessage.trim() 
       };
-      console.log("📤 Sending chat message:", msg);
+      console.log("📤 Viewer SENDING chat message:", JSON.stringify(msg));
       chatWsRef.current.send(JSON.stringify(msg));
       toast.success("Message sent!");
       setChatMessage("");
     } else {
-      console.error("WebSocket not open. State:", chatWsRef.current?.readyState);
+      console.error("❌ WebSocket not open. Current state:", chatWsRef.current?.readyState);
       toast.error("Chat not connected. Please refresh.");
     }
   };
 
   const handleSendReaction = (emoji) => {
+    console.log("🔍 Sending reaction. WebSocket state:", chatWsRef.current?.readyState, "OPEN state is:", WebSocket.OPEN);
+    
     if (chatWsRef.current?.readyState === WebSocket.OPEN) {
       const msg = { 
         type: "reaction", 
         emoji, 
         username: userName || "Viewer" 
       };
-      console.log("📤 Sending reaction:", msg);
+      console.log("📤 Viewer SENDING reaction:", JSON.stringify(msg));
       chatWsRef.current.send(JSON.stringify(msg));
       toast.success(`${emoji} sent!`);
     } else {
-      console.error("WebSocket not open. State:", chatWsRef.current?.readyState);
+      console.error("❌ WebSocket not open for reaction. Current state:", chatWsRef.current?.readyState);
       toast.error("Chat not connected. Please refresh.");
     }
   };
