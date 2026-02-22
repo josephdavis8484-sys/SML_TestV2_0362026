@@ -2225,6 +2225,7 @@ async def websocket_chat(websocket: WebSocket, event_id: str):
         while True:
             # Wait for any message (ping/pong or other)
             data = await websocket.receive_text()
+            logging.info(f"📥 Received data from client for event {event_id}: {data[:100]}...")
             
             # Handle ping
             if data == "ping":
@@ -2234,9 +2235,11 @@ async def websocket_chat(websocket: WebSocket, event_id: str):
                 try:
                     message_data = json.loads(data)
                     msg_type = message_data.get("type")
+                    logging.info(f"📥 Parsed message type: {msg_type} from {message_data.get('username', 'Unknown')}")
                     
                     # Handle chat messages
                     if msg_type == "message":
+                        logging.info(f"💬 Broadcasting chat message: {message_data.get('message', '')[:50]}")
                         # Broadcast message to all connected clients including creator
                         await chat_manager.broadcast_to_event(event_id, {
                             "type": "message",
@@ -2248,6 +2251,7 @@ async def websocket_chat(websocket: WebSocket, event_id: str):
                     
                     # Handle reactions
                     elif msg_type == "reaction":
+                        logging.info(f"🎉 Broadcasting reaction: {message_data.get('emoji', '👍')}")
                         # Broadcast reaction to all connected clients including creator
                         await chat_manager.broadcast_to_event(event_id, {
                             "type": "reaction",
