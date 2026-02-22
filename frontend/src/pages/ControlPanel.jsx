@@ -311,6 +311,10 @@ const ControlPanel = ({ user, onLogout }) => {
     return () => { if (interval) clearInterval(interval); };
   }, [isStreaming]);
 
+  const [chatConnected, setChatConnected] = useState(false);
+  const reconnectAttemptsRef = useRef(0);
+  const maxReconnectAttempts = 10;
+
   // WebSocket connection - connects when event loads (to always be ready to receive messages)
   const connectWebSocket = useCallback(() => {
     if (!eventId) {
@@ -341,23 +345,21 @@ const ControlPanel = ({ user, onLogout }) => {
       
       chatWsRef.current.onopen = () => {
         console.log("✅ Creator WebSocket CONNECTED successfully!");
+        setChatConnected(true);
+        reconnectAttemptsRef.current = 0; // Reset on successful connection
         toast.success("Chat connected!");
       };
 
       chatWsRef.current.onmessage = (wsEvent) => {
         // Handle pong response
         if (wsEvent.data === "pong") {
-          console.log("🏓 Creator received pong");
-          return;
+          return; // Silent pong handling
         }
         
-        console.log("📩 Creator received raw data:", wsEvent.data);
         try {
           const data = JSON.parse(wsEvent.data);
-          console.log("📩 Creator parsed message:", data.type, data);
           
           if (data.type === "message") {
-            console.log("💬 Adding chat message from:", data.username);
             setChatMessages(prev => {
               const newMessages = [...prev.slice(-50), {
                 id: Date.now() + Math.random(),
@@ -365,35 +367,33 @@ const ControlPanel = ({ user, onLogout }) => {
                 message: data.message || "",
                 color: data.color || "#60a5fa"
               }];
-              console.log("💬 Total messages now:", newMessages.length);
               return newMessages;
             });
           } else if (data.type === "reaction") {
-            console.log("🎉 Adding reaction:", data.emoji, "from:", data.username);
             const reactionId = Date.now() + Math.random();
             const left = Math.random() * 60 + 20;
             setLiveReactions(prev => [...prev, { id: reactionId, emoji: data.emoji, left }]);
             setTimeout(() => {
               setLiveReactions(prev => prev.filter(r => r.id !== reactionId));
             }, 3000);
-          } else if (data.type === "connected") {
-            console.log("🔗 WebSocket connection confirmed, viewer count:", data.viewer_count);
-          } else if (data.type === "viewer_count") {
-            console.log("👥 Viewer count update:", data.count);
           }
         } catch (e) {
-          console.error("❌ Error parsing message:", e, "Raw data:", wsEvent.data);
+          // Silent error handling for parse errors
         }
       };
 
       chatWsRef.current.onclose = (closeEvent) => {
         console.log("❌ Creator WebSocket CLOSED:", closeEvent.code, closeEvent.reason);
-        // Auto-reconnect after 3 seconds if not a normal close
-        if (closeEvent.code !== 1000) {
-          console.log("🔄 Auto-reconnecting in 3 seconds...");
+        setChatConnected(false);
+        
+        // Auto-reconnect with exponential backoff
+        if (closeEvent.code !== 1000 && reconnectAttemptsRef.current < maxReconnectAttempts) {
+          const delay = Math.min(1000 * Math.pow(1.5, reconnectAttemptsRef.current), 10000);
+          reconnectAttemptsRef.current += 1;
+          console.log(`🔄 Reconnecting in ${delay/1000}s (attempt ${reconnectAttemptsRef.current}/${maxReconnectAttempts})`);
           setTimeout(() => {
             if (eventId) connectWebSocket();
-          }, 3000);
+          }, delay);
         }
       };
 
@@ -410,25 +410,20 @@ const ControlPanel = ({ user, onLogout }) => {
     const chatEnabled = event?.chat_enabled;
     const reactionsEnabled = event?.reactions_enabled;
     
-    console.log("🔄 WebSocket effect triggered - Event loaded:", !!event, "Chat:", chatEnabled, "Reactions:", reactionsEnabled);
-    
     if (event && (chatEnabled || reactionsEnabled)) {
-      console.log("📡 Initiating WebSocket connection for Creator...");
       connectWebSocket();
     }
     
-    // Keepalive ping every 30 seconds to prevent timeout
+    // Aggressive keepalive ping every 15 seconds to prevent timeout
     const pingInterval = setInterval(() => {
       if (chatWsRef.current && chatWsRef.current.readyState === WebSocket.OPEN) {
-        console.log("🏓 Sending keepalive ping");
         chatWsRef.current.send("ping");
       }
-    }, 30000);
+    }, 15000);
     
     return () => {
       clearInterval(pingInterval);
       if (chatWsRef.current) {
-        console.log("🧹 Cleaning up Creator WebSocket connection");
         chatWsRef.current.close();
       }
     };
