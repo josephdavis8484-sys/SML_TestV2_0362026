@@ -183,6 +183,8 @@ const LiveStreamViewer = ({ eventId, userId, userName, event }) => {
     
     console.log("🔄 Viewer WebSocket effect - eventId:", eventId, "chatEnabled:", chatEnabled, "reactionsEnabled:", reactionsEnabled);
     
+    let pingInterval = null;
+    
     if (eventId && (chatEnabled || reactionsEnabled)) {
       // Build WebSocket URL
       let chatWsUrl = BACKEND_URL;
@@ -209,9 +211,23 @@ const LiveStreamViewer = ({ eventId, userId, userName, event }) => {
           console.log("✅ Viewer chat WebSocket CONNECTED successfully!");
           setChatConnected(true);
           toast.success("Connected to chat!");
+          
+          // Start keepalive ping every 30 seconds
+          pingInterval = setInterval(() => {
+            if (chatWsRef.current && chatWsRef.current.readyState === WebSocket.OPEN) {
+              console.log("🏓 Viewer sending keepalive ping");
+              chatWsRef.current.send("ping");
+            }
+          }, 30000);
         };
         
         chatWsRef.current.onmessage = (wsEvent) => {
+          // Ignore pong responses
+          if (wsEvent.data === "pong") {
+            console.log("🏓 Received pong");
+            return;
+          }
+          
           console.log("📩 Viewer received raw:", wsEvent.data);
           try {
             const data = JSON.parse(wsEvent.data);
@@ -231,6 +247,7 @@ const LiveStreamViewer = ({ eventId, userId, userName, event }) => {
         chatWsRef.current.onclose = (closeEvent) => {
           console.log("❌ Viewer chat WebSocket CLOSED:", closeEvent.code, closeEvent.reason);
           setChatConnected(false);
+          if (pingInterval) clearInterval(pingInterval);
         };
         
         chatWsRef.current.onerror = (error) => {
@@ -243,6 +260,7 @@ const LiveStreamViewer = ({ eventId, userId, userName, event }) => {
     }
     
     return () => {
+      if (pingInterval) clearInterval(pingInterval);
       if (chatWsRef.current) {
         console.log("🧹 Cleaning up viewer WebSocket");
         chatWsRef.current.close();
