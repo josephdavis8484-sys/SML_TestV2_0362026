@@ -2185,14 +2185,15 @@ async def send_announcement(event_id: str, msg: SendMessage, current_user: User 
 @app.websocket("/api/ws/chat/{event_id}")
 async def websocket_chat(websocket: WebSocket, event_id: str):
     """WebSocket endpoint for real-time chat"""
-    # Verify event exists and chat is enabled
+    # Verify event exists and chat OR reactions are enabled
     event = await db.events.find_one({"id": event_id}, {"_id": 0})
     if not event:
         await websocket.close(code=4004, reason="Event not found")
         return
     
-    if not event.get("chat_enabled", False):
-        await websocket.close(code=4003, reason="Chat not enabled for this event")
+    # Allow connection if either chat or reactions are enabled
+    if not event.get("chat_enabled", False) and not event.get("reactions_enabled", False):
+        await websocket.close(code=4003, reason="Chat and reactions not enabled for this event")
         return
     
     # Connect to the chat room
