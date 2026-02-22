@@ -301,44 +301,50 @@ const LiveStreamViewer = ({ eventId, userId, userName, event }) => {
   }, [eventId, event?.chat_enabled, event?.reactions_enabled, connectChatWebSocket]);
 
   const handleSendChat = () => {
-    if (!chatMessage.trim()) {
-      console.log("❌ Empty message, not sending");
-      return;
-    }
+    if (!chatMessage.trim()) return;
     
-    console.log("🔍 WebSocket state:", chatWsRef.current?.readyState, "OPEN state is:", WebSocket.OPEN);
+    const msg = { 
+      type: "message", 
+      username: userName || "Viewer", 
+      message: chatMessage.trim() 
+    };
     
+    // Try to send immediately if connected
     if (chatWsRef.current?.readyState === WebSocket.OPEN) {
-      const msg = { 
-        type: "message", 
-        username: userName || "Viewer", 
-        message: chatMessage.trim() 
-      };
-      console.log("📤 Viewer SENDING chat message:", JSON.stringify(msg));
-      chatWsRef.current.send(JSON.stringify(msg));
-      toast.success("Message sent!");
-      setChatMessage("");
+      try {
+        chatWsRef.current.send(JSON.stringify(msg));
+        setChatMessage("");
+        toast.success("Message sent!");
+      } catch (e) {
+        // Queue message for retry
+        messageQueueRef.current.push(msg);
+        toast.error("Message queued, sending when connected...");
+      }
     } else {
-      console.error("❌ WebSocket not open. Current state:", chatWsRef.current?.readyState);
-      toast.error("Chat not connected. Please refresh.");
+      // Queue message and trigger reconnect
+      messageQueueRef.current.push(msg);
+      toast.info("Connecting... message will send automatically");
+      connectChatWebSocket();
     }
   };
 
   const handleSendReaction = (emoji) => {
-    console.log("🔍 Sending reaction. WebSocket state:", chatWsRef.current?.readyState, "OPEN state is:", WebSocket.OPEN);
+    const msg = { 
+      type: "reaction", 
+      emoji, 
+      username: userName || "Viewer" 
+    };
     
     if (chatWsRef.current?.readyState === WebSocket.OPEN) {
-      const msg = { 
-        type: "reaction", 
-        emoji, 
-        username: userName || "Viewer" 
-      };
-      console.log("📤 Viewer SENDING reaction:", JSON.stringify(msg));
-      chatWsRef.current.send(JSON.stringify(msg));
-      toast.success(`${emoji} sent!`);
+      try {
+        chatWsRef.current.send(JSON.stringify(msg));
+        toast.success(`${emoji} sent!`);
+      } catch (e) {
+        messageQueueRef.current.push(msg);
+      }
     } else {
-      console.error("❌ WebSocket not open for reaction. Current state:", chatWsRef.current?.readyState);
-      toast.error("Chat not connected. Please refresh.");
+      messageQueueRef.current.push(msg);
+      connectChatWebSocket();
     }
   };
 
