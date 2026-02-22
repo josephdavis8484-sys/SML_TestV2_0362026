@@ -191,7 +191,10 @@ const LiveStreamViewer = ({ eventId, userId, userName, event }) => {
     getToken();
   }, [eventId, userId, userName]);
 
-  // Chat WebSocket - Connect function with auto-reconnect
+  const reconnectAttemptsRef = useRef(0);
+  const maxReconnectAttempts = 10;
+
+  // Chat WebSocket - Connect function with auto-reconnect and exponential backoff
   const connectChatWebSocket = useCallback(() => {
     if (!eventId) return;
     
@@ -210,11 +213,8 @@ const LiveStreamViewer = ({ eventId, userId, userName, event }) => {
     chatWsUrl = chatWsUrl.replace('https://', 'wss://').replace('http://', 'ws://');
     chatWsUrl = `${chatWsUrl}/api/ws/chat/${eventId}`;
     
-    console.log("🔌 Viewer connecting to chat WebSocket:", chatWsUrl);
-    
     // Close existing connection if any
     if (chatWsRef.current && chatWsRef.current.readyState !== WebSocket.CLOSED) {
-      console.log("📤 Closing existing viewer WebSocket");
       chatWsRef.current.close();
     }
     
@@ -222,48 +222,37 @@ const LiveStreamViewer = ({ eventId, userId, userName, event }) => {
       chatWsRef.current = new WebSocket(chatWsUrl);
       
       chatWsRef.current.onopen = () => {
-        console.log("✅ Viewer chat WebSocket CONNECTED successfully!");
         setChatConnected(true);
+        reconnectAttemptsRef.current = 0; // Reset on successful connection
         toast.success("Connected to chat!");
       };
       
       chatWsRef.current.onmessage = (wsEvent) => {
-        // Ignore pong responses
-        if (wsEvent.data === "pong") {
-          console.log("🏓 Received pong");
-          return;
-        }
+        // Ignore pong responses silently
+        if (wsEvent.data === "pong") return;
         
-        console.log("📩 Viewer received raw:", wsEvent.data);
         try {
           const data = JSON.parse(wsEvent.data);
-          console.log("📩 Viewer parsed message type:", data.type);
-          
-          if (data.type === "connected") {
-            console.log("🔗 Viewer WebSocket confirmed connected, viewer count:", data.viewer_count);
-          } else if (data.type === "viewer_count") {
-            console.log("👥 Viewer count update:", data.count);
-          }
-          // Note: Viewers don't display other viewers' messages per the design spec
+          // Viewers don't display messages per design spec - only track connection state
         } catch (e) {
-          console.error("❌ Viewer error parsing:", e, "Raw:", wsEvent.data);
+          // Silent error handling
         }
       };
       
       chatWsRef.current.onclose = (closeEvent) => {
-        console.log("❌ Viewer chat WebSocket CLOSED:", closeEvent.code, closeEvent.reason);
         setChatConnected(false);
-        // Auto-reconnect after 3 seconds if not a normal close
-        if (closeEvent.code !== 1000) {
-          console.log("🔄 Viewer auto-reconnecting in 3 seconds...");
+        
+        // Auto-reconnect with exponential backoff
+        if (closeEvent.code !== 1000 && reconnectAttemptsRef.current < maxReconnectAttempts) {
+          const delay = Math.min(1000 * Math.pow(1.5, reconnectAttemptsRef.current), 10000);
+          reconnectAttemptsRef.current += 1;
           setTimeout(() => {
             connectChatWebSocket();
-          }, 3000);
+          }, delay);
         }
       };
       
       chatWsRef.current.onerror = (error) => {
-        console.error("⚠️ Viewer chat WebSocket ERROR:", error);
         setChatConnected(false);
       };
     } catch (err) {
@@ -276,19 +265,16 @@ const LiveStreamViewer = ({ eventId, userId, userName, event }) => {
     const chatEnabled = event?.chat_enabled;
     const reactionsEnabled = event?.reactions_enabled;
     
-    console.log("🔄 Viewer WebSocket effect - eventId:", eventId, "chatEnabled:", chatEnabled, "reactionsEnabled:", reactionsEnabled);
-    
     if (eventId && (chatEnabled || reactionsEnabled)) {
       connectChatWebSocket();
     }
     
-    // Keepalive ping every 30 seconds to prevent timeout
+    // Aggressive keepalive ping every 15 seconds to prevent timeout
     const pingInterval = setInterval(() => {
       if (chatWsRef.current && chatWsRef.current.readyState === WebSocket.OPEN) {
-        console.log("🏓 Viewer sending keepalive ping");
         chatWsRef.current.send("ping");
       }
-    }, 30000);
+    }, 15000);
     
     return () => {
       clearInterval(pingInterval);
