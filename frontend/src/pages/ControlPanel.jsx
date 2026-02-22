@@ -391,13 +391,22 @@ const ControlPanel = ({ user, onLogout }) => {
       connectWebSocket();
     }
     
+    // Keepalive ping every 30 seconds to prevent timeout
+    const pingInterval = setInterval(() => {
+      if (chatWsRef.current && chatWsRef.current.readyState === WebSocket.OPEN) {
+        console.log("🏓 Sending keepalive ping");
+        chatWsRef.current.send("ping");
+      }
+    }, 30000);
+    
     return () => {
+      clearInterval(pingInterval);
       if (chatWsRef.current) {
         console.log("🧹 Cleaning up Creator WebSocket connection");
         chatWsRef.current.close();
       }
     };
-  }, [event?.id, event?.chat_enabled, event?.reactions_enabled, connectWebSocket]);
+  }, [event?.id, event?.chat_enabled, event?.reactions_enabled]);
 
   useEffect(() => {
     fetchData();
