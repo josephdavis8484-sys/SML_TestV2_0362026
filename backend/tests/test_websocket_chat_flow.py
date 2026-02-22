@@ -50,7 +50,7 @@ class TestWebSocketChatFlow:
         print(f"Connecting viewer to: {ws_endpoint}")
         
         try:
-            async with websockets.connect(ws_endpoint, timeout=10) as websocket:
+            async with websockets.connect(ws_endpoint, open_timeout=10, close_timeout=5) as websocket:
                 # Should receive connected message
                 response = await asyncio.wait_for(websocket.recv(), timeout=5)
                 data = json.loads(response)
@@ -60,10 +60,10 @@ class TestWebSocketChatFlow:
                 assert data.get("event_id") == event_id
                 print("✅ Viewer WebSocket connection successful")
                 
-        except websockets.exceptions.InvalidStatusCode as e:
-            if e.status_code == 4003:
+        except websockets.exceptions.InvalidStatus as e:
+            if e.response.status_code == 4003:
                 pytest.skip("Chat not enabled for this event")
-            elif e.status_code == 4004:
+            elif e.response.status_code == 4004:
                 pytest.skip("Event not found")
             else:
                 raise
@@ -77,7 +77,7 @@ class TestWebSocketChatFlow:
         print(f"Connecting creator to: {ws_endpoint}")
         
         try:
-            async with websockets.connect(ws_endpoint, timeout=10) as websocket:
+            async with websockets.connect(ws_endpoint, open_timeout=10, close_timeout=5) as websocket:
                 # Should receive connected message
                 response = await asyncio.wait_for(websocket.recv(), timeout=5)
                 data = json.loads(response)
@@ -86,10 +86,10 @@ class TestWebSocketChatFlow:
                 assert data.get("type") == "connected", f"Expected 'connected', got {data.get('type')}"
                 print("✅ Creator WebSocket connection successful")
                 
-        except websockets.exceptions.InvalidStatusCode as e:
-            if e.status_code == 4003:
+        except websockets.exceptions.InvalidStatus as e:
+            if e.response.status_code == 4003:
                 pytest.skip("Chat not enabled for this event")
-            elif e.status_code == 4004:
+            elif e.response.status_code == 4004:
                 pytest.skip("Event not found")
             else:
                 raise
@@ -104,7 +104,7 @@ class TestWebSocketChatFlow:
         
         try:
             # Connect both viewer and creator
-            async with websockets.connect(ws_endpoint, timeout=10) as creator_ws:
+            async with websockets.connect(ws_endpoint, open_timeout=10, close_timeout=5) as creator_ws:
                 # Creator receives connected message
                 creator_connected = await asyncio.wait_for(creator_ws.recv(), timeout=5)
                 creator_data = json.loads(creator_connected)
@@ -117,7 +117,7 @@ class TestWebSocketChatFlow:
                 except asyncio.TimeoutError:
                     pass
                 
-                async with websockets.connect(ws_endpoint, timeout=10) as viewer_ws:
+                async with websockets.connect(ws_endpoint, open_timeout=10, close_timeout=5) as viewer_ws:
                     # Viewer receives connected message
                     viewer_connected = await asyncio.wait_for(viewer_ws.recv(), timeout=5)
                     viewer_data = json.loads(viewer_connected)
@@ -168,10 +168,10 @@ class TestWebSocketChatFlow:
                     except asyncio.TimeoutError:
                         print("Viewer did not receive broadcast (timeout)")
                         
-        except websockets.exceptions.InvalidStatusCode as e:
-            if e.status_code == 4003:
+        except websockets.exceptions.InvalidStatus as e:
+            if e.response.status_code == 4003:
                 pytest.skip("Chat not enabled for this event")
-            elif e.status_code == 4004:
+            elif e.response.status_code == 4004:
                 pytest.skip("Event not found")
             else:
                 raise
@@ -186,7 +186,7 @@ class TestWebSocketChatFlow:
         
         try:
             # Connect both viewer and creator
-            async with websockets.connect(ws_endpoint, timeout=10) as creator_ws:
+            async with websockets.connect(ws_endpoint, open_timeout=10, close_timeout=5) as creator_ws:
                 # Creator receives connected message
                 creator_connected = await asyncio.wait_for(creator_ws.recv(), timeout=5)
                 print(f"Creator connected: {creator_connected}")
@@ -198,7 +198,7 @@ class TestWebSocketChatFlow:
                 except asyncio.TimeoutError:
                     pass
                 
-                async with websockets.connect(ws_endpoint, timeout=10) as viewer_ws:
+                async with websockets.connect(ws_endpoint, open_timeout=10, close_timeout=5) as viewer_ws:
                     # Viewer receives connected message
                     viewer_connected = await asyncio.wait_for(viewer_ws.recv(), timeout=5)
                     print(f"Viewer connected: {viewer_connected}")
@@ -240,10 +240,10 @@ class TestWebSocketChatFlow:
                     except asyncio.TimeoutError:
                         pytest.fail("Creator did not receive viewer's reaction within timeout")
                         
-        except websockets.exceptions.InvalidStatusCode as e:
-            if e.status_code == 4003:
+        except websockets.exceptions.InvalidStatus as e:
+            if e.response.status_code == 4003:
                 pytest.skip("Chat not enabled for this event")
-            elif e.status_code == 4004:
+            elif e.response.status_code == 4004:
                 pytest.skip("Event not found")
             else:
                 raise
