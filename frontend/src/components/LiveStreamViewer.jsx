@@ -391,12 +391,13 @@ const LiveStreamViewer = ({ eventId, userId, userName, event }) => {
           audio={false}
           video={false}
           options={{
-            adaptiveStream: true,
+            adaptiveStream: {
+              pixel: true,    // Subscribe to highest quality based on element size
+            },
             dynacast: true,
             disconnectOnPageLeave: false,
             reconnectPolicy: {
               nextRetryDelayInMs: (ctx) => {
-                // Exponential backoff: 1s, 2s, 4s, 8s, max 10s
                 return Math.min(1000 * Math.pow(2, ctx.retryCount), 10000);
               },
               maxRetries: 10
