@@ -525,33 +525,12 @@ const ControlPanel = ({ user, onLogout }) => {
               serverUrl={liveKitUrl}
               token={liveKitToken}
               connect={true}
-              video={{
-                resolution: { width: 1280, height: 720 },
-                frameRate: 30,
-              }}
+              video={true}
               audio={true}
               options={{
                 adaptiveStream: true,
                 dynacast: true,
                 disconnectOnPageLeave: false,
-                videoCaptureDefaults: {
-                  resolution: { width: 1280, height: 720, frameRate: 30 },
-                },
-                publishDefaults: {
-                  videoEncoding: {
-                    maxBitrate: 3_000_000, // 3 Mbps for high motion content
-                    maxFramerate: 30,
-                  },
-                  videoSimulcastLayers: [
-                    { width: 640, height: 360, bitrate: 500_000, frameRate: 30 },
-                    { width: 1280, height: 720, bitrate: 3_000_000, frameRate: 30 },
-                  ],
-                  screenShareEncoding: {
-                    maxBitrate: 3_000_000,
-                    maxFramerate: 30,
-                  },
-                  videoCodec: 'vp8', // VP8 handles motion better than H264
-                },
                 reconnectPolicy: {
                   nextRetryDelayInMs: (ctx) => {
                     return Math.min(1000 * Math.pow(2, ctx.retryCount), 10000);
