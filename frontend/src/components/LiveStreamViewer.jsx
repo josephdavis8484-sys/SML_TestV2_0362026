@@ -24,30 +24,36 @@ import { Track } from "livekit-client";
 const BACKEND_URL = process.env.REACT_APP_BACKEND_URL;
 
 // Simple Stage component that renders all remote video/audio
+// Simple Stage component that renders all remote video/audio
 const Stage = () => {
   const tracks = useTracks(
     [
       { source: Track.Source.Camera, withPlaceholder: true },
       { source: Track.Source.ScreenShare, withPlaceholder: false },
+      { source: Track.Source.Microphone, withPlaceholder: false },
     ],
     { onlySubscribed: false }
   );
 
   const remoteTracks = tracks.filter((track) => !track.participant.isLocal);
+  const videoTracks = remoteTracks.filter((t) => t.source === Track.Source.Camera || t.source === Track.Source.ScreenShare);
   
   // Debug logging for video tracks
-  console.log("🎥 Total tracks:", tracks.length);
-  console.log("🎥 Remote tracks:", remoteTracks.length);
-  tracks.forEach((t, i) => {
-    console.log(`  Track ${i}: source=${t.source}, isLocal=${t.participant.isLocal}, publication=${t.publication?.trackSid}`);
-  });
+  useEffect(() => {
+    console.log("🎥 Viewer Stage - Total tracks:", tracks.length);
+    console.log("🎥 Viewer Stage - Remote tracks:", remoteTracks.length);
+    console.log("🎥 Viewer Stage - Video tracks:", videoTracks.length);
+    tracks.forEach((t, i) => {
+      console.log(`  Track ${i}: source=${t.source}, isLocal=${t.participant.isLocal}, isSubscribed=${t.publication?.isSubscribed}, trackSid=${t.publication?.trackSid}`);
+    });
+  }, [tracks, remoteTracks, videoTracks]);
 
   return (
     <div className="w-full h-full">
       <RoomAudioRenderer />
       
-      {remoteTracks.length > 0 ? (
-        <GridLayout tracks={remoteTracks} style={{ height: '100%' }}>
+      {videoTracks.length > 0 ? (
+        <GridLayout tracks={videoTracks} style={{ height: '100%' }}>
           <ParticipantTile />
         </GridLayout>
       ) : (
@@ -55,7 +61,9 @@ const Stage = () => {
           <div className="text-center">
             <Video className="w-12 h-12 text-gray-500 mx-auto mb-3" />
             <p className="text-gray-400">Waiting for creator to start streaming...</p>
-            <p className="text-gray-500 text-xs mt-2">Total tracks: {tracks.length}, Remote: {remoteTracks.length}</p>
+            <p className="text-gray-500 text-xs mt-2">
+              Total: {tracks.length} | Remote: {remoteTracks.length} | Video: {videoTracks.length}
+            </p>
           </div>
         </div>
       )}
