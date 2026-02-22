@@ -191,97 +191,113 @@ const LiveStreamViewer = ({ eventId, userId, userName, event }) => {
     getToken();
   }, [eventId, userId, userName]);
 
-  // Chat WebSocket - Connect when we have eventId and chat/reactions enabled
+  // Chat WebSocket - Connect function with auto-reconnect
+  const connectChatWebSocket = useCallback(() => {
+    if (!eventId) return;
+    
+    const chatEnabled = event?.chat_enabled;
+    const reactionsEnabled = event?.reactions_enabled;
+    
+    if (!(chatEnabled || reactionsEnabled)) return;
+    
+    // Build WebSocket URL
+    let chatWsUrl = BACKEND_URL;
+    if (!chatWsUrl) {
+      console.error("❌ BACKEND_URL is not defined!");
+      return;
+    }
+    
+    chatWsUrl = chatWsUrl.replace('https://', 'wss://').replace('http://', 'ws://');
+    chatWsUrl = `${chatWsUrl}/api/ws/chat/${eventId}`;
+    
+    console.log("🔌 Viewer connecting to chat WebSocket:", chatWsUrl);
+    
+    // Close existing connection if any
+    if (chatWsRef.current && chatWsRef.current.readyState !== WebSocket.CLOSED) {
+      console.log("📤 Closing existing viewer WebSocket");
+      chatWsRef.current.close();
+    }
+    
+    try {
+      chatWsRef.current = new WebSocket(chatWsUrl);
+      
+      chatWsRef.current.onopen = () => {
+        console.log("✅ Viewer chat WebSocket CONNECTED successfully!");
+        setChatConnected(true);
+        toast.success("Connected to chat!");
+      };
+      
+      chatWsRef.current.onmessage = (wsEvent) => {
+        // Ignore pong responses
+        if (wsEvent.data === "pong") {
+          console.log("🏓 Received pong");
+          return;
+        }
+        
+        console.log("📩 Viewer received raw:", wsEvent.data);
+        try {
+          const data = JSON.parse(wsEvent.data);
+          console.log("📩 Viewer parsed message type:", data.type);
+          
+          if (data.type === "connected") {
+            console.log("🔗 Viewer WebSocket confirmed connected, viewer count:", data.viewer_count);
+          } else if (data.type === "viewer_count") {
+            console.log("👥 Viewer count update:", data.count);
+          }
+          // Note: Viewers don't display other viewers' messages per the design spec
+        } catch (e) {
+          console.error("❌ Viewer error parsing:", e, "Raw:", wsEvent.data);
+        }
+      };
+      
+      chatWsRef.current.onclose = (closeEvent) => {
+        console.log("❌ Viewer chat WebSocket CLOSED:", closeEvent.code, closeEvent.reason);
+        setChatConnected(false);
+        // Auto-reconnect after 3 seconds if not a normal close
+        if (closeEvent.code !== 1000) {
+          console.log("🔄 Viewer auto-reconnecting in 3 seconds...");
+          setTimeout(() => {
+            connectChatWebSocket();
+          }, 3000);
+        }
+      };
+      
+      chatWsRef.current.onerror = (error) => {
+        console.error("⚠️ Viewer chat WebSocket ERROR:", error);
+        setChatConnected(false);
+      };
+    } catch (err) {
+      console.error("❌ Failed to create viewer WebSocket:", err);
+    }
+  }, [eventId, event?.chat_enabled, event?.reactions_enabled]);
+  
+  // Connect WebSocket and setup keepalive when event loads
   useEffect(() => {
     const chatEnabled = event?.chat_enabled;
     const reactionsEnabled = event?.reactions_enabled;
     
     console.log("🔄 Viewer WebSocket effect - eventId:", eventId, "chatEnabled:", chatEnabled, "reactionsEnabled:", reactionsEnabled);
     
-    let pingInterval = null;
-    
     if (eventId && (chatEnabled || reactionsEnabled)) {
-      // Build WebSocket URL
-      let chatWsUrl = BACKEND_URL;
-      if (!chatWsUrl) {
-        console.error("❌ BACKEND_URL is not defined!");
-        return;
-      }
-      
-      chatWsUrl = chatWsUrl.replace('https://', 'wss://').replace('http://', 'ws://');
-      chatWsUrl = `${chatWsUrl}/api/ws/chat/${eventId}`;
-      
-      console.log("🔌 Viewer connecting to chat WebSocket:", chatWsUrl);
-      
-      // Close existing connection if any
-      if (chatWsRef.current && chatWsRef.current.readyState !== WebSocket.CLOSED) {
-        console.log("📤 Closing existing viewer WebSocket");
-        chatWsRef.current.close();
-      }
-      
-      try {
-        chatWsRef.current = new WebSocket(chatWsUrl);
-        
-        chatWsRef.current.onopen = () => {
-          console.log("✅ Viewer chat WebSocket CONNECTED successfully!");
-          setChatConnected(true);
-          toast.success("Connected to chat!");
-          
-          // Start keepalive ping every 30 seconds
-          pingInterval = setInterval(() => {
-            if (chatWsRef.current && chatWsRef.current.readyState === WebSocket.OPEN) {
-              console.log("🏓 Viewer sending keepalive ping");
-              chatWsRef.current.send("ping");
-            }
-          }, 30000);
-        };
-        
-        chatWsRef.current.onmessage = (wsEvent) => {
-          // Ignore pong responses
-          if (wsEvent.data === "pong") {
-            console.log("🏓 Received pong");
-            return;
-          }
-          
-          console.log("📩 Viewer received raw:", wsEvent.data);
-          try {
-            const data = JSON.parse(wsEvent.data);
-            console.log("📩 Viewer parsed message type:", data.type);
-            
-            if (data.type === "connected") {
-              console.log("🔗 Viewer WebSocket confirmed connected, viewer count:", data.viewer_count);
-            } else if (data.type === "viewer_count") {
-              console.log("👥 Viewer count update:", data.count);
-            }
-            // Note: Viewers don't display other viewers' messages per the design spec
-          } catch (e) {
-            console.error("❌ Viewer error parsing:", e, "Raw:", wsEvent.data);
-          }
-        };
-        
-        chatWsRef.current.onclose = (closeEvent) => {
-          console.log("❌ Viewer chat WebSocket CLOSED:", closeEvent.code, closeEvent.reason);
-          setChatConnected(false);
-          if (pingInterval) clearInterval(pingInterval);
-        };
-        
-        chatWsRef.current.onerror = (error) => {
-          console.error("⚠️ Viewer chat WebSocket ERROR:", error);
-          setChatConnected(false);
-        };
-      } catch (err) {
-        console.error("❌ Failed to create viewer WebSocket:", err);
-      }
+      connectChatWebSocket();
     }
     
+    // Keepalive ping every 30 seconds to prevent timeout
+    const pingInterval = setInterval(() => {
+      if (chatWsRef.current && chatWsRef.current.readyState === WebSocket.OPEN) {
+        console.log("🏓 Viewer sending keepalive ping");
+        chatWsRef.current.send("ping");
+      }
+    }, 30000);
+    
     return () => {
-      if (pingInterval) clearInterval(pingInterval);
+      clearInterval(pingInterval);
       if (chatWsRef.current) {
         console.log("🧹 Cleaning up viewer WebSocket");
         chatWsRef.current.close();
       }
     };
-  }, [eventId, event?.chat_enabled, event?.reactions_enabled]);
+  }, [eventId, event?.chat_enabled, event?.reactions_enabled, connectChatWebSocket]);
 
   const handleSendChat = () => {
     if (!chatMessage.trim()) {
