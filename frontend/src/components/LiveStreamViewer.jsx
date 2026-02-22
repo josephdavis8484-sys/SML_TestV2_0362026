@@ -181,44 +181,70 @@ const LiveStreamViewer = ({ eventId, userId, userName, event }) => {
     const chatEnabled = event?.chat_enabled;
     const reactionsEnabled = event?.reactions_enabled;
     
+    console.log("🔄 Viewer WebSocket effect - eventId:", eventId, "chatEnabled:", chatEnabled, "reactionsEnabled:", reactionsEnabled);
+    
     if (eventId && (chatEnabled || reactionsEnabled)) {
       // Build WebSocket URL
       let chatWsUrl = BACKEND_URL;
-      if (chatWsUrl) {
-        chatWsUrl = chatWsUrl.replace('https://', 'wss://').replace('http://', 'ws://');
-        chatWsUrl = `${chatWsUrl}/api/ws/chat/${eventId}`;
+      if (!chatWsUrl) {
+        console.error("❌ BACKEND_URL is not defined!");
+        return;
       }
       
-      console.log("🔌 Connecting to chat WebSocket:", chatWsUrl);
+      chatWsUrl = chatWsUrl.replace('https://', 'wss://').replace('http://', 'ws://');
+      chatWsUrl = `${chatWsUrl}/api/ws/chat/${eventId}`;
+      
+      console.log("🔌 Viewer connecting to chat WebSocket:", chatWsUrl);
+      
+      // Close existing connection if any
+      if (chatWsRef.current && chatWsRef.current.readyState !== WebSocket.CLOSED) {
+        console.log("📤 Closing existing viewer WebSocket");
+        chatWsRef.current.close();
+      }
       
       try {
         chatWsRef.current = new WebSocket(chatWsUrl);
         
         chatWsRef.current.onopen = () => {
-          console.log("✅ Viewer chat WebSocket connected!");
+          console.log("✅ Viewer chat WebSocket CONNECTED successfully!");
           setChatConnected(true);
+          toast.success("Connected to chat!");
         };
         
-        chatWsRef.current.onmessage = (event) => {
-          console.log("📩 Viewer received:", event.data);
+        chatWsRef.current.onmessage = (wsEvent) => {
+          console.log("📩 Viewer received raw:", wsEvent.data);
+          try {
+            const data = JSON.parse(wsEvent.data);
+            console.log("📩 Viewer parsed message type:", data.type);
+            
+            if (data.type === "connected") {
+              console.log("🔗 Viewer WebSocket confirmed connected, viewer count:", data.viewer_count);
+            } else if (data.type === "viewer_count") {
+              console.log("👥 Viewer count update:", data.count);
+            }
+            // Note: Viewers don't display other viewers' messages per the design spec
+          } catch (e) {
+            console.error("❌ Viewer error parsing:", e, "Raw:", wsEvent.data);
+          }
         };
         
-        chatWsRef.current.onclose = (event) => {
-          console.log("❌ Viewer chat WebSocket closed:", event.code, event.reason);
+        chatWsRef.current.onclose = (closeEvent) => {
+          console.log("❌ Viewer chat WebSocket CLOSED:", closeEvent.code, closeEvent.reason);
           setChatConnected(false);
         };
         
         chatWsRef.current.onerror = (error) => {
-          console.error("⚠️ Viewer chat WebSocket error:", error);
+          console.error("⚠️ Viewer chat WebSocket ERROR:", error);
           setChatConnected(false);
         };
       } catch (err) {
-        console.error("Failed to create WebSocket:", err);
+        console.error("❌ Failed to create viewer WebSocket:", err);
       }
     }
     
     return () => {
       if (chatWsRef.current) {
+        console.log("🧹 Cleaning up viewer WebSocket");
         chatWsRef.current.close();
       }
     };
