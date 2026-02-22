@@ -369,6 +369,18 @@ const LiveStreamViewer = ({ eventId, userId, userName, event }) => {
           connect={true}
           audio={false}
           video={false}
+          options={{
+            adaptiveStream: true,
+            dynacast: true,
+            disconnectOnPageLeave: false,
+            reconnectPolicy: {
+              nextRetryDelayInMs: (ctx) => {
+                // Exponential backoff: 1s, 2s, 4s, 8s, max 10s
+                return Math.min(1000 * Math.pow(2, ctx.retryCount), 10000);
+              },
+              maxRetries: 10
+            }
+          }}
           data-lk-theme="default"
           style={{ height: '100%' }}
         >
