@@ -34,6 +34,13 @@ const Stage = () => {
   );
 
   const remoteTracks = tracks.filter((track) => !track.participant.isLocal);
+  
+  // Debug logging for video tracks
+  console.log("🎥 Total tracks:", tracks.length);
+  console.log("🎥 Remote tracks:", remoteTracks.length);
+  tracks.forEach((t, i) => {
+    console.log(`  Track ${i}: source=${t.source}, isLocal=${t.participant.isLocal}, publication=${t.publication?.trackSid}`);
+  });
 
   return (
     <div className="w-full h-full">
@@ -48,6 +55,7 @@ const Stage = () => {
           <div className="text-center">
             <Video className="w-12 h-12 text-gray-500 mx-auto mb-3" />
             <p className="text-gray-400">Waiting for creator to start streaming...</p>
+            <p className="text-gray-500 text-xs mt-2">Total tracks: {tracks.length}, Remote: {remoteTracks.length}</p>
           </div>
         </div>
       )}
