@@ -36,16 +36,6 @@ const Stage = () => {
 
   const remoteTracks = tracks.filter((track) => !track.participant.isLocal);
   const videoTracks = remoteTracks.filter((t) => t.source === Track.Source.Camera || t.source === Track.Source.ScreenShare);
-  
-  // Debug logging for video tracks
-  useEffect(() => {
-    console.log("🎥 Viewer Stage - Total tracks:", tracks.length);
-    console.log("🎥 Viewer Stage - Remote tracks:", remoteTracks.length);
-    console.log("🎥 Viewer Stage - Video tracks:", videoTracks.length);
-    tracks.forEach((t, i) => {
-      console.log(`  Track ${i}: source=${t.source}, isLocal=${t.participant.isLocal}, isSubscribed=${t.publication?.isSubscribed}, trackSid=${t.publication?.trackSid}`);
-    });
-  }, [tracks, remoteTracks, videoTracks]);
 
   return (
     <div className="w-full h-full">
@@ -60,9 +50,6 @@ const Stage = () => {
           <div className="text-center">
             <Video className="w-12 h-12 text-gray-500 mx-auto mb-3" />
             <p className="text-gray-400">Waiting for creator to start streaming...</p>
-            <p className="text-gray-500 text-xs mt-2">
-              Total: {tracks.length} | Remote: {remoteTracks.length} | Video: {videoTracks.length}
-            </p>
           </div>
         </div>
       )}
