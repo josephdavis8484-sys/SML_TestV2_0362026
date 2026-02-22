@@ -8,111 +8,63 @@ import {
   Users, 
   Share2,
   X,
-  ArrowLeft,
-  Volume2,
-  VolumeX
+  ArrowLeft
 } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import {
   LiveKitRoom,
-  useRemoteParticipants,
+  GridLayout,
+  ParticipantTile,
+  RoomAudioRenderer,
   useTracks,
-  VideoTrack,
-  AudioTrack,
 } from "@livekit/components-react";
 import "@livekit/components-styles";
 import { Track } from "livekit-client";
 
 const BACKEND_URL = process.env.REACT_APP_BACKEND_URL;
 
-// Video and Audio Player Component
-const RemoteMediaPlayer = ({ onAudioStatus }) => {
-  const remoteParticipants = useRemoteParticipants();
-  const tracks = useTracks([
-    Track.Source.Camera, 
-    Track.Source.ScreenShare,
-    Track.Source.Microphone
-  ]);
-  
-  // Find video track from remote participants
-  const remoteVideoTrack = tracks.find(
-    (track) => !track.participant.isLocal && 
-    (track.source === Track.Source.Camera || track.source === Track.Source.ScreenShare)
+// Simple Stage component that renders all remote video/audio
+const Stage = () => {
+  const tracks = useTracks(
+    [
+      { source: Track.Source.Camera, withPlaceholder: true },
+      { source: Track.Source.ScreenShare, withPlaceholder: false },
+    ],
+    { onlySubscribed: false }
   );
 
-  // Find ALL audio tracks from remote participants
-  const remoteAudioTracks = tracks.filter(
-    (track) => !track.participant.isLocal && track.source === Track.Source.Microphone
-  );
-
-  // Debug logging
-  useEffect(() => {
-    console.log("=== LiveKit Debug ===");
-    console.log("Remote participants:", remoteParticipants.length);
-    console.log("Total tracks:", tracks.length);
-    console.log("Video track found:", !!remoteVideoTrack);
-    console.log("Audio tracks found:", remoteAudioTracks.length);
-    
-    if (remoteAudioTracks.length > 0) {
-      console.log("Audio tracks details:", remoteAudioTracks.map(t => ({
-        trackSid: t.publication?.trackSid,
-        isSubscribed: t.publication?.isSubscribed,
-        isMuted: t.publication?.isMuted
-      })));
-    }
-    
-    // Report audio status to parent
-    onAudioStatus(remoteAudioTracks.length > 0);
-  }, [tracks, remoteParticipants, remoteVideoTrack, remoteAudioTracks, onAudioStatus]);
-
-  if (!remoteVideoTrack) {
-    return (
-      <div className="w-full h-full flex items-center justify-center bg-gray-900 rounded-xl">
-        <div className="text-center">
-          <Video className="w-12 h-12 text-gray-500 mx-auto mb-3" />
-          <p className="text-gray-400">Waiting for creator to start streaming...</p>
-          <p className="text-gray-500 text-sm mt-2">
-            {remoteParticipants.length > 0 
-              ? "Creator connected, waiting for video..." 
-              : "Connecting to stream..."}
-          </p>
-        </div>
-      </div>
-    );
-  }
+  // Filter to only show remote tracks
+  const remoteTracks = tracks.filter((track) => !track.participant.isLocal);
 
   return (
-    <>
-      {/* Video Track */}
-      <VideoTrack
-        trackRef={remoteVideoTrack}
-        className="w-full h-full object-contain rounded-xl"
-      />
+    <div className="w-full h-full">
+      {/* This handles ALL audio automatically */}
+      <RoomAudioRenderer />
       
-      {/* Audio Tracks - Render each one explicitly */}
-      {remoteAudioTracks.map((track, index) => (
-        <AudioTrack 
-          key={track.publication?.trackSid || `audio-${index}`} 
-          trackRef={track}
-        />
-      ))}
-    </>
+      {remoteTracks.length > 0 ? (
+        <GridLayout tracks={remoteTracks} style={{ height: '100%' }}>
+          <ParticipantTile />
+        </GridLayout>
+      ) : (
+        <div className="w-full h-full flex items-center justify-center bg-gray-900">
+          <div className="text-center">
+            <Video className="w-12 h-12 text-gray-500 mx-auto mb-3" />
+            <p className="text-gray-400">Waiting for creator to start streaming...</p>
+          </div>
+        </div>
+      )}
+    </div>
   );
 };
 
-// Share Modal Component
+// Share Modal
 const ShareModal = ({ isOpen, onClose, eventTitle, eventUrl }) => {
   if (!isOpen) return null;
-
-  const shareLinks = [
-    { name: "X (Twitter)", icon: "𝕏", url: `https://twitter.com/intent/tweet?text=${encodeURIComponent(`Watch ${eventTitle} live!`)}&url=${encodeURIComponent(eventUrl)}` },
-    { name: "Facebook", icon: "f", url: `https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(eventUrl)}` },
-    { name: "WhatsApp", icon: "📱", url: `https://wa.me/?text=${encodeURIComponent(`Watch ${eventTitle} live! ${eventUrl}`)}` }
-  ];
 
   const copyLink = () => {
     navigator.clipboard.writeText(eventUrl);
     toast.success("Link copied!");
+    onClose();
   };
 
   return (
@@ -125,16 +77,21 @@ const ShareModal = ({ isOpen, onClose, eventTitle, eventUrl }) => {
           </button>
         </div>
         <div className="space-y-2">
-          {shareLinks.map((link) => (
-            <a key={link.name} href={link.url} target="_blank" rel="noopener noreferrer"
-              className="flex items-center gap-3 w-full bg-gray-800 hover:bg-gray-700 text-white p-2.5 rounded-lg transition-colors">
-              <span className="w-7 h-7 bg-gray-700 rounded-full flex items-center justify-center text-sm">{link.icon}</span>
-              <span className="text-sm">{link.name}</span>
-            </a>
-          ))}
-          <button onClick={copyLink} className="flex items-center gap-3 w-full bg-blue-600 hover:bg-blue-700 text-white p-2.5 rounded-lg transition-colors">
-            <span className="w-7 h-7 bg-blue-500 rounded-full flex items-center justify-center text-sm">🔗</span>
-            <span className="text-sm">Copy Link</span>
+          <a href={`https://twitter.com/intent/tweet?text=${encodeURIComponent(`Watch ${eventTitle} live!`)}&url=${encodeURIComponent(eventUrl)}`} 
+            target="_blank" rel="noopener noreferrer"
+            className="flex items-center gap-3 w-full bg-gray-800 hover:bg-gray-700 text-white p-2.5 rounded-lg">
+            <span className="w-7 h-7 bg-gray-700 rounded-full flex items-center justify-center">𝕏</span>
+            <span>Twitter</span>
+          </a>
+          <a href={`https://wa.me/?text=${encodeURIComponent(`Watch ${eventTitle} live! ${eventUrl}`)}`}
+            target="_blank" rel="noopener noreferrer"
+            className="flex items-center gap-3 w-full bg-gray-800 hover:bg-gray-700 text-white p-2.5 rounded-lg">
+            <span className="w-7 h-7 bg-gray-700 rounded-full flex items-center justify-center">📱</span>
+            <span>WhatsApp</span>
+          </a>
+          <button onClick={copyLink} className="flex items-center gap-3 w-full bg-blue-600 hover:bg-blue-700 text-white p-2.5 rounded-lg">
+            <span className="w-7 h-7 bg-blue-500 rounded-full flex items-center justify-center">🔗</span>
+            <span>Copy Link</span>
           </button>
         </div>
       </div>
@@ -142,8 +99,8 @@ const ShareModal = ({ isOpen, onClose, eventTitle, eventUrl }) => {
   );
 };
 
-// Stream Info Overlay
-const StreamOverlay = ({ streamTime, onShare, participantCount, hasAudio }) => {
+// Overlay with LIVE badge
+const StreamOverlay = ({ streamTime, onShare, viewerCount }) => {
   const formatTime = (seconds) => {
     const hrs = Math.floor(seconds / 3600);
     const mins = Math.floor((seconds % 3600) / 60);
@@ -153,58 +110,27 @@ const StreamOverlay = ({ streamTime, onShare, participantCount, hasAudio }) => {
 
   return (
     <>
-      {/* Live indicator - Top Left */}
-      <div className="absolute top-3 left-3 flex items-center gap-2 z-10">
+      <div className="absolute top-3 left-12 flex items-center gap-2 z-10">
         <div className="bg-red-600 px-2.5 py-1 rounded flex items-center gap-1.5">
           <div className="w-2 h-2 bg-white rounded-full animate-pulse"></div>
           <span className="text-white font-bold text-xs">LIVE</span>
         </div>
         <div className="bg-black/60 px-2 py-1 rounded flex items-center gap-1.5">
           <Users className="w-3 h-3 text-white" />
-          <span className="text-white font-medium text-xs">{participantCount}</span>
-        </div>
-        {/* Audio indicator */}
-        <div className={`px-2 py-1 rounded flex items-center gap-1.5 ${hasAudio ? 'bg-green-600/80' : 'bg-red-600/80'}`}>
-          {hasAudio ? <Volume2 className="w-3 h-3 text-white" /> : <VolumeX className="w-3 h-3 text-white" />}
-          <span className="text-white text-xs">{hasAudio ? 'Audio' : 'No Audio'}</span>
+          <span className="text-white font-medium text-xs">{viewerCount}</span>
         </div>
       </div>
       
-      {/* Stream time and Share - Top Right */}
       <div className="absolute top-3 right-3 flex items-center gap-2 z-10">
         <div className="bg-black/60 px-2 py-1 rounded">
           <span className="text-white font-mono text-xs">{formatTime(streamTime)}</span>
         </div>
-        <button
-          onClick={onShare}
-          className="bg-black/60 hover:bg-black/80 px-2 py-1 rounded flex items-center gap-1 transition-colors"
-        >
+        <button onClick={onShare} className="bg-black/60 hover:bg-black/80 px-2 py-1 rounded flex items-center gap-1">
           <Share2 className="w-3 h-3 text-white" />
           <span className="text-white text-xs">Share</span>
         </button>
       </div>
     </>
-  );
-};
-
-// Main Video Player with all LiveKit components
-const VideoPlayerRoom = ({ streamTime, onShare }) => {
-  const remoteParticipants = useRemoteParticipants();
-  const [hasAudio, setHasAudio] = useState(false);
-  
-  return (
-    <div className="relative w-full h-full bg-black rounded-xl overflow-hidden">
-      {/* Video and Audio rendering */}
-      <RemoteMediaPlayer onAudioStatus={setHasAudio} />
-      
-      {/* Overlay with LIVE badge, timer, share */}
-      <StreamOverlay 
-        streamTime={streamTime} 
-        onShare={onShare}
-        participantCount={remoteParticipants.length + 1}
-        hasAudio={hasAudio}
-      />
-    </div>
   );
 };
 
@@ -221,9 +147,7 @@ const LiveStreamViewer = ({ eventId, userId, userName, event }) => {
 
   // Stream timer
   useEffect(() => {
-    const timer = setInterval(() => {
-      setStreamTime(prev => prev + 1);
-    }, 1000);
+    const timer = setInterval(() => setStreamTime(prev => prev + 1), 1000);
     return () => clearInterval(timer);
   }, []);
 
@@ -232,8 +156,6 @@ const LiveStreamViewer = ({ eventId, userId, userName, event }) => {
     const getToken = async () => {
       try {
         setLoading(true);
-        setError(null);
-        
         const response = await axiosInstance.post("/livekit/join-as-viewer", {
           event_id: eventId,
           user_id: userId,
@@ -241,52 +163,32 @@ const LiveStreamViewer = ({ eventId, userId, userName, event }) => {
         });
         
         if (response.data.token && response.data.url) {
-          console.log("LiveKit URL:", response.data.url);
           setToken(response.data.token);
           setWsUrl(response.data.url);
         } else {
-          throw new Error("Invalid response from server");
+          throw new Error("Invalid response");
         }
       } catch (err) {
-        console.error("Failed to get token:", err);
-        setError(err.response?.data?.detail || "Failed to connect to stream");
+        setError(err.response?.data?.detail || "Failed to connect");
       } finally {
         setLoading(false);
       }
     };
-
     getToken();
   }, [eventId, userId, userName]);
 
-  // Connect to chat WebSocket
+  // Chat WebSocket
   useEffect(() => {
     if (eventId && token) {
       const chatWsUrl = `${BACKEND_URL?.replace('https://', 'wss://').replace('http://', 'ws://')}/api/ws/chat/${eventId}`;
-      
-      try {
-        chatWsRef.current = new WebSocket(chatWsUrl);
-        chatWsRef.current.onopen = () => console.log("Chat connected");
-        chatWsRef.current.onclose = () => console.log("Chat disconnected");
-      } catch (error) {
-        console.error("Failed to connect chat:", error);
-      }
+      chatWsRef.current = new WebSocket(chatWsUrl);
     }
-
-    return () => {
-      if (chatWsRef.current) chatWsRef.current.close();
-    };
+    return () => chatWsRef.current?.close();
   }, [eventId, token]);
-
-  const handleBack = () => navigate(-1);
-  const handleShare = () => setShowShareModal(true);
 
   const handleSendChat = () => {
     if (chatMessage.trim() && chatWsRef.current?.readyState === WebSocket.OPEN) {
-      chatWsRef.current.send(JSON.stringify({
-        type: "message",
-        username: userName || "Viewer",
-        message: chatMessage.trim()
-      }));
+      chatWsRef.current.send(JSON.stringify({ type: "message", username: userName || "Viewer", message: chatMessage.trim() }));
       toast.success("Message sent!");
       setChatMessage("");
     }
@@ -294,92 +196,64 @@ const LiveStreamViewer = ({ eventId, userId, userName, event }) => {
 
   const handleSendReaction = (emoji) => {
     if (chatWsRef.current?.readyState === WebSocket.OPEN) {
-      chatWsRef.current.send(JSON.stringify({
-        type: "reaction",
-        emoji: emoji,
-        username: userName || "Viewer"
-      }));
+      chatWsRef.current.send(JSON.stringify({ type: "reaction", emoji, username: userName || "Viewer" }));
       toast.success(`${emoji} sent!`);
-    }
-  };
-
-  const handleKeyPress = (e) => {
-    if (e.key === "Enter" && !e.shiftKey) {
-      e.preventDefault();
-      handleSendChat();
     }
   };
 
   const chatEnabled = event?.chat_enabled;
   const reactionsEnabled = event?.reactions_enabled;
   const showInteraction = chatEnabled || reactionsEnabled;
-  const reactionEmojis = ["👍", "😄", "❤️", "👏"];
 
   if (loading) {
     return (
       <div className="h-screen w-full flex items-center justify-center bg-black">
-        <div className="text-center">
-          <RefreshCw className="w-10 h-10 text-blue-500 mx-auto mb-3 animate-spin" />
-          <p className="text-white">Connecting to live stream...</p>
-        </div>
+        <RefreshCw className="w-10 h-10 text-blue-500 animate-spin" />
       </div>
     );
   }
 
-  if (error) {
+  if (error || !token || !wsUrl) {
     return (
       <div className="h-screen w-full flex items-center justify-center bg-black">
         <div className="text-center">
           <VideoOff className="w-10 h-10 text-red-500 mx-auto mb-3" />
           <p className="text-white mb-2">Unable to connect</p>
           <p className="text-gray-400 text-sm mb-4">{error}</p>
-          <button onClick={() => window.location.reload()} className="bg-blue-600 hover:bg-blue-700 text-white px-5 py-2 rounded-lg flex items-center gap-2 mx-auto text-sm">
-            <RefreshCw className="w-4 h-4" /> Retry
+          <button onClick={() => window.location.reload()} className="bg-blue-600 text-white px-4 py-2 rounded-lg">
+            Retry
           </button>
         </div>
       </div>
     );
   }
 
-  if (!token || !wsUrl) {
-    return (
-      <div className="h-screen w-full flex items-center justify-center bg-black">
-        <div className="text-center">
-          <Video className="w-10 h-10 text-gray-500 mx-auto mb-3" />
-          <p className="text-gray-400">Initializing stream...</p>
-        </div>
-      </div>
-    );
-  }
-
-  const eventUrl = `${window.location.origin}/event/${eventId}`;
-
   return (
     <div className="h-screen w-full flex flex-col bg-black overflow-hidden">
       {/* Back Button */}
-      <div className="absolute top-4 left-4 z-20">
-        <button onClick={handleBack} className="bg-black/60 hover:bg-black/80 text-white p-2 rounded-full transition-colors">
-          <ArrowLeft className="w-5 h-5" />
-        </button>
-      </div>
+      <button onClick={() => navigate(-1)} className="absolute top-3 left-3 z-20 bg-black/60 hover:bg-black/80 text-white p-2 rounded-full">
+        <ArrowLeft className="w-5 h-5" />
+      </button>
 
-      {/* Video Player Area */}
-      <div className="flex-1 p-3 min-h-0">
+      {/* Video Area */}
+      <div className="flex-1 relative min-h-0">
         <LiveKitRoom
           serverUrl={wsUrl}
           token={token}
           connect={true}
           audio={false}
           video={false}
-          onConnected={() => console.log("✅ LiveKit connected!")}
+          data-lk-theme="default"
+          style={{ height: '100%' }}
         >
-          <VideoPlayerRoom streamTime={streamTime} onShare={handleShare} />
+          <Stage />
+          <StreamOverlay streamTime={streamTime} onShare={() => setShowShareModal(true)} viewerCount={1} />
         </LiveKitRoom>
       </div>
 
-      {/* Bottom Control Bar */}
+      {/* Chat/Reactions Bar */}
       {showInteraction && (
-        <div className="bg-gray-900 border-t border-gray-800 p-3 flex-shrink-0">
+        <div className="bg-gray-900 border-t border-gray-800 p-3">
           <div className="flex items-center gap-2 max-w-2xl mx-auto">
             {chatEnabled && (
               <div className="flex-1 flex gap-2">
@@ -387,19 +261,19 @@ const LiveStreamViewer = ({ eventId, userId, userName, event }) => {
                   type="text"
                   value={chatMessage}
                   onChange={(e) => setChatMessage(e.target.value)}
-                  onKeyPress={handleKeyPress}
+                  onKeyPress={(e) => e.key === "Enter" && handleSendChat()}
                   placeholder="Send a message..."
-                  className="flex-1 bg-gray-800 border border-gray-700 rounded-lg px-3 py-2.5 text-white text-sm placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  className="flex-1 bg-gray-800 border border-gray-700 rounded-lg px-3 py-2.5 text-white text-sm placeholder-gray-500"
                 />
-                <button onClick={handleSendChat} disabled={!chatMessage.trim()} className="bg-blue-600 hover:bg-blue-700 disabled:bg-gray-700 text-white px-4 py-2.5 rounded-lg font-medium text-sm transition-colors">
+                <button onClick={handleSendChat} disabled={!chatMessage.trim()} className="bg-blue-600 hover:bg-blue-700 disabled:bg-gray-700 text-white px-4 py-2.5 rounded-lg text-sm">
                   Send
                 </button>
               </div>
             )}
             {reactionsEnabled && (
               <div className="flex gap-1.5">
-                {reactionEmojis.map((emoji) => (
-                  <button key={emoji} onClick={() => handleSendReaction(emoji)} className="w-11 h-11 bg-gray-800 hover:bg-gray-700 rounded-lg flex items-center justify-center text-xl transition-all hover:scale-105">
+                {["👍", "😄", "❤️", "👏"].map((emoji) => (
+                  <button key={emoji} onClick={() => handleSendReaction(emoji)} className="w-11 h-11 bg-gray-800 hover:bg-gray-700 rounded-lg text-xl">
                     {emoji}
                   </button>
                 ))}
@@ -409,7 +283,7 @@ const LiveStreamViewer = ({ eventId, userId, userName, event }) => {
         </div>
       )}
 
-      <ShareModal isOpen={showShareModal} onClose={() => setShowShareModal(false)} eventTitle={event?.title || "Live Stream"} eventUrl={eventUrl} />
+      <ShareModal isOpen={showShareModal} onClose={() => setShowShareModal(false)} eventTitle={event?.title || "Live Stream"} eventUrl={`${window.location.origin}/event/${eventId}`} />
     </div>
   );
 };
