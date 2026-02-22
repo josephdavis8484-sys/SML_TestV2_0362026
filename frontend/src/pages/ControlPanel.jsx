@@ -298,14 +298,28 @@ const ControlPanel = ({ user, onLogout }) => {
     return () => { if (interval) clearInterval(interval); };
   }, [isStreaming]);
 
-  // WebSocket connection - connects when streaming starts
+  // WebSocket connection - connects when event loads (to always be ready to receive messages)
   const connectWebSocket = useCallback(() => {
-    if (!eventId) return;
+    if (!eventId) {
+      console.log("❌ No eventId, skipping WebSocket connection");
+      return;
+    }
     
-    const wsUrl = `${BACKEND_URL?.replace('https://', 'wss://').replace('http://', 'ws://')}/api/ws/chat/${eventId}`;
-    console.log("Connecting to WebSocket:", wsUrl);
+    // Build WebSocket URL
+    let wsUrl = BACKEND_URL;
+    if (!wsUrl) {
+      console.error("❌ BACKEND_URL is not defined!");
+      return;
+    }
     
-    if (chatWsRef.current) {
+    wsUrl = wsUrl.replace('https://', 'wss://').replace('http://', 'ws://');
+    wsUrl = `${wsUrl}/api/ws/chat/${eventId}`;
+    
+    console.log("🔌 Creator connecting to WebSocket:", wsUrl);
+    
+    // Close existing connection if any
+    if (chatWsRef.current && chatWsRef.current.readyState !== WebSocket.CLOSED) {
+      console.log("📤 Closing existing WebSocket connection");
       chatWsRef.current.close();
     }
     
@@ -313,56 +327,77 @@ const ControlPanel = ({ user, onLogout }) => {
       chatWsRef.current = new WebSocket(wsUrl);
       
       chatWsRef.current.onopen = () => {
-        console.log("✅ Creator WebSocket connected");
+        console.log("✅ Creator WebSocket CONNECTED successfully!");
         toast.success("Chat connected!");
       };
 
       chatWsRef.current.onmessage = (wsEvent) => {
+        console.log("📩 Creator received raw data:", wsEvent.data);
         try {
           const data = JSON.parse(wsEvent.data);
-          console.log("📩 Received:", data);
+          console.log("📩 Creator parsed message:", data.type, data);
           
           if (data.type === "message") {
-            setChatMessages(prev => [...prev.slice(-50), {
-              id: Date.now() + Math.random(),
-              username: data.username || "Anonymous",
-              message: data.message || "",
-              color: data.color || "#60a5fa"
-            }]);
+            console.log("💬 Adding chat message from:", data.username);
+            setChatMessages(prev => {
+              const newMessages = [...prev.slice(-50), {
+                id: Date.now() + Math.random(),
+                username: data.username || "Anonymous",
+                message: data.message || "",
+                color: data.color || "#60a5fa"
+              }];
+              console.log("💬 Total messages now:", newMessages.length);
+              return newMessages;
+            });
           } else if (data.type === "reaction") {
+            console.log("🎉 Adding reaction:", data.emoji, "from:", data.username);
             const reactionId = Date.now() + Math.random();
             const left = Math.random() * 60 + 20;
             setLiveReactions(prev => [...prev, { id: reactionId, emoji: data.emoji, left }]);
             setTimeout(() => {
               setLiveReactions(prev => prev.filter(r => r.id !== reactionId));
             }, 3000);
+          } else if (data.type === "connected") {
+            console.log("🔗 WebSocket connection confirmed, viewer count:", data.viewer_count);
+          } else if (data.type === "viewer_count") {
+            console.log("👥 Viewer count update:", data.count);
           }
         } catch (e) {
-          console.error("Error parsing message:", e);
+          console.error("❌ Error parsing message:", e, "Raw data:", wsEvent.data);
         }
       };
 
-      chatWsRef.current.onclose = () => {
-        console.log("WebSocket disconnected");
+      chatWsRef.current.onclose = (closeEvent) => {
+        console.log("❌ Creator WebSocket CLOSED:", closeEvent.code, closeEvent.reason);
       };
 
       chatWsRef.current.onerror = (error) => {
-        console.error("WebSocket error:", error);
+        console.error("⚠️ Creator WebSocket ERROR:", error);
       };
     } catch (error) {
-      console.error("Failed to connect WebSocket:", error);
+      console.error("❌ Failed to create WebSocket:", error);
     }
   }, [eventId]);
 
-  // Connect WebSocket when streaming starts
+  // Connect WebSocket as soon as event is loaded with chat/reactions enabled
   useEffect(() => {
-    if (isStreaming && (event?.chat_enabled || event?.reactions_enabled)) {
+    const chatEnabled = event?.chat_enabled;
+    const reactionsEnabled = event?.reactions_enabled;
+    
+    console.log("🔄 WebSocket effect triggered - Event loaded:", !!event, "Chat:", chatEnabled, "Reactions:", reactionsEnabled);
+    
+    if (event && (chatEnabled || reactionsEnabled)) {
+      console.log("📡 Initiating WebSocket connection for Creator...");
       connectWebSocket();
     }
+    
     return () => {
-      if (chatWsRef.current) chatWsRef.current.close();
+      if (chatWsRef.current) {
+        console.log("🧹 Cleaning up Creator WebSocket connection");
+        chatWsRef.current.close();
+      }
     };
-  }, [isStreaming, event?.chat_enabled, event?.reactions_enabled, connectWebSocket]);
+  }, [event?.id, event?.chat_enabled, event?.reactions_enabled, connectWebSocket]);
 
   useEffect(() => {
     fetchData();
