@@ -24,7 +24,6 @@ import { Track } from "livekit-client";
 const BACKEND_URL = process.env.REACT_APP_BACKEND_URL;
 
 // Simple Stage component that renders all remote video/audio
-// Simple Stage component that renders all remote video/audio
 const Stage = () => {
   const tracks = useTracks(
     [
