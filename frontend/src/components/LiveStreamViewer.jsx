@@ -179,11 +179,30 @@ const LiveStreamViewer = ({ eventId, userId, userName, event }) => {
   }, [eventId, userId, userName]);
 
   const reconnectAttemptsRef = useRef(0);
-  const maxReconnectAttempts = 10;
+  const maxReconnectAttempts = 15;
+  const messageQueueRef = useRef([]);
+  const isConnectingRef = useRef(false);
+  const pingIntervalRef = useRef(null);
 
-  // Chat WebSocket - Connect function with auto-reconnect and exponential backoff
+  // Process queued messages when connection is restored
+  const processMessageQueue = useCallback(() => {
+    if (chatWsRef.current?.readyState === WebSocket.OPEN && messageQueueRef.current.length > 0) {
+      const queue = [...messageQueueRef.current];
+      messageQueueRef.current = [];
+      queue.forEach(msg => {
+        try {
+          chatWsRef.current.send(JSON.stringify(msg));
+        } catch (e) {
+          messageQueueRef.current.push(msg); // Re-queue on failure
+        }
+      });
+    }
+  }, []);
+
+  // Chat WebSocket - Robust connection with auto-reconnect
   const connectChatWebSocket = useCallback(() => {
     if (!eventId) return;
+    if (isConnectingRef.current) return; // Prevent multiple simultaneous connections
     
     const chatEnabled = event?.chat_enabled;
     const reactionsEnabled = event?.reactions_enabled;
@@ -192,62 +211,79 @@ const LiveStreamViewer = ({ eventId, userId, userName, event }) => {
     
     // Build WebSocket URL
     let chatWsUrl = BACKEND_URL;
-    if (!chatWsUrl) {
-      console.error("❌ BACKEND_URL is not defined!");
-      return;
-    }
+    if (!chatWsUrl) return;
     
     chatWsUrl = chatWsUrl.replace('https://', 'wss://').replace('http://', 'ws://');
     chatWsUrl = `${chatWsUrl}/api/ws/chat/${eventId}`;
     
-    // Close existing connection if any
-    if (chatWsRef.current && chatWsRef.current.readyState !== WebSocket.CLOSED) {
-      chatWsRef.current.close();
+    // Close existing connection cleanly
+    if (chatWsRef.current) {
+      if (chatWsRef.current.readyState === WebSocket.OPEN || 
+          chatWsRef.current.readyState === WebSocket.CONNECTING) {
+        chatWsRef.current.close(1000, 'Reconnecting');
+      }
     }
     
+    isConnectingRef.current = true;
+    
     try {
-      chatWsRef.current = new WebSocket(chatWsUrl);
+      const ws = new WebSocket(chatWsUrl);
       
-      chatWsRef.current.onopen = () => {
+      ws.onopen = () => {
+        isConnectingRef.current = false;
         setChatConnected(true);
-        reconnectAttemptsRef.current = 0; // Reset on successful connection
-        toast.success("Connected to chat!");
+        reconnectAttemptsRef.current = 0;
+        
+        // Only show toast on first connection or after extended disconnect
+        if (reconnectAttemptsRef.current === 0) {
+          toast.success("Chat connected!");
+        }
+        
+        // Process any queued messages
+        processMessageQueue();
+        
+        // Setup ping interval
+        if (pingIntervalRef.current) clearInterval(pingIntervalRef.current);
+        pingIntervalRef.current = setInterval(() => {
+          if (ws.readyState === WebSocket.OPEN) {
+            ws.send("ping");
+          }
+        }, 10000); // Ping every 10 seconds for more aggressive keepalive
       };
       
-      chatWsRef.current.onmessage = (wsEvent) => {
-        // Ignore pong responses silently
+      ws.onmessage = (wsEvent) => {
         if (wsEvent.data === "pong") return;
-        
-        try {
-          const data = JSON.parse(wsEvent.data);
-          // Viewers don't display messages per design spec - only track connection state
-        } catch (e) {
-          // Silent error handling
-        }
+        // Viewers don't need to process messages per design spec
       };
       
-      chatWsRef.current.onclose = (closeEvent) => {
+      ws.onclose = (closeEvent) => {
+        isConnectingRef.current = false;
         setChatConnected(false);
         
-        // Auto-reconnect with exponential backoff
+        if (pingIntervalRef.current) {
+          clearInterval(pingIntervalRef.current);
+          pingIntervalRef.current = null;
+        }
+        
+        // Auto-reconnect unless it was a clean close or max retries reached
         if (closeEvent.code !== 1000 && reconnectAttemptsRef.current < maxReconnectAttempts) {
-          const delay = Math.min(1000 * Math.pow(1.5, reconnectAttemptsRef.current), 10000);
+          const delay = Math.min(500 * Math.pow(1.3, reconnectAttemptsRef.current), 5000);
           reconnectAttemptsRef.current += 1;
-          setTimeout(() => {
-            connectChatWebSocket();
-          }, delay);
+          setTimeout(connectChatWebSocket, delay);
         }
       };
       
-      chatWsRef.current.onerror = (error) => {
-        setChatConnected(false);
+      ws.onerror = () => {
+        isConnectingRef.current = false;
       };
+      
+      chatWsRef.current = ws;
     } catch (err) {
-      console.error("❌ Failed to create viewer WebSocket:", err);
+      isConnectingRef.current = false;
     }
-  }, [eventId, event?.chat_enabled, event?.reactions_enabled]);
+  }, [eventId, event?.chat_enabled, event?.reactions_enabled, processMessageQueue]);
   
-  // Connect WebSocket and setup keepalive when event loads
+  // Connect WebSocket when event loads
   useEffect(() => {
     const chatEnabled = event?.chat_enabled;
     const reactionsEnabled = event?.reactions_enabled;
@@ -256,18 +292,10 @@ const LiveStreamViewer = ({ eventId, userId, userName, event }) => {
       connectChatWebSocket();
     }
     
-    // Aggressive keepalive ping every 15 seconds to prevent timeout
-    const pingInterval = setInterval(() => {
-      if (chatWsRef.current && chatWsRef.current.readyState === WebSocket.OPEN) {
-        chatWsRef.current.send("ping");
-      }
-    }, 15000);
-    
     return () => {
-      clearInterval(pingInterval);
+      if (pingIntervalRef.current) clearInterval(pingIntervalRef.current);
       if (chatWsRef.current) {
-        console.log("🧹 Cleaning up viewer WebSocket");
-        chatWsRef.current.close();
+        chatWsRef.current.close(1000, 'Component unmounting');
       }
     };
   }, [eventId, event?.chat_enabled, event?.reactions_enabled, connectChatWebSocket]);
