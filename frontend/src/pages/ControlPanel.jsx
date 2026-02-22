@@ -174,7 +174,10 @@ const StreamPublisher = ({ onViewerCount, isCameraOn, isMicOn, streamTime }) => 
     const syncMedia = async () => {
       if (localParticipant) {
         try {
-          await localParticipant.setCameraEnabled(isCameraOn);
+          // Enable camera with higher quality settings for better motion handling
+          await localParticipant.setCameraEnabled(isCameraOn, {
+            resolution: { width: 1280, height: 720, frameRate: 30 },
+          });
           await localParticipant.setMicrophoneEnabled(isMicOn);
         } catch (error) {
           console.error("Error syncing media:", error);
