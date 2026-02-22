@@ -416,10 +416,9 @@ const ControlPanel = ({ user, onLogout }) => {
       if (pingIntervalRef.current) clearInterval(pingIntervalRef.current);
       if (chatWsRef.current) {
         chatWsRef.current.close(1000, 'Component unmounting');
-        chatWsRef.current.close();
       }
     };
-  }, [event?.id, event?.chat_enabled, event?.reactions_enabled]);
+  }, [event?.id, event?.chat_enabled, event?.reactions_enabled, connectWebSocket]);
 
   useEffect(() => {
     fetchData();
