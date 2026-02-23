@@ -174,9 +174,9 @@ const StreamPublisher = ({ onViewerCount, isCameraOn, isMicOn, streamTime }) => 
     const syncMedia = async () => {
       if (localParticipant) {
         try {
-          // Enable camera with higher quality settings for better motion handling
+          // Enable camera with Full HD 1080p @ 60fps for maximum quality
           await localParticipant.setCameraEnabled(isCameraOn, {
-            resolution: { width: 1280, height: 720, frameRate: 30 },
+            resolution: { width: 1920, height: 1080, frameRate: 60 },
           });
           await localParticipant.setMicrophoneEnabled(isMicOn);
         } catch (error) {
