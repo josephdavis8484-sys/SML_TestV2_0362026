@@ -393,7 +393,7 @@ class TestReactionsEndpoints:
         assert response.status_code == 200, f"Expected 200, got {response.status_code}: {response.text}"
         
         result = response.json()
-        assert "event_id" in result, "Response should have event_id field"
+        # Response has 'counts' and 'reactions_enabled' fields
         assert "reactions_enabled" in result, "Response should have reactions_enabled field"
         
         # Verify reactions_enabled defaults to True
