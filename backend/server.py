@@ -370,6 +370,136 @@ class NotificationConnectionManager:
 # Initialize the notification manager
 notification_manager = NotificationConnectionManager()
 
+# ==================== PRO MODE MODELS ====================
+
+class ProModeDevice(BaseModel):
+    """Represents a connected camera device in Pro Mode"""
+    model_config = ConfigDict(extra="ignore")
+    
+    id: str = Field(default_factory=lambda: str(uuid.uuid4()))
+    event_id: str
+    device_number: int  # 1-5 for cameras, 0 for control panel
+    device_name: str = ""  # e.g., "Camera 1", "iPhone Front", etc.
+    device_type: str = "camera"  # "camera" or "control_panel"
+    is_active: bool = False  # Is this the active broadcast source?
+    is_connected: bool = False
+    livekit_participant_id: Optional[str] = None
+    audio_settings: Dict = Field(default_factory=lambda: {
+        "mic_enabled": False,
+        "speaker_muted": True,
+        "balance": 50,
+        "treble": 50,
+        "bass": 50
+    })
+    connected_at: Optional[datetime] = None
+    last_heartbeat: Optional[datetime] = None
+
+class ProModeSession(BaseModel):
+    """Manages a Pro Mode streaming session for an event"""
+    model_config = ConfigDict(extra="ignore")
+    
+    id: str = Field(default_factory=lambda: str(uuid.uuid4()))
+    event_id: str
+    creator_id: str
+    room_name: str
+    active_device_id: Optional[str] = None  # Currently broadcasting device
+    transition_type: str = "cut"  # cut, fade, dissolve, blend
+    devices: List[ProModeDevice] = []
+    max_devices: int = 5
+    is_live: bool = False
+    created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
+
+class ProModeDeviceRegister(BaseModel):
+    """Request to register a device for Pro Mode"""
+    event_id: str
+    device_number: int  # 1-5
+    device_name: Optional[str] = None
+
+class ProModeSwitchDevice(BaseModel):
+    """Request to switch active device"""
+    event_id: str
+    device_id: str
+    transition_type: Optional[str] = None  # Override default transition
+
+class ProModeAudioSettings(BaseModel):
+    """Audio settings for a device"""
+    mic_enabled: Optional[bool] = None
+    balance: Optional[int] = None
+    treble: Optional[int] = None
+    bass: Optional[int] = None
+
+# Pro Mode Connection Manager
+class ProModeConnectionManager:
+    def __init__(self):
+        # event_id -> {device_id -> WebSocket}
+        self.device_connections: Dict[str, Dict[str, WebSocket]] = {}
+        # event_id -> control_panel WebSocket
+        self.control_panels: Dict[str, WebSocket] = {}
+        # event_id -> ProModeSession
+        self.sessions: Dict[str, ProModeSession] = {}
+    
+    async def register_device(self, event_id: str, device: ProModeDevice, websocket: WebSocket):
+        """Register a camera device"""
+        if event_id not in self.device_connections:
+            self.device_connections[event_id] = {}
+        self.device_connections[event_id][device.id] = websocket
+        logging.info(f"Pro Mode: Device {device.device_number} registered for event {event_id}")
+    
+    async def register_control_panel(self, event_id: str, websocket: WebSocket):
+        """Register the control panel"""
+        self.control_panels[event_id] = websocket
+        logging.info(f"Pro Mode: Control Panel registered for event {event_id}")
+    
+    def disconnect_device(self, event_id: str, device_id: str):
+        """Disconnect a device"""
+        if event_id in self.device_connections:
+            if device_id in self.device_connections[event_id]:
+                del self.device_connections[event_id][device_id]
+        logging.info(f"Pro Mode: Device {device_id} disconnected from event {event_id}")
+    
+    def disconnect_control_panel(self, event_id: str):
+        """Disconnect control panel"""
+        if event_id in self.control_panels:
+            del self.control_panels[event_id]
+        logging.info(f"Pro Mode: Control Panel disconnected from event {event_id}")
+    
+    async def broadcast_to_control_panel(self, event_id: str, message: dict):
+        """Send message to control panel"""
+        if event_id in self.control_panels:
+            try:
+                await self.control_panels[event_id].send_json(message)
+            except Exception as e:
+                logging.error(f"Pro Mode: Error sending to control panel: {e}")
+    
+    async def broadcast_to_device(self, event_id: str, device_id: str, message: dict):
+        """Send message to a specific device"""
+        if event_id in self.device_connections:
+            if device_id in self.device_connections[event_id]:
+                try:
+                    await self.device_connections[event_id][device_id].send_json(message)
+                except Exception as e:
+                    logging.error(f"Pro Mode: Error sending to device: {e}")
+    
+    async def broadcast_to_all_devices(self, event_id: str, message: dict):
+        """Send message to all devices in an event"""
+        if event_id in self.device_connections:
+            for device_id, ws in self.device_connections[event_id].items():
+                try:
+                    await ws.send_json(message)
+                except Exception as e:
+                    logging.error(f"Pro Mode: Error broadcasting to device {device_id}: {e}")
+    
+    def get_connected_devices(self, event_id: str) -> List[str]:
+        """Get list of connected device IDs"""
+        if event_id in self.device_connections:
+            return list(self.device_connections[event_id].keys())
+        return []
+
+# Initialize Pro Mode manager
+pro_mode_manager = ProModeConnectionManager()
+
+
+
 class SessionRequest(BaseModel):
     session_id: str
 
