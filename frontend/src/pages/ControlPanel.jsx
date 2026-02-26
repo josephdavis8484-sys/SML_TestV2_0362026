@@ -294,6 +294,8 @@ const ControlPanel = ({ user, onLogout }) => {
   
   const [isCameraOn, setIsCameraOn] = useState(true);
   const [isMicOn, setIsMicOn] = useState(true);
+  const [facingMode, setFacingMode] = useState('user'); // 'user' = front, 'environment' = back
+  const [videoQuality, setVideoQuality] = useState('1080p'); // Auto, 1080p, 720p, 480p
   
   const [micVolume, setMicVolume] = useState(75);
   const [speakerVolume, setSpeakerVolume] = useState(80);
