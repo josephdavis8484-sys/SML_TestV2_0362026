@@ -2401,7 +2401,7 @@ async def get_chat_messages(event_id: str, limit: int = 100):
     return {
         "enabled": True,
         "chat_mode": event.get("chat_mode", "open"),
-        "reactions_enabled": event.get("reactions_enabled", False),
+        "reactions_enabled": event.get("reactions_enabled", True),
         "messages": messages
     }
 
@@ -2412,7 +2412,7 @@ async def send_chat_message(event_id: str, msg: SendMessage, current_user: User 
     if not event:
         raise HTTPException(status_code=404, detail="Event not found")
     
-    if not event.get("chat_enabled", False):
+    if not event.get("chat_enabled", True):
         raise HTTPException(status_code=400, detail="Chat is not enabled for this event")
     
     # Check chat mode restrictions
