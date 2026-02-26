@@ -34,7 +34,7 @@ const BACKEND_URL = process.env.REACT_APP_BACKEND_URL;
 const AudioSettingsDropdown = ({ 
   isOpen, onClose, speakerVolume, setSpeakerVolume, 
   micVolume, setMicVolume, balance, setBalance, 
-  treble, setTreble, bass, setBass, balance, setBalance, onReset
+  treble, setTreble, bass, setBass, onReset
 }) => {
   const dropdownRef = useRef(null);
 
