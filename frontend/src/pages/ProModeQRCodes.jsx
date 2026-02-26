@@ -13,6 +13,7 @@ const ProModeQRCodes = ({ user }) => {
   const navigate = useNavigate();
   const [event, setEvent] = useState(null);
   const [session, setSession] = useState(null);
+  const [connectionToken, setConnectionToken] = useState(null);
   const [loading, setLoading] = useState(true);
   const [copiedDevice, setCopiedDevice] = useState(null);
 
@@ -22,8 +23,19 @@ const ProModeQRCodes = ({ user }) => {
         const eventRes = await axiosInstance.get(`/events/${eventId}`);
         setEvent(eventRes.data);
 
-        const sessionRes = await axiosInstance.get(`/pro-mode/session/${eventId}`);
-        setSession(sessionRes.data);
+        // Get or create session
+        let sessionData;
+        try {
+          const sessionRes = await axiosInstance.get(`/pro-mode/session/${eventId}`);
+          sessionData = sessionRes.data;
+        } catch (err) {
+          // Session doesn't exist, create it
+          const createRes = await axiosInstance.post(`/pro-mode/session/create?event_id=${eventId}`);
+          sessionData = createRes.data;
+        }
+        
+        setSession(sessionData);
+        setConnectionToken(sessionData.connection_token);
         setLoading(false);
       } catch (error) {
         toast.error("Failed to load session");
@@ -35,7 +47,8 @@ const ProModeQRCodes = ({ user }) => {
   }, [eventId]);
 
   const getDeviceUrl = (deviceNumber) => {
-    return `${FRONTEND_URL}/pro-mode/camera/${eventId}/${deviceNumber}`;
+    // Include connection token in URL for authentication
+    return `${FRONTEND_URL}/pro-mode/camera/${eventId}/${deviceNumber}?token=${connectionToken}`;
   };
 
   const handleCopyLink = (deviceNumber) => {
