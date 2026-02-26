@@ -434,13 +434,31 @@ const LiveStreamViewer = ({ eventId, userId, userName, event }) => {
 
   return (
     <div className="h-screen w-full flex flex-col bg-black overflow-hidden">
+      {/* Screen Protection Overlay */}
+      <ScreenProtectionOverlay
+        showWarning={showWarning}
+        warningMessage={warningMessage}
+        canContinue={canContinue}
+        violationCount={violationCount}
+        onDismiss={dismissWarning}
+        isProtected={false}
+      />
+      
       {/* Back Button */}
       <button onClick={() => navigate(-1)} className="absolute top-3 left-3 z-20 bg-black/60 hover:bg-black/80 text-white p-2 rounded-full">
         <ArrowLeft className="w-5 h-5" />
       </button>
+      
+      {/* Security Badge */}
+      {violationCount > 0 && (
+        <div className="absolute top-3 left-14 z-20 bg-yellow-500/80 text-black text-xs px-2 py-1 rounded-full flex items-center gap-1">
+          <Shield className="w-3 h-3" />
+          <span>{violationCount} warning{violationCount !== 1 ? 's' : ''}</span>
+        </div>
+      )}
 
-      {/* Video Area */}
-      <div className="flex-1 relative min-h-0">
+      {/* Protected Video Area */}
+      <ProtectedContent isProtected={isProtected} showWarning={showWarning} className="flex-1 relative min-h-0">
         <LiveKitRoom
           serverUrl={wsUrl}
           token={token}
@@ -466,7 +484,7 @@ const LiveStreamViewer = ({ eventId, userId, userName, event }) => {
           <Stage />
           <StreamOverlay streamTime={streamTime} onShare={() => setShowShareModal(true)} viewerCount={1} />
         </LiveKitRoom>
-      </div>
+      </ProtectedContent>
 
       {/* Chat/Reactions Bar */}
       {showInteraction && (
