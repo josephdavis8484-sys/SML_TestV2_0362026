@@ -171,6 +171,14 @@ function App() {
             <ProModeControlPanel user={user} onLogout={handleLogout} /> : 
             <Navigate to="/" />
           } />
+          <Route path="/pro-mode/:eventId/qr" element={
+            user?.role === "creator" ? 
+            <ProModeQRCodes user={user} onLogout={handleLogout} /> : 
+            <Navigate to="/" />
+          } />
+          <Route path="/pro-mode/camera/:eventId/:deviceNumber" element={
+            <ProModeCameraDevice user={user} />
+          } />
           
           {/* Payment routes */}
           <Route path="/payment-success" element={<PaymentSuccess user={user} onLogout={handleLogout} />} />
