@@ -2603,7 +2603,7 @@ async def websocket_chat(websocket: WebSocket, event_id: str):
         return
     
     # Allow connection if either chat or reactions are enabled
-    if not event.get("chat_enabled", False) and not event.get("reactions_enabled", False):
+    if not event.get("chat_enabled", True) and not event.get("reactions_enabled", True):
         logging.warning(f"WebSocket: Chat/reactions not enabled for event {event_id}")
         await websocket.close(code=4003, reason="Chat and reactions not enabled for this event")
         return
