@@ -727,6 +727,16 @@ const ControlPanel = ({ user, onLogout }) => {
 
   return (
     <div className="h-screen bg-black flex flex-col overflow-hidden">
+      {/* Screen Protection Overlay */}
+      <ScreenProtectionOverlay
+        showWarning={showWarning}
+        warningMessage={warningMessage}
+        canContinue={canContinue}
+        violationCount={violationCount}
+        onDismiss={dismissWarning}
+        isProtected={false}
+      />
+      
       {/* CSS Animations */}
       <style>{`
         @keyframes fadeInUp {
