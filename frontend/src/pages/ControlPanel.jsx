@@ -165,6 +165,61 @@ const LiveReactionsPanel = ({ reactions }) => {
   );
 };
 
+// Floating Chat Overlay - Messages that animate upward and fade out
+const FloatingChatOverlay = ({ messages }) => {
+  return (
+    <div className="absolute bottom-0 left-0 right-0 h-[15%] pointer-events-none overflow-hidden">
+      {/* Gradient fade at bottom */}
+      <div className="absolute inset-0 bg-gradient-to-t from-black/40 via-transparent to-transparent" />
+      
+      <div className="absolute bottom-2 left-4 right-[30%] space-y-1">
+        {messages.slice(-5).map((msg, index) => (
+          <div
+            key={msg.id}
+            className="animate-fadeInUp"
+            style={{
+              animation: 'fadeInUp 0.3s ease-out forwards',
+              opacity: 0.9 - (index * 0.15),
+            }}
+          >
+            <div className="inline-block bg-black/50 backdrop-blur-sm rounded-full px-3 py-1 max-w-full">
+              <span 
+                className="font-semibold text-sm"
+                style={{ color: msg.color || '#60a5fa' }}
+              >
+                {msg.username}
+              </span>
+              <span className="text-white/90 text-sm ml-2">{msg.message}</span>
+            </div>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+};
+
+// Floating Reactions Overlay - Emojis that float up and fade out
+const FloatingReactionsOverlay = ({ reactions }) => {
+  return (
+    <div className="absolute bottom-0 right-0 w-[20%] h-[40%] pointer-events-none overflow-hidden">
+      {reactions.map((reaction) => (
+        <div
+          key={reaction.id}
+          className="absolute text-3xl"
+          style={{
+            left: `${reaction.left}%`,
+            bottom: '0',
+            animation: 'floatUp 3s ease-out forwards',
+            filter: 'drop-shadow(0 0 8px rgba(255,255,255,0.5))',
+          }}
+        >
+          {reaction.emoji}
+        </div>
+      ))}
+    </div>
+  );
+};
+
 // LiveKit Stream Publisher Component
 const StreamPublisher = ({ onViewerCount, isCameraOn, isMicOn, streamTime, facingMode, videoQuality }) => {
   const { localParticipant } = useLocalParticipant();
