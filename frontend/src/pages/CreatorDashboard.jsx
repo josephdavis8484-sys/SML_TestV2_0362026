@@ -92,6 +92,36 @@ const CreatorDashboard = ({ user, onLogout }) => {
     }
   };
 
+  const handleUnlockProMode = async (eventId) => {
+    setUnlockingProMode(eventId);
+    try {
+      const response = await axiosInstance.post("/pro-mode/unlock/checkout", {
+        event_id: eventId,
+        origin_url: window.location.origin,
+        promo_code: promoCode || undefined
+      });
+      
+      if (response.data.success && !response.data.url) {
+        // 100% discount applied
+        toast.success(response.data.message);
+        setPromoCode("");
+        setShowPromoInput(null);
+        fetchData();
+      } else if (response.data.url) {
+        // Redirect to Stripe checkout
+        const discountMsg = response.data.discount > 0 
+          ? ` (${response.data.discount_description})` 
+          : "";
+        toast.info(`Redirecting to payment${discountMsg}...`);
+        window.location.href = response.data.url;
+      }
+    } catch (error) {
+      toast.error(error.response?.data?.detail || "Failed to start Pro Mode unlock");
+    } finally {
+      setUnlockingProMode(null);
+    }
+  };
+
   if (loading) {
     return (
       <div className="min-h-screen bg-[#0f0f0f] flex items-center justify-center">
