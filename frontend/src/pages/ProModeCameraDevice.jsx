@@ -152,7 +152,7 @@ const CameraPublisher = ({ deviceNumber, isActive, onStatusChange }) => {
 const ProModeCameraDevice = ({ user }) => {
   const { eventId, deviceNumber } = useParams();
   const navigate = useNavigate();
-  const [searchParams] = useState(new URLSearchParams(window.location.search));
+  const [searchParams] = useSearchParams();
   
   const [event, setEvent] = useState(null);
   const [session, setSession] = useState(null);
