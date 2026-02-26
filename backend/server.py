@@ -3295,6 +3295,7 @@ async def connect_pro_mode_control_panel(event_id: str, current_user: User = Dep
     room_name = session.get("room_name")
     token = generate_livekit_token(
         room_name=room_name,
+        participant_identity="control-panel",
         participant_name="ControlPanel",
         can_publish=False,
         can_subscribe=True
