@@ -1182,6 +1182,15 @@ async def get_checkout_status(session_id: str, current_user: User = Depends(get_
                         {"id": event_id},
                         {"$set": {"streaming_package": package}}
                     )
+            
+            elif transaction["payment_type"] == "pro_mode_unlock":
+                event_id = transaction["metadata"].get("event_id")
+                
+                if event_id:
+                    await db.events.update_one(
+                        {"id": event_id},
+                        {"$set": {"streaming_package": "premium"}}
+                    )
     
     return status
 
