@@ -265,13 +265,23 @@ const CreatorDashboard = ({ user, onLogout }) => {
                     {event.status !== "cancelled" && event.status !== "completed" ? (
                       <div className="space-y-2">
                         <div className="flex gap-2">
-                          <Button
-                            onClick={() => navigate(`/control-panel/${event.id}`)}
-                            className="flex-1 bg-blue-600 hover:bg-blue-700 text-white text-sm"
-                            data-testid={`manage-button-${event.id}`}
-                          >
-                            Manage Stream
-                          </Button>
+                          {event.streaming_package === "premium" ? (
+                            <Button
+                              onClick={() => navigate(`/pro-mode/${event.id}`)}
+                              className="flex-1 bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700 text-white text-sm"
+                              data-testid={`pro-mode-button-${event.id}`}
+                            >
+                              Pro Mode
+                            </Button>
+                          ) : (
+                            <Button
+                              onClick={() => navigate(`/control-panel/${event.id}`)}
+                              className="flex-1 bg-blue-600 hover:bg-blue-700 text-white text-sm"
+                              data-testid={`manage-button-${event.id}`}
+                            >
+                              Manage Stream
+                            </Button>
+                          )}
                           <Button
                             onClick={() => {
                               navigator.clipboard.writeText(event.share_link);
