@@ -197,6 +197,26 @@ English
 - `/app/frontend/src/pages/ControlPanel.jsx` - Updated FloatingChatOverlay, FloatingReactionsOverlay components with new CSS animations
 - `/app/frontend/src/components/LiveStreamViewer.jsx` - Updated reaction buttons (👏, 😂, ❤️, 🔥, 😍)
 
+### ✅ Pro Mode Fee (Stripe Payment) - COMPLETED
+**Feature**: Creators must pay $1000 to unlock Pro Mode for their events.
+
+**Implementation**:
+1. **Backend**: New endpoint `/api/pro-mode/unlock/checkout` creates Stripe checkout session
+2. **Promo Code Support**: Applies percentage or fixed discounts (e.g., PROMODE50 = 50% off)
+3. **100% Discount Handling**: Automatically unlocks Pro Mode without Stripe redirect
+4. **Payment Status Handling**: Updated `/api/payments/checkout/status/{session_id}` to handle `pro_mode_unlock` type
+5. **Creator Dashboard UI**: 
+   - Free events show "Stream" + "Pro Mode $1000" buttons
+   - Clicking "Pro Mode $1000" reveals promo code input panel
+   - Premium events show "Pro Mode" button directly
+
+**API Endpoint**:
+- `POST /api/pro-mode/unlock/checkout` - Creates Stripe checkout for $1000 (or discounted)
+  - Parameters: `event_id` (required), `origin_url` (required), `promo_code` (optional)
+  - Returns: `url`, `session_id`, `amount`, `discount`, `discount_description`
+
+**Verification**: Testing agent confirmed all 12 backend tests + frontend tests pass with 100% success rate.
+
 ---
 
 ## Recent Fixes (Feb 22, 2026)
