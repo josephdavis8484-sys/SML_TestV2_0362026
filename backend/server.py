@@ -204,8 +204,8 @@ class Event(BaseModel):
     share_link: Optional[str] = None
     status: str = "upcoming"  # "upcoming", "live", "completed", "cancelled"
     # Chat & Interaction settings
-    chat_enabled: bool = False
-    reactions_enabled: bool = False
+    chat_enabled: bool = True  # Default to True for better UX
+    reactions_enabled: bool = True  # Default to True for better UX
     chat_mode: str = "open"  # "open", "moderated", "questions_only"
     # Geo-fencing settings (radius-based from city location)
     geo_restricted: bool = False
