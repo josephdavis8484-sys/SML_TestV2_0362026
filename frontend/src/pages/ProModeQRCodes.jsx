@@ -104,7 +104,7 @@ const ProModeQRCodes = ({ user }) => {
 
         {/* QR Code Grid */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-6">
-          {[1, 2, 3, 4, 5].map((deviceNumber) => (
+          {connectionToken && [1, 2, 3, 4, 5].map((deviceNumber) => (
             <div 
               key={deviceNumber}
               className="bg-gray-900 rounded-xl border border-gray-800 overflow-hidden"
