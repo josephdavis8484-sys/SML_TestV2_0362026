@@ -402,6 +402,7 @@ class ProModeSession(BaseModel):
     event_id: str
     creator_id: str
     room_name: str
+    connection_token: str = Field(default_factory=lambda: secrets.token_urlsafe(32))  # Public token for device connections
     active_device_id: Optional[str] = None  # Currently broadcasting device
     transition_type: str = "cut"  # cut, fade, dissolve, blend
     devices: List[ProModeDevice] = []
