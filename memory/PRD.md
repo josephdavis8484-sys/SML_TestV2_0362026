@@ -217,6 +217,47 @@ English
 
 **Verification**: Testing agent confirmed all 12 backend tests + frontend tests pass with 100% success rate.
 
+### ✅ Privacy Protection (Screen Capture Prevention) - COMPLETED
+**Feature**: Prevent screenshots and screen recording during live streams with escalating enforcement.
+
+**Protection Response**:
+1. **Content Hidden**: Video frames replaced with black/blur, audio muted
+2. **Warning Overlay**: Shows message "Screen capture is not allowed on ShowMeLive."
+3. **Security Event Logged**: Records timestamp, user_id, event_id, device_id, capture_type, OS, browser, app_version, session_id
+4. **Escalating Enforcement**:
+   - 1-2 violations: Warn + continue after user stops
+   - 3-4 violations: End session
+   - 5+ violations: 30-day suspension
+   - Violation after suspension: Permanent account restriction
+
+**Detection Methods**:
+- PrintScreen key (Windows)
+- Cmd+Shift+3/4/5 (macOS)
+- Win+Shift+S (Windows Snipping Tool)
+- getDisplayMedia API (screen sharing)
+- Visibility change (tab hidden)
+- Print command (Ctrl+P)
+
+**Backend API Endpoints**:
+- `POST /api/security/report-capture` - Log capture attempt and get enforcement action
+- `GET /api/security/check-status` - Check user's violation/suspension status
+- `GET /api/security/violations/{user_id}` - Admin: View user violations
+- `POST /api/security/lift-suspension/{user_id}` - Admin: Lift user suspension
+
+**Frontend Components**:
+- `useScreenProtection` hook - Detects capture attempts
+- `ScreenProtectionOverlay` - Warning overlay with severity levels
+- `ProtectedContent` - Wrapper that blurs content when protected
+
+**Files Created/Updated**:
+- `/app/backend/server.py` - Security endpoints and models
+- `/app/frontend/src/hooks/useScreenProtection.js` - Detection hook
+- `/app/frontend/src/components/ScreenProtectionOverlay.jsx` - Warning UI
+- `/app/frontend/src/components/LiveStreamViewer.jsx` - Integration
+- `/app/frontend/src/pages/ControlPanel.jsx` - Integration
+
+**Verification**: Testing agent confirmed all 16 backend tests + frontend tests pass with 100% success rate.
+
 ---
 
 ## Recent Fixes (Feb 22, 2026)
