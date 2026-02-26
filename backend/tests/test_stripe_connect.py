@@ -7,7 +7,7 @@ import requests
 import os
 from datetime import datetime, timezone, timedelta
 
-BASE_URL = os.environ.get('REACT_APP_BACKEND_URL', 'https://livestream-hub-78.preview.emergentagent.com').rstrip('/')
+BASE_URL = os.environ.get('REACT_APP_BACKEND_URL', 'https://virtual-events-3.preview.emergentagent.com').rstrip('/')
 
 # Test session token (created for testing)
 TEST_SESSION_TOKEN = None
@@ -200,7 +200,7 @@ class TestStripeConnectOnboardingLink:
         response = api_client.post(
             f"{BASE_URL}/api/stripe/connect/onboarding-link",
             headers={"Authorization": f"Bearer {creator_session['session_token']}"},
-            params={"origin_url": "https://livestream-hub-78.preview.emergentagent.com"}
+            params={"origin_url": "https://virtual-events-3.preview.emergentagent.com"}
         )
         
         # Should return 400 with Stripe error (invalid API key)

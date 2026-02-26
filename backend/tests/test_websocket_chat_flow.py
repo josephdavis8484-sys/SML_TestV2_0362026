@@ -10,7 +10,7 @@ import json
 import os
 import time
 
-BASE_URL = os.environ.get('REACT_APP_BACKEND_URL', 'https://livestream-hub-78.preview.emergentagent.com').rstrip('/')
+BASE_URL = os.environ.get('REACT_APP_BACKEND_URL', 'https://virtual-events-3.preview.emergentagent.com').rstrip('/')
 WS_URL = BASE_URL.replace('https://', 'wss://').replace('http://', 'ws://')
 
 
