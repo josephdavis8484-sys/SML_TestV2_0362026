@@ -476,6 +476,39 @@ const LiveStreamViewer = ({ eventId, userId, userName, event }) => {
                 ))}
               </div>
             )}
+            
+            {/* Quality Selector */}
+            <div className="relative">
+              <button 
+                onClick={() => setShowQualityMenu(!showQualityMenu)}
+                className="w-11 h-11 bg-gray-800 hover:bg-gray-700 rounded-lg flex items-center justify-center text-white"
+                title="Video Quality"
+              >
+                <Settings className="w-4 h-4" />
+              </button>
+              {showQualityMenu && (
+                <div className="absolute bottom-full right-0 mb-2 bg-gray-800 border border-gray-700 rounded-lg shadow-lg py-1 min-w-[100px]">
+                  {['auto', '1080p', '720p', '480p'].map((q) => (
+                    <button
+                      key={q}
+                      onClick={() => { setVideoQuality(q); setShowQualityMenu(false); toast.success(`Quality: ${q.toUpperCase()}`); }}
+                      className={`w-full px-3 py-1.5 text-left text-sm hover:bg-gray-700 ${videoQuality === q ? 'text-blue-400' : 'text-white'}`}
+                    >
+                      {q === 'auto' ? 'Auto' : q}
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
+            
+            {/* Cast to TV Button */}
+            <button 
+              onClick={handleCastToTV}
+              className="w-11 h-11 bg-gray-800 hover:bg-gray-700 rounded-lg flex items-center justify-center text-white"
+              title="Cast to TV"
+            >
+              <Cast className="w-4 h-4" />
+            </button>
           </div>
           {/* Connection status indicator */}
           <div className="text-center mt-2">
