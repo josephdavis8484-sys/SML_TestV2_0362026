@@ -306,17 +306,57 @@ const CreatorDashboard = ({ user, onLogout }) => {
                               className="flex-1 bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700 text-white text-sm"
                               data-testid={`pro-mode-button-${event.id}`}
                             >
+                              <Sparkles className="w-4 h-4 mr-1" />
                               Pro Mode
                             </Button>
                           ) : (
-                            <Button
-                              onClick={() => navigate(`/control-panel/${event.id}`)}
-                              className="flex-1 bg-blue-600 hover:bg-blue-700 text-white text-sm"
-                              data-testid={`manage-button-${event.id}`}
-                            >
-                              Manage Stream
-                            </Button>
+                            <>
+                              <Button
+                                onClick={() => navigate(`/control-panel/${event.id}`)}
+                                className="flex-1 bg-blue-600 hover:bg-blue-700 text-white text-sm"
+                                data-testid={`manage-button-${event.id}`}
+                              >
+                                <Video className="w-4 h-4 mr-1" />
+                                Stream
+                              </Button>
+                              <Button
+                                onClick={() => setShowPromoInput(showPromoInput === event.id ? null : event.id)}
+                                className="flex-1 bg-gradient-to-r from-purple-600/80 to-pink-600/80 hover:from-purple-600 hover:to-pink-600 text-white text-sm"
+                                data-testid={`unlock-pro-mode-button-${event.id}`}
+                              >
+                                <Lock className="w-4 h-4 mr-1" />
+                                Pro Mode $1000
+                              </Button>
+                            </>
                           )}
+                        </div>
+                        
+                        {/* Pro Mode Unlock Panel */}
+                        {showPromoInput === event.id && event.streaming_package !== "premium" && (
+                          <div className="bg-gray-800/50 rounded-lg p-3 border border-purple-500/30">
+                            <p className="text-gray-300 text-xs mb-2">
+                              Unlock multi-camera streaming with Pro Mode
+                            </p>
+                            <div className="flex gap-2 mb-2">
+                              <input
+                                type="text"
+                                value={promoCode}
+                                onChange={(e) => setPromoCode(e.target.value.toUpperCase())}
+                                placeholder="Promo code (optional)"
+                                className="flex-1 bg-gray-900 border border-gray-700 rounded px-2 py-1.5 text-white text-sm placeholder-gray-500"
+                              />
+                            </div>
+                            <Button
+                              onClick={() => handleUnlockProMode(event.id)}
+                              disabled={unlockingProMode === event.id}
+                              className="w-full bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700 text-white text-sm"
+                            >
+                              {unlockingProMode === event.id ? "Processing..." : "Unlock Pro Mode"}
+                            </Button>
+                          </div>
+                        )}
+                        
+                        <div className="flex gap-2">
                           <Button
                             onClick={() => {
                               navigator.clipboard.writeText(event.share_link);
@@ -327,15 +367,15 @@ const CreatorDashboard = ({ user, onLogout }) => {
                           >
                             Share
                           </Button>
+                          <Button
+                            onClick={() => handleCancelEvent(event.id, event.title)}
+                            className="flex-1 bg-red-600/20 hover:bg-red-600/40 text-red-400 border border-red-600/50 text-sm"
+                            data-testid={`cancel-button-${event.id}`}
+                          >
+                            <XCircle className="w-4 h-4 mr-1" />
+                            Cancel
+                          </Button>
                         </div>
-                        <Button
-                          onClick={() => handleCancelEvent(event.id, event.title)}
-                          className="w-full bg-red-600/20 hover:bg-red-600/40 text-red-400 border border-red-600/50 text-sm"
-                          data-testid={`cancel-button-${event.id}`}
-                        >
-                          <XCircle className="w-4 h-4 mr-2" />
-                          Cancel Event
-                        </Button>
                       </div>
                     ) : event.status === "completed" ? (
                       <div className="space-y-2">
