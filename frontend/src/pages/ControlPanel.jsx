@@ -165,56 +165,166 @@ const LiveReactionsPanel = ({ reactions }) => {
   );
 };
 
-// Floating Chat Overlay - Messages that animate upward and fade out
+// Floating Chat Overlay - Messages that animate upward and fade out with gradient
 const FloatingChatOverlay = ({ messages }) => {
+  const [displayMessages, setDisplayMessages] = useState([]);
+
+  useEffect(() => {
+    // Add new messages with timestamp
+    if (messages.length > 0) {
+      const latestMsg = messages[messages.length - 1];
+      const msgWithTime = { ...latestMsg, addedAt: Date.now() };
+      setDisplayMessages(prev => [...prev.slice(-8), msgWithTime]);
+    }
+  }, [messages.length]);
+
+  // Clean up old messages after 6 seconds (3s hold + 3s fade)
+  useEffect(() => {
+    const cleanup = setInterval(() => {
+      const now = Date.now();
+      setDisplayMessages(prev => prev.filter(msg => now - msg.addedAt < 6000));
+    }, 500);
+    return () => clearInterval(cleanup);
+  }, []);
+
   return (
-    <div className="absolute bottom-0 left-0 right-0 h-[15%] pointer-events-none overflow-hidden">
-      {/* Gradient fade at bottom */}
-      <div className="absolute inset-0 bg-gradient-to-t from-black/40 via-transparent to-transparent" />
+    <div className="absolute bottom-0 left-0 w-[55%] h-[25%] pointer-events-none overflow-hidden">
+      {/* Gradient fade - bottom 0.38 opacity to top 0 */}
+      <div 
+        className="absolute inset-0"
+        style={{
+          background: 'linear-gradient(to top, rgba(0,0,0,0.38) 0%, rgba(0,0,0,0.2) 40%, rgba(0,0,0,0) 100%)'
+        }}
+      />
       
-      <div className="absolute bottom-2 left-4 right-[30%] space-y-1">
-        {messages.slice(-5).map((msg, index) => (
-          <div
-            key={msg.id}
-            className="animate-fadeInUp"
-            style={{
-              animation: 'fadeInUp 0.3s ease-out forwards',
-              opacity: 0.9 - (index * 0.15),
-            }}
-          >
-            <div className="inline-block bg-black/50 backdrop-blur-sm rounded-full px-3 py-1 max-w-full">
-              <span 
-                className="font-semibold text-sm"
-                style={{ color: msg.color || '#60a5fa' }}
-              >
-                {msg.username}
-              </span>
-              <span className="text-white/90 text-sm ml-2">{msg.message}</span>
+      <div className="absolute bottom-3 left-4 right-4 space-y-2">
+        {displayMessages.map((msg) => {
+          const age = Date.now() - msg.addedAt;
+          const holdTime = 3000; // 3s hold
+          const fadeTime = 3000; // 3s fade
+          let opacity = 1;
+          
+          if (age > holdTime) {
+            // Start fading after hold time
+            opacity = Math.max(0, 1 - (age - holdTime) / fadeTime);
+          }
+          
+          return (
+            <div
+              key={msg.id}
+              className="chat-message-animate"
+              style={{
+                opacity,
+                transform: `translateY(${Math.min(0, -(age / 100))}px)`,
+                transition: 'opacity 0.3s ease-out, transform 0.3s ease-out',
+              }}
+            >
+              <div className="inline-flex items-center gap-2 bg-black/60 backdrop-blur-md rounded-2xl px-4 py-2 shadow-lg shadow-black/20">
+                <span 
+                  className="font-bold text-sm drop-shadow-glow"
+                  style={{ color: msg.color || '#60a5fa' }}
+                >
+                  {msg.username}
+                </span>
+                <span className="text-white text-sm font-medium">{msg.message}</span>
+              </div>
             </div>
-          </div>
-        ))}
+          );
+        })}
       </div>
     </div>
   );
 };
 
-// Floating Reactions Overlay - Emojis that float up and fade out
-const FloatingReactionsOverlay = ({ reactions }) => {
+// Modern Reaction Component with motion animations
+const AnimatedReaction = ({ emoji, left, onComplete }) => {
+  const [isVisible, setIsVisible] = useState(true);
+  
+  // Map emojis to their animation types
+  const getAnimationType = (emoji) => {
+    if (emoji === '👏' || emoji === '🙌') return 'clap';
+    if (emoji === '😂' || emoji === '🤣' || emoji === '😆') return 'laugh';
+    if (emoji === '❤️' || emoji === '💖' || emoji === '💕' || emoji === '😍') return 'heart';
+    return 'default';
+  };
+  
+  const animationType = getAnimationType(emoji);
+  
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setIsVisible(false);
+      setTimeout(onComplete, 300);
+    }, 2000); // 2s total animation
+    return () => clearTimeout(timer);
+  }, [onComplete]);
+  
+  if (!isVisible) return null;
+  
   return (
-    <div className="absolute bottom-0 right-0 w-[20%] h-[40%] pointer-events-none overflow-hidden">
-      {reactions.map((reaction) => (
-        <div
+    <div
+      className={`absolute reaction-${animationType}`}
+      style={{
+        left: `${left}%`,
+        bottom: '10%',
+      }}
+    >
+      <span className="text-4xl md:text-5xl drop-shadow-2xl">{emoji}</span>
+    </div>
+  );
+};
+
+// Floating Reactions Overlay - Modern flashy design with motion
+const FloatingReactionsOverlay = ({ reactions }) => {
+  const [activeReactions, setActiveReactions] = useState([]);
+
+  useEffect(() => {
+    if (reactions.length > 0) {
+      const latest = reactions[reactions.length - 1];
+      if (!activeReactions.find(r => r.id === latest.id)) {
+        setActiveReactions(prev => [...prev, latest]);
+      }
+    }
+  }, [reactions]);
+
+  const handleComplete = (id) => {
+    setActiveReactions(prev => prev.filter(r => r.id !== id));
+  };
+
+  return (
+    <div className="absolute bottom-0 right-0 w-[30%] h-[50%] pointer-events-none overflow-hidden">
+      {/* Gradient fade - bottom 0.38 opacity to top 0 */}
+      <div 
+        className="absolute inset-0"
+        style={{
+          background: 'linear-gradient(to top, rgba(0,0,0,0.38) 0%, rgba(0,0,0,0.15) 50%, rgba(0,0,0,0) 100%)'
+        }}
+      />
+      
+      {/* Glow effect background */}
+      <div className="absolute inset-0 opacity-30">
+        {activeReactions.slice(-3).map((r, i) => (
+          <div 
+            key={`glow-${r.id}`}
+            className="absolute w-20 h-20 rounded-full blur-xl"
+            style={{
+              left: `${r.left}%`,
+              bottom: `${20 + i * 15}%`,
+              background: r.emoji.includes('❤') ? 'rgba(239,68,68,0.6)' : 
+                         r.emoji.includes('😂') || r.emoji.includes('🤣') ? 'rgba(251,191,36,0.6)' : 
+                         'rgba(168,85,247,0.6)',
+              animation: 'pulse 1s ease-in-out infinite',
+            }}
+          />
+        ))}
+      </div>
+      
+      {activeReactions.map((reaction) => (
+        <AnimatedReaction
           key={reaction.id}
-          className="absolute text-3xl"
-          style={{
-            left: `${reaction.left}%`,
-            bottom: '0',
-            animation: 'floatUp 3s ease-out forwards',
-            filter: 'drop-shadow(0 0 8px rgba(255,255,255,0.5))',
-          }}
-        >
-          {reaction.emoji}
-        </div>
+          emoji={reaction.emoji}
+          left={reaction.left}
+          onComplete={() => handleComplete(reaction.id)}
+        />
       ))}
     </div>
   );
