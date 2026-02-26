@@ -3,9 +3,11 @@ import Navbar from "@/components/Navbar";
 import { axiosInstance } from "@/App";
 import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
-import { Plus, Calendar, DollarSign, Users, Video, Settings, Wallet, BarChart3, XCircle, Globe, Trash2 } from "lucide-react";
+import { Plus, Calendar, DollarSign, Users, Video, Settings, Wallet, BarChart3, XCircle, Globe, Trash2, Sparkles, Lock } from "lucide-react";
 import { toast } from "sonner";
 import CreatorOnboarding from "@/components/CreatorOnboarding";
+
+const BACKEND_URL = process.env.REACT_APP_BACKEND_URL;
 
 const CreatorDashboard = ({ user, onLogout }) => {
   const [events, setEvents] = useState([]);
@@ -13,6 +15,9 @@ const CreatorDashboard = ({ user, onLogout }) => {
   const [loading, setLoading] = useState(true);
   const [showOnboarding, setShowOnboarding] = useState(false);
   const [onboardingStatus, setOnboardingStatus] = useState(null);
+  const [unlockingProMode, setUnlockingProMode] = useState(null); // Track which event is being unlocked
+  const [promoCode, setPromoCode] = useState("");
+  const [showPromoInput, setShowPromoInput] = useState(null);
   const navigate = useNavigate();
 
   useEffect(() => {
