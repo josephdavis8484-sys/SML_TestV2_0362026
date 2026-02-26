@@ -1,3 +1,17 @@
+"""
+ShowMeLive Backend Server
+=========================
+A virtual event platform with live streaming, payments, and multi-camera support.
+
+Structure (being migrated to modules):
+- /models/ - Pydantic models
+- /routes/ - API endpoints  
+- /services/ - Business logic managers
+- /utils/ - Helper functions
+- config.py - Configuration settings
+- database.py - MongoDB connection
+"""
+
 from fastapi import FastAPI, APIRouter, HTTPException, Response, Request, Depends, UploadFile, File, WebSocket, WebSocketDisconnect
 from fastapi.responses import JSONResponse, StreamingResponse
 from dotenv import load_dotenv
@@ -27,6 +41,10 @@ import math
 from apscheduler.schedulers.asyncio import AsyncIOScheduler
 from apscheduler.triggers.interval import IntervalTrigger
 import secrets
+
+# Setup logging
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
 
 ROOT_DIR = Path(__file__).parent
 load_dotenv(ROOT_DIR / '.env')
