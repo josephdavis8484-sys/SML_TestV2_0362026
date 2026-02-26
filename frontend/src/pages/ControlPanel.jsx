@@ -781,21 +781,6 @@ const ControlPanel = ({ user, onLogout }) => {
           </div>
         </div>
       </div>
-
-      {/* Chat & Reactions Panel */}
-      {showChatReactions && isStreaming && (
-        <div className="bg-gray-900/90 px-3 py-2 border-t border-gray-800 flex-shrink-0 h-[150px]">
-          <div className="max-w-3xl mx-auto grid grid-cols-2 gap-3 h-full">
-            {event?.chat_enabled && (
-              <div className="relative">
-                <div className={`absolute top-1 right-1 w-2 h-2 rounded-full ${chatConnected ? 'bg-green-500' : 'bg-red-500 animate-pulse'}`} title={chatConnected ? 'Connected' : 'Reconnecting...'} />
-                <LiveChatPanel messages={chatMessages} />
-              </div>
-            )}
-            {event?.reactions_enabled && <LiveReactionsPanel reactions={liveReactions} />}
-          </div>
-        </div>
-      )}
     </div>
   );
 };
