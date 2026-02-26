@@ -487,6 +487,16 @@ const ControlPanel = ({ user, onLogout }) => {
   const [liveReactions, setLiveReactions] = useState([]);
   const chatWsRef = useRef(null);
 
+  // Screen protection hook - also for creators
+  const {
+    isProtected,
+    showWarning,
+    warningMessage,
+    canContinue,
+    violationCount,
+    dismissWarning
+  } = useScreenProtection(eventId, user?.id);
+
   // Stream timer
   useEffect(() => {
     let interval;
