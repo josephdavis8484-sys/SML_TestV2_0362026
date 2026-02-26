@@ -32,7 +32,7 @@ const BACKEND_URL = process.env.REACT_APP_BACKEND_URL;
 const AudioSettingsDropdown = ({ 
   isOpen, onClose, speakerVolume, setSpeakerVolume, 
   micVolume, setMicVolume, balance, setBalance, 
-  treble, setTreble, bass, setBass, onReset
+  treble, setTreble, bass, setBass, balance, setBalance, onReset
 }) => {
   const dropdownRef = useRef(null);
 
@@ -48,39 +48,55 @@ const AudioSettingsDropdown = ({
 
   if (!isOpen) return null;
 
+  const SliderControl = ({ icon: Icon, label, value, onChange, color = "#3b82f6" }) => (
+    <div className="space-y-1">
+      <div className="flex items-center gap-1">
+        <Icon className="w-3 h-3 text-gray-400" />
+        <span className="text-gray-300 text-xs">{label} {value}%</span>
+      </div>
+      <input type="range" min="0" max="100" value={value}
+        onChange={(e) => onChange(parseInt(e.target.value))}
+        className="w-full h-1.5 bg-gray-700 rounded-lg appearance-none cursor-pointer"
+        style={{ background: `linear-gradient(to right, ${color} 0%, ${color} ${value}%, #374151 ${value}%, #374151 100%)` }}
+      />
+    </div>
+  );
+
   return (
-    <div ref={dropdownRef} className="absolute bottom-full right-0 mb-3 w-[400px] bg-gray-900/95 backdrop-blur-sm rounded-xl border border-gray-700 shadow-2xl z-50">
+    <div ref={dropdownRef} className="absolute bottom-full right-0 mb-3 w-[320px] bg-gray-900/95 backdrop-blur-sm rounded-xl border border-gray-700 shadow-2xl z-50">
       <div className="text-center py-2 border-b border-gray-700">
         <h3 className="text-white font-bold text-sm">AUDIO SETTINGS</h3>
       </div>
       <div className="p-3 space-y-3">
+        {/* Speaker & Mic Row */}
         <div className="grid grid-cols-2 gap-3">
-          <div className="space-y-1">
-            <div className="flex items-center gap-1">
-              <Volume2 className="w-3 h-3 text-gray-400" />
-              <span className="text-gray-300 text-xs">Speaker {speakerVolume}%</span>
-            </div>
-            <input type="range" min="0" max="100" value={speakerVolume}
-              onChange={(e) => setSpeakerVolume(parseInt(e.target.value))}
-              className="w-full h-1.5 bg-gray-700 rounded-lg appearance-none cursor-pointer"
-              style={{ background: `linear-gradient(to right, #3b82f6 0%, #3b82f6 ${speakerVolume}%, #374151 ${speakerVolume}%, #374151 100%)` }}
-            />
-          </div>
-          <div className="space-y-1">
-            <div className="flex items-center gap-1">
-              <Mic className="w-3 h-3 text-gray-400" />
-              <span className="text-gray-300 text-xs">Mic {micVolume}%</span>
-            </div>
-            <input type="range" min="0" max="100" value={micVolume}
-              onChange={(e) => setMicVolume(parseInt(e.target.value))}
-              className="w-full h-1.5 bg-gray-700 rounded-lg appearance-none cursor-pointer"
-              style={{ background: `linear-gradient(to right, #3b82f6 0%, #3b82f6 ${micVolume}%, #374151 ${micVolume}%, #374151 100%)` }}
-            />
-          </div>
+          <SliderControl icon={Volume2} label="Speaker" value={speakerVolume} onChange={setSpeakerVolume} />
+          <SliderControl icon={Mic} label="Mic" value={micVolume} onChange={setMicVolume} />
         </div>
-        <div className="flex justify-end">
+        
+        {/* Treble & Bass Row */}
+        <div className="grid grid-cols-2 gap-3">
+          <SliderControl icon={Volume2} label="Treble" value={treble} onChange={setTreble} color="#10b981" />
+          <SliderControl icon={Volume2} label="Bass" value={bass} onChange={setBass} color="#f59e0b" />
+        </div>
+        
+        {/* Balance (full width) */}
+        <div className="space-y-1">
+          <div className="flex items-center justify-between">
+            <span className="text-gray-400 text-xs">L</span>
+            <span className="text-gray-300 text-xs">Balance {balance === 50 ? 'Center' : balance < 50 ? `L ${50 - balance}` : `R ${balance - 50}`}</span>
+            <span className="text-gray-400 text-xs">R</span>
+          </div>
+          <input type="range" min="0" max="100" value={balance}
+            onChange={(e) => setBalance(parseInt(e.target.value))}
+            className="w-full h-1.5 bg-gray-700 rounded-lg appearance-none cursor-pointer"
+            style={{ background: `linear-gradient(to right, #374151 0%, #374151 ${balance}%, #8b5cf6 ${balance}%, #374151 ${balance}%, #374151 100%)` }}
+          />
+        </div>
+        
+        <div className="flex justify-end pt-1">
           <button onClick={onReset} className="px-3 py-1 bg-gray-700 hover:bg-gray-600 text-white rounded text-xs flex items-center gap-1">
-            <RotateCcw className="w-3 h-3" /> Reset
+            <RotateCcw className="w-3 h-3" /> Reset All
           </button>
         </div>
       </div>
