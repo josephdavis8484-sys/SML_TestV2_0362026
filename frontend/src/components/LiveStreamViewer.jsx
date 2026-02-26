@@ -10,7 +10,8 @@ import {
   X,
   ArrowLeft,
   Cast,
-  Settings
+  Settings,
+  Shield
 } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import {
@@ -22,6 +23,8 @@ import {
 } from "@livekit/components-react";
 import "@livekit/components-styles";
 import { Track } from "livekit-client";
+import { useScreenProtection } from "@/hooks/useScreenProtection";
+import ScreenProtectionOverlay, { ProtectedContent } from "@/components/ScreenProtectionOverlay";
 
 const BACKEND_URL = process.env.REACT_APP_BACKEND_URL;
 
