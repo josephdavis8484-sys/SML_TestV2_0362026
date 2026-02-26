@@ -2509,7 +2509,7 @@ async def get_reaction_counts(event_id: str):
     counts = {item["_id"]: item["count"] async for item in counts_cursor}
     
     return {
-        "reactions_enabled": event.get("reactions_enabled", False),
+        "reactions_enabled": event.get("reactions_enabled", True),
         "counts": counts
     }
 
