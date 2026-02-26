@@ -714,6 +714,33 @@ async def get_my_events(current_user: User = Depends(get_current_user)):
             event['created_at'] = datetime.fromisoformat(event['created_at'])
     return events
 
+
+@api_router.delete("/events/creator/{event_id}")
+async def delete_creator_event(event_id: str, current_user: User = Depends(get_current_user)):
+    """Allow creators to delete their own old/outdated events"""
+    if current_user.role != "creator":
+        raise HTTPException(status_code=403, detail="Only creators can delete their events")
+    
+    # Find the event
+    event = await db.events.find_one({"id": event_id, "creator_id": current_user.id}, {"_id": 0})
+    if not event:
+        raise HTTPException(status_code=404, detail="Event not found or you don't own this event")
+    
+    # Check if event is live - cannot delete live events
+    if event.get("status") == "live":
+        raise HTTPException(status_code=400, detail="Cannot delete a live event. Please end the stream first.")
+    
+    # Delete the event
+    result = await db.events.delete_one({"id": event_id, "creator_id": current_user.id})
+    if result.deleted_count == 0:
+        raise HTTPException(status_code=500, detail="Failed to delete event")
+    
+    # Also delete associated tickets (issue refunds would need Stripe integration)
+    await db.tickets.delete_many({"event_id": event_id})
+    
+    return {"message": "Event deleted successfully", "event_id": event_id}
+
+
 # Streaming Device Routes
 @api_router.post("/streaming/generate-device-token")
 async def generate_device_token(event_id: str, device_name: str, is_control_panel: bool, current_user: User = Depends(get_current_user)):
