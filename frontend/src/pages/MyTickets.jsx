@@ -12,7 +12,8 @@ import {
   CheckCircle, 
   XCircle,
   Share2,
-  X
+  X,
+  Trash2
 } from "lucide-react";
 import { toast } from "sonner";
 
