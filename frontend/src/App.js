@@ -16,6 +16,8 @@ import CreateEvent from "@/pages/CreateEvent";
 import StreamDevice from "@/pages/StreamDevice";
 import ControlPanel from "@/pages/ControlPanel";
 import ProModeControlPanel from "@/pages/ProModeControlPanel";
+import ProModeQRCodes from "@/pages/ProModeQRCodes";
+import ProModeCameraDevice from "@/pages/ProModeCameraDevice";
 import PaymentSuccess from "@/pages/PaymentSuccess";
 import PaymentCancel from "@/pages/PaymentCancel";
 import AdminLogin from "@/pages/AdminLogin";
