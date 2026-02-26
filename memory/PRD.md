@@ -344,10 +344,13 @@ Created modular architecture:
 ├── models/            # Pydantic models (user, event, ticket, payment, notification, pro_mode, security)
 ├── services/          # Business logic (chat_manager, notification_manager, pro_mode_manager)
 ├── utils/             # Helpers (auth, geo)
+├── routes/            # API route blueprints (structure defined)
 └── README.md          # Documentation
 ```
 
-### Phase 2 - Route Migration (PENDING)
+### Phase 2 - Route Organization (IN PROGRESS)
+- [x] Created routes/ directory structure
+- [x] Defined route module blueprints
 - [ ] Extract auth routes to routes/auth.py
 - [ ] Extract event routes to routes/events.py
 - [ ] Extract ticket routes to routes/tickets.py
@@ -356,6 +359,14 @@ Created modular architecture:
 - [ ] Extract streaming routes to routes/streaming.py
 - [ ] Extract pro_mode routes to routes/pro_mode.py
 - [ ] Extract security routes to routes/security.py
+
+### Bug Fixes (Feb 26, 2026)
+- **Live Chat & Reactions Default Values**: Changed defaults from `False` to `True`
+  - Updated Event model (lines 207-208)
+  - Updated EventCreate model (lines 240-241)
+  - Updated WebSocket endpoint defaults
+  - Migrated existing events in database
+- **Geo-Fencing**: Verified working correctly with radius-based location checking
 
 ---
 
