@@ -155,6 +155,26 @@ const MyTickets = ({ user, onLogout }) => {
     }
   };
 
+  const handleDeleteTicket = async (ticketId, eventTitle, eventStatus) => {
+    if (eventStatus === "live") {
+      toast.error("Cannot delete ticket for a live event");
+      return;
+    }
+    
+    const confirmed = window.confirm(
+      `Are you sure you want to delete your ticket for "${eventTitle}"?\n\nThis action cannot be undone.`
+    );
+    if (!confirmed) return;
+
+    try {
+      await axiosInstance.delete(`/tickets/${ticketId}`);
+      toast.success("Ticket deleted successfully");
+      fetchTickets(); // Refresh data
+    } catch (error) {
+      toast.error(error.response?.data?.detail || "Failed to delete ticket");
+    }
+  };
+
   // Navigate to watch event
   const handleViewEvent = (eventId) => {
     navigate(`/event/${eventId}`);
