@@ -574,6 +574,8 @@ const ControlPanel = ({ user, onLogout }) => {
                 isCameraOn={isCameraOn}
                 isMicOn={isMicOn}
                 streamTime={streamTime}
+                facingMode={facingMode}
+                videoQuality={videoQuality}
               />
             </LiveKitRoom>
           ) : (
