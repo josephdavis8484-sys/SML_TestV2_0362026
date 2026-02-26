@@ -2465,7 +2465,7 @@ async def send_reaction(event_id: str, reaction: SendReaction, current_user: Use
     if not event:
         raise HTTPException(status_code=404, detail="Event not found")
     
-    if not event.get("reactions_enabled", False):
+    if not event.get("reactions_enabled", True):
         raise HTTPException(status_code=400, detail="Reactions are not enabled for this event")
     
     valid_reactions = ["heart", "clap", "fire", "laugh", "wow"]
