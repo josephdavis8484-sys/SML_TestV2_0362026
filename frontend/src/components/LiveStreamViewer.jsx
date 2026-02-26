@@ -153,6 +153,33 @@ const LiveStreamViewer = ({ eventId, userId, userName, event }) => {
   const [showQualityMenu, setShowQualityMenu] = useState(false);
   const chatWsRef = useRef(null);
 
+  // Screen protection hook
+  const {
+    isProtected,
+    showWarning,
+    warningMessage,
+    canContinue,
+    violationCount,
+    dismissWarning
+  } = useScreenProtection(eventId, userId);
+
+  // Check security status on mount
+  useEffect(() => {
+    const checkSecurityStatus = async () => {
+      try {
+        const response = await axiosInstance.get('/security/check-status');
+        if (!response.data.can_access) {
+          toast.error(response.data.message);
+          setTimeout(() => navigate('/'), 2000);
+        }
+      } catch (err) {
+        // Continue if check fails - don't block
+        console.warn('Security check failed:', err);
+      }
+    };
+    checkSecurityStatus();
+  }, [navigate]);
+
   // Cast to TV function
   const handleCastToTV = async () => {
     if ('presentation' in navigator && 'PresentationRequest' in window) {
