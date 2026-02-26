@@ -3105,6 +3105,429 @@ async def get_stream_status(event_id: str):
         "livekit_configured": bool(LIVEKIT_API_KEY and LIVEKIT_API_SECRET)
     }
 
+
+# ==================== PRO MODE ENDPOINTS ====================
+
+@api_router.post("/pro-mode/session/create")
+async def create_pro_mode_session(event_id: str, current_user: User = Depends(get_current_user)):
+    """Create a Pro Mode session for an event"""
+    if current_user.role != "creator":
+        raise HTTPException(status_code=403, detail="Only creators can create Pro Mode sessions")
+    
+    # Verify event exists and belongs to creator
+    event = await db.events.find_one({"id": event_id, "creator_id": current_user.id}, {"_id": 0})
+    if not event:
+        raise HTTPException(status_code=404, detail="Event not found or you don't own this event")
+    
+    # Check if event has premium package
+    if event.get("streaming_package") != "premium":
+        raise HTTPException(status_code=400, detail="Pro Mode requires premium streaming package")
+    
+    # Check for existing session
+    existing = await db.pro_mode_sessions.find_one({"event_id": event_id}, {"_id": 0})
+    if existing:
+        return existing
+    
+    # Create room name for LiveKit
+    room_name = f"pro-{event_id}"
+    
+    # Create session
+    session = ProModeSession(
+        event_id=event_id,
+        creator_id=current_user.id,
+        room_name=room_name,
+        devices=[]
+    )
+    
+    await db.pro_mode_sessions.insert_one(session.model_dump())
+    pro_mode_manager.sessions[event_id] = session
+    
+    return session.model_dump()
+
+@api_router.post("/pro-mode/device/register")
+async def register_pro_mode_device(request: ProModeDeviceRegister, current_user: User = Depends(get_current_user)):
+    """Register a camera device for Pro Mode streaming"""
+    if current_user.role != "creator":
+        raise HTTPException(status_code=403, detail="Only creators can register devices")
+    
+    # Verify session exists
+    session = await db.pro_mode_sessions.find_one({"event_id": request.event_id}, {"_id": 0})
+    if not session:
+        raise HTTPException(status_code=404, detail="Pro Mode session not found")
+    
+    if session.get("creator_id") != current_user.id:
+        raise HTTPException(status_code=403, detail="You don't own this session")
+    
+    # Check device number
+    if request.device_number < 1 or request.device_number > 5:
+        raise HTTPException(status_code=400, detail="Device number must be 1-5")
+    
+    # Check if device slot is already taken
+    existing_devices = session.get("devices", [])
+    for d in existing_devices:
+        if d.get("device_number") == request.device_number and d.get("is_connected"):
+            raise HTTPException(status_code=400, detail=f"Device {request.device_number} is already connected")
+    
+    # Create device
+    device = ProModeDevice(
+        event_id=request.event_id,
+        device_number=request.device_number,
+        device_name=request.device_name or f"Camera {request.device_number}",
+        is_active=False,
+        is_connected=True,
+        connected_at=datetime.now(timezone.utc),
+        last_heartbeat=datetime.now(timezone.utc)
+    )
+    
+    # Generate LiveKit token for this device
+    room_name = session.get("room_name")
+    token = generate_livekit_token(
+        room_name=room_name,
+        participant_name=f"Camera-{request.device_number}",
+        can_publish=True,
+        can_subscribe=True
+    )
+    
+    # Add device to session
+    await db.pro_mode_sessions.update_one(
+        {"event_id": request.event_id},
+        {"$push": {"devices": device.model_dump()}}
+    )
+    
+    return {
+        "device": device.model_dump(),
+        "livekit_token": token,
+        "livekit_url": LIVEKIT_URL,
+        "room_name": room_name
+    }
+
+@api_router.post("/pro-mode/control-panel/connect")
+async def connect_pro_mode_control_panel(event_id: str, current_user: User = Depends(get_current_user)):
+    """Connect the control panel to a Pro Mode session"""
+    if current_user.role != "creator":
+        raise HTTPException(status_code=403, detail="Only creators can access control panel")
+    
+    # Verify session exists
+    session = await db.pro_mode_sessions.find_one({"event_id": event_id}, {"_id": 0})
+    if not session:
+        raise HTTPException(status_code=404, detail="Pro Mode session not found")
+    
+    if session.get("creator_id") != current_user.id:
+        raise HTTPException(status_code=403, detail="You don't own this session")
+    
+    # Generate LiveKit token for control panel (subscribe only - to see all feeds)
+    room_name = session.get("room_name")
+    token = generate_livekit_token(
+        room_name=room_name,
+        participant_name="ControlPanel",
+        can_publish=False,
+        can_subscribe=True
+    )
+    
+    return {
+        "session": session,
+        "livekit_token": token,
+        "livekit_url": LIVEKIT_URL,
+        "room_name": room_name
+    }
+
+@api_router.post("/pro-mode/switch-device")
+async def switch_active_device(request: ProModeSwitchDevice, current_user: User = Depends(get_current_user)):
+    """Switch the active broadcasting device"""
+    if current_user.role != "creator":
+        raise HTTPException(status_code=403, detail="Only creators can switch devices")
+    
+    # Verify session
+    session = await db.pro_mode_sessions.find_one({"event_id": request.event_id}, {"_id": 0})
+    if not session:
+        raise HTTPException(status_code=404, detail="Pro Mode session not found")
+    
+    if session.get("creator_id") != current_user.id:
+        raise HTTPException(status_code=403, detail="You don't own this session")
+    
+    # Find the device
+    devices = session.get("devices", [])
+    target_device = None
+    previous_active = None
+    
+    for d in devices:
+        if d.get("id") == request.device_id:
+            target_device = d
+        if d.get("is_active"):
+            previous_active = d
+    
+    if not target_device:
+        raise HTTPException(status_code=404, detail="Device not found")
+    
+    # Update database - deactivate previous, activate new
+    transition = request.transition_type or session.get("transition_type", "cut")
+    
+    # Deactivate previous device
+    if previous_active:
+        await db.pro_mode_sessions.update_one(
+            {"event_id": request.event_id, "devices.id": previous_active.get("id")},
+            {"$set": {
+                "devices.$.is_active": False,
+                "devices.$.audio_settings.mic_enabled": False
+            }}
+        )
+    
+    # Activate new device
+    await db.pro_mode_sessions.update_one(
+        {"event_id": request.event_id, "devices.id": request.device_id},
+        {"$set": {
+            "devices.$.is_active": True,
+            "devices.$.audio_settings.mic_enabled": True,
+            "active_device_id": request.device_id
+        }}
+    )
+    
+    # Broadcast switch command to all connected devices
+    switch_message = {
+        "type": "device_switch",
+        "active_device_id": request.device_id,
+        "previous_device_id": previous_active.get("id") if previous_active else None,
+        "transition": transition
+    }
+    
+    await pro_mode_manager.broadcast_to_all_devices(request.event_id, switch_message)
+    await pro_mode_manager.broadcast_to_control_panel(request.event_id, switch_message)
+    
+    return {
+        "success": True,
+        "active_device_id": request.device_id,
+        "transition": transition,
+        "message": f"Switched to device with {transition} transition"
+    }
+
+@api_router.put("/pro-mode/device/{device_id}/audio")
+async def update_device_audio_settings(
+    device_id: str,
+    event_id: str,
+    settings: ProModeAudioSettings,
+    current_user: User = Depends(get_current_user)
+):
+    """Update audio settings for a device"""
+    if current_user.role != "creator":
+        raise HTTPException(status_code=403, detail="Only creators can update audio settings")
+    
+    # Build update query
+    update_fields = {}
+    if settings.mic_enabled is not None:
+        update_fields["devices.$.audio_settings.mic_enabled"] = settings.mic_enabled
+    if settings.balance is not None:
+        update_fields["devices.$.audio_settings.balance"] = settings.balance
+    if settings.treble is not None:
+        update_fields["devices.$.audio_settings.treble"] = settings.treble
+    if settings.bass is not None:
+        update_fields["devices.$.audio_settings.bass"] = settings.bass
+    
+    if not update_fields:
+        return {"message": "No settings to update"}
+    
+    result = await db.pro_mode_sessions.update_one(
+        {"event_id": event_id, "devices.id": device_id},
+        {"$set": update_fields}
+    )
+    
+    if result.modified_count == 0:
+        raise HTTPException(status_code=404, detail="Device not found")
+    
+    # Broadcast audio update
+    await pro_mode_manager.broadcast_to_device(event_id, device_id, {
+        "type": "audio_settings_update",
+        "settings": settings.model_dump(exclude_none=True)
+    })
+    
+    return {"success": True, "updated_settings": settings.model_dump(exclude_none=True)}
+
+@api_router.put("/pro-mode/session/{event_id}/transition")
+async def update_transition_type(
+    event_id: str,
+    transition_type: str,
+    current_user: User = Depends(get_current_user)
+):
+    """Update the default transition type for device switching"""
+    if current_user.role != "creator":
+        raise HTTPException(status_code=403, detail="Only creators can update transition type")
+    
+    valid_transitions = ["cut", "fade", "dissolve", "blend"]
+    if transition_type not in valid_transitions:
+        raise HTTPException(status_code=400, detail=f"Invalid transition. Must be one of: {valid_transitions}")
+    
+    result = await db.pro_mode_sessions.update_one(
+        {"event_id": event_id, "creator_id": current_user.id},
+        {"$set": {"transition_type": transition_type}}
+    )
+    
+    if result.modified_count == 0:
+        raise HTTPException(status_code=404, detail="Session not found")
+    
+    return {"success": True, "transition_type": transition_type}
+
+@api_router.get("/pro-mode/session/{event_id}")
+async def get_pro_mode_session(event_id: str, current_user: User = Depends(get_current_user)):
+    """Get Pro Mode session details"""
+    session = await db.pro_mode_sessions.find_one({"event_id": event_id}, {"_id": 0})
+    if not session:
+        raise HTTPException(status_code=404, detail="Pro Mode session not found")
+    
+    return session
+
+@api_router.post("/pro-mode/go-live/{event_id}")
+async def pro_mode_go_live(event_id: str, current_user: User = Depends(get_current_user)):
+    """Start Pro Mode live streaming"""
+    if current_user.role != "creator":
+        raise HTTPException(status_code=403, detail="Only creators can go live")
+    
+    session = await db.pro_mode_sessions.find_one({"event_id": event_id, "creator_id": current_user.id}, {"_id": 0})
+    if not session:
+        raise HTTPException(status_code=404, detail="Pro Mode session not found")
+    
+    devices = session.get("devices", [])
+    connected_devices = [d for d in devices if d.get("is_connected")]
+    
+    if len(connected_devices) == 0:
+        raise HTTPException(status_code=400, detail="At least one camera device must be connected")
+    
+    # Set first device as active if none selected
+    active_device = next((d for d in devices if d.get("is_active")), None)
+    if not active_device and connected_devices:
+        active_device_id = connected_devices[0].get("id")
+        await db.pro_mode_sessions.update_one(
+            {"event_id": event_id, "devices.id": active_device_id},
+            {"$set": {
+                "devices.$.is_active": True,
+                "devices.$.audio_settings.mic_enabled": True,
+                "active_device_id": active_device_id,
+                "is_live": True
+            }}
+        )
+    else:
+        await db.pro_mode_sessions.update_one(
+            {"event_id": event_id},
+            {"$set": {"is_live": True}}
+        )
+    
+    # Update event status
+    await db.events.update_one(
+        {"id": event_id},
+        {"$set": {"status": "live", "started_at": datetime.now(timezone.utc).isoformat()}}
+    )
+    
+    # Broadcast go live to all devices
+    await pro_mode_manager.broadcast_to_all_devices(event_id, {"type": "go_live"})
+    await pro_mode_manager.broadcast_to_control_panel(event_id, {"type": "go_live"})
+    
+    return {"success": True, "message": "Pro Mode stream started"}
+
+@app.websocket("/api/ws/pro-mode/device/{event_id}/{device_number}")
+async def websocket_pro_mode_device(websocket: WebSocket, event_id: str, device_number: int):
+    """WebSocket for Pro Mode camera devices"""
+    await websocket.accept()
+    
+    # Verify session exists
+    session = await db.pro_mode_sessions.find_one({"event_id": event_id}, {"_id": 0})
+    if not session:
+        await websocket.close(code=4004, reason="Pro Mode session not found")
+        return
+    
+    device_id = f"{event_id}-device-{device_number}"
+    
+    try:
+        # Register device connection
+        device = ProModeDevice(
+            id=device_id,
+            event_id=event_id,
+            device_number=device_number,
+            device_name=f"Camera {device_number}",
+            is_connected=True
+        )
+        await pro_mode_manager.register_device(event_id, device, websocket)
+        
+        # Send connection confirmation
+        await websocket.send_json({
+            "type": "connected",
+            "device_id": device_id,
+            "device_number": device_number
+        })
+        
+        # Notify control panel
+        await pro_mode_manager.broadcast_to_control_panel(event_id, {
+            "type": "device_connected",
+            "device_id": device_id,
+            "device_number": device_number
+        })
+        
+        # Listen for messages
+        while True:
+            data = await websocket.receive_text()
+            if data == "ping":
+                await websocket.send_text("pong")
+            else:
+                try:
+                    message = json.loads(data)
+                    # Handle device messages
+                    if message.get("type") == "heartbeat":
+                        await db.pro_mode_sessions.update_one(
+                            {"event_id": event_id, "devices.id": device_id},
+                            {"$set": {"devices.$.last_heartbeat": datetime.now(timezone.utc)}}
+                        )
+                except json.JSONDecodeError:
+                    pass
+    except WebSocketDisconnect:
+        pro_mode_manager.disconnect_device(event_id, device_id)
+        # Notify control panel
+        await pro_mode_manager.broadcast_to_control_panel(event_id, {
+            "type": "device_disconnected",
+            "device_id": device_id,
+            "device_number": device_number
+        })
+    except Exception as e:
+        logging.error(f"Pro Mode device WebSocket error: {e}")
+        pro_mode_manager.disconnect_device(event_id, device_id)
+
+@app.websocket("/api/ws/pro-mode/control-panel/{event_id}")
+async def websocket_pro_mode_control_panel(websocket: WebSocket, event_id: str):
+    """WebSocket for Pro Mode control panel"""
+    await websocket.accept()
+    
+    # Verify session exists
+    session = await db.pro_mode_sessions.find_one({"event_id": event_id}, {"_id": 0})
+    if not session:
+        await websocket.close(code=4004, reason="Pro Mode session not found")
+        return
+    
+    try:
+        await pro_mode_manager.register_control_panel(event_id, websocket)
+        
+        # Send current session state
+        await websocket.send_json({
+            "type": "session_state",
+            "session": session
+        })
+        
+        # Listen for commands
+        while True:
+            data = await websocket.receive_text()
+            if data == "ping":
+                await websocket.send_text("pong")
+            else:
+                try:
+                    message = json.loads(data)
+                    # Handle control panel commands
+                    if message.get("type") == "switch_device":
+                        # Broadcast switch to all devices
+                        await pro_mode_manager.broadcast_to_all_devices(event_id, message)
+                except json.JSONDecodeError:
+                    pass
+    except WebSocketDisconnect:
+        pro_mode_manager.disconnect_control_panel(event_id)
+    except Exception as e:
+        logging.error(f"Pro Mode control panel WebSocket error: {e}")
+        pro_mode_manager.disconnect_control_panel(event_id)
+
+
 # ==================== STRIPE CONNECT FOR CREATOR PAYOUTS ====================
 
 @api_router.post("/stripe/connect/create-account")
