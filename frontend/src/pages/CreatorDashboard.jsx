@@ -293,12 +293,32 @@ const CreatorDashboard = ({ user, onLogout }) => {
                         </Button>
                       </div>
                     ) : event.status === "completed" ? (
-                      <div className="text-center text-gray-400 py-2">
-                        Event completed
+                      <div className="space-y-2">
+                        <div className="text-center text-gray-400 py-2">
+                          Event completed
+                        </div>
+                        <Button
+                          onClick={() => handleDeleteEvent(event.id, event.title, event.status)}
+                          className="w-full bg-red-600/20 hover:bg-red-600/40 text-red-400 border border-red-600/50 text-sm"
+                          data-testid={`delete-button-${event.id}`}
+                        >
+                          <Trash2 className="w-4 h-4 mr-2" />
+                          Delete Event
+                        </Button>
                       </div>
                     ) : (
-                      <div className="text-center text-red-400 py-2 text-sm">
-                        {event.cancellation_reason || "Event was cancelled"}
+                      <div className="space-y-2">
+                        <div className="text-center text-red-400 py-2 text-sm">
+                          {event.cancellation_reason || "Event was cancelled"}
+                        </div>
+                        <Button
+                          onClick={() => handleDeleteEvent(event.id, event.title, event.status)}
+                          className="w-full bg-red-600/20 hover:bg-red-600/40 text-red-400 border border-red-600/50 text-sm"
+                          data-testid={`delete-button-${event.id}`}
+                        >
+                          <Trash2 className="w-4 h-4 mr-2" />
+                          Delete Event
+                        </Button>
                       </div>
                     )}
                   </div>
