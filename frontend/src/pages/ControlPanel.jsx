@@ -164,7 +164,7 @@ const LiveReactionsPanel = ({ reactions }) => {
 };
 
 // LiveKit Stream Publisher Component
-const StreamPublisher = ({ onViewerCount, isCameraOn, isMicOn, streamTime }) => {
+const StreamPublisher = ({ onViewerCount, isCameraOn, isMicOn, streamTime, facingMode, videoQuality }) => {
   const { localParticipant } = useLocalParticipant();
   const room = useRoomContext();
   const tracks = useTracks([Track.Source.Camera, Track.Source.Microphone]);
@@ -172,6 +172,14 @@ const StreamPublisher = ({ onViewerCount, isCameraOn, isMicOn, streamTime }) => 
   const cameraTrack = tracks.find(
     (t) => t.participant.isLocal && t.source === Track.Source.Camera
   );
+
+  // Quality presets
+  const qualityPresets = {
+    'auto': { width: 1920, height: 1080, frameRate: 60 },
+    '1080p': { width: 1920, height: 1080, frameRate: 60 },
+    '720p': { width: 1280, height: 720, frameRate: 30 },
+    '480p': { width: 854, height: 480, frameRate: 30 },
+  };
   
   useEffect(() => {
     if (room) {
@@ -190,9 +198,10 @@ const StreamPublisher = ({ onViewerCount, isCameraOn, isMicOn, streamTime }) => 
     const syncMedia = async () => {
       if (localParticipant) {
         try {
-          // Enable camera with Full HD 1080p @ 60fps for maximum quality
+          const resolution = qualityPresets[videoQuality] || qualityPresets['1080p'];
           await localParticipant.setCameraEnabled(isCameraOn, {
-            resolution: { width: 1920, height: 1080, frameRate: 60 },
+            resolution,
+            facingMode: facingMode,
           });
           await localParticipant.setMicrophoneEnabled(isMicOn);
         } catch (error) {
@@ -201,7 +210,7 @@ const StreamPublisher = ({ onViewerCount, isCameraOn, isMicOn, streamTime }) => 
       }
     };
     syncMedia();
-  }, [localParticipant, isCameraOn, isMicOn]);
+  }, [localParticipant, isCameraOn, isMicOn, facingMode, videoQuality]);
 
   const formatTime = (seconds) => {
     const hrs = Math.floor(seconds / 3600);
