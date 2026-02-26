@@ -588,36 +588,67 @@ const ControlPanel = ({ user, onLogout }) => {
 
       {/* Control Bar */}
       <div className="bg-gray-900 px-3 py-2 border-t border-gray-800 flex-shrink-0">
-        <div className="flex items-center justify-center gap-3 max-w-xl mx-auto">
+        <div className="flex items-center justify-center gap-2 max-w-2xl mx-auto flex-wrap">
+          {/* Camera On/Off */}
           <div className="flex flex-col items-center">
-            <button onClick={toggleCamera} className="w-11 h-11 bg-gray-800 hover:bg-gray-700 rounded-lg flex items-center justify-center text-white">
-              {isCameraOn ? <Video className="w-5 h-5" /> : <VideoOff className="w-5 h-5" />}
+            <button onClick={toggleCamera} className="w-10 h-10 bg-gray-800 hover:bg-gray-700 rounded-lg flex items-center justify-center text-white">
+              {isCameraOn ? <Video className="w-4 h-4" /> : <VideoOff className="w-4 h-4" />}
             </button>
-            <span className={`text-xs mt-0.5 ${isCameraOn ? 'text-green-400' : 'text-red-400'}`}>{isCameraOn ? 'On' : 'Off'}</span>
+            <span className={`text-[10px] mt-0.5 ${isCameraOn ? 'text-green-400' : 'text-red-400'}`}>{isCameraOn ? 'On' : 'Off'}</span>
           </div>
 
+          {/* Camera Switch (Front/Back) */}
           <div className="flex flex-col items-center">
-            <button onClick={toggleMic} className="w-11 h-11 bg-gray-800 hover:bg-gray-700 rounded-lg flex items-center justify-center text-white relative">
-              <Mic className="w-5 h-5" />
-              {!isMicOn && <div className="absolute inset-0 flex items-center justify-center"><div className="w-7 h-0.5 bg-red-500 rotate-45 rounded-full"></div></div>}
+            <button 
+              onClick={() => setFacingMode(prev => prev === 'user' ? 'environment' : 'user')} 
+              className="w-10 h-10 bg-gray-800 hover:bg-gray-700 rounded-lg flex items-center justify-center text-white"
+              title={facingMode === 'user' ? 'Switch to Back Camera' : 'Switch to Front Camera'}
+            >
+              <SwitchCamera className="w-4 h-4" />
             </button>
-            <span className={`text-xs mt-0.5 ${isMicOn ? 'text-green-400' : 'text-red-400'}`}>{isMicOn ? 'On' : 'Off'}</span>
+            <span className="text-[10px] mt-0.5 text-gray-400">{facingMode === 'user' ? 'Front' : 'Back'}</span>
           </div>
 
+          {/* Quality Selector */}
+          <div className="flex flex-col items-center">
+            <select 
+              value={videoQuality} 
+              onChange={(e) => setVideoQuality(e.target.value)}
+              className="w-16 h-10 bg-gray-800 hover:bg-gray-700 rounded-lg text-white text-xs px-1 border-none focus:ring-1 focus:ring-blue-500"
+            >
+              <option value="auto">Auto</option>
+              <option value="1080p">1080p</option>
+              <option value="720p">720p</option>
+              <option value="480p">480p</option>
+            </select>
+            <span className="text-[10px] mt-0.5 text-gray-400">Quality</span>
+          </div>
+
+          {/* Mic On/Off */}
+          <div className="flex flex-col items-center">
+            <button onClick={toggleMic} className="w-10 h-10 bg-gray-800 hover:bg-gray-700 rounded-lg flex items-center justify-center text-white relative">
+              <Mic className="w-4 h-4" />
+              {!isMicOn && <div className="absolute inset-0 flex items-center justify-center"><div className="w-6 h-0.5 bg-red-500 rotate-45 rounded-full"></div></div>}
+            </button>
+            <span className={`text-[10px] mt-0.5 ${isMicOn ? 'text-green-400' : 'text-red-400'}`}>{isMicOn ? 'On' : 'Off'}</span>
+          </div>
+
+          {/* Go Live Button */}
           <button
             onClick={handleStartStream}
-            className={`px-5 py-2.5 rounded-lg font-bold text-sm ${
+            className={`px-4 py-2 rounded-lg font-bold text-sm ${
               isStreaming ? 'bg-red-600 hover:bg-red-700' : 'bg-gradient-to-b from-red-500 to-red-700'
             } text-white`}
           >
             {isStreaming ? 'End Live' : 'Go Live'}
           </button>
 
+          {/* Settings */}
           <div className="relative flex flex-col items-center">
-            <button onClick={() => setShowSettings(!showSettings)} className={`w-11 h-11 rounded-lg flex items-center justify-center text-white ${showSettings ? 'bg-blue-600' : 'bg-gray-800 hover:bg-gray-700'}`}>
-              <Settings className="w-5 h-5" />
+            <button onClick={() => setShowSettings(!showSettings)} className={`w-10 h-10 rounded-lg flex items-center justify-center text-white ${showSettings ? 'bg-blue-600' : 'bg-gray-800 hover:bg-gray-700'}`}>
+              <Settings className="w-4 h-4" />
             </button>
-            <span className="text-xs mt-0.5 text-gray-400">Settings</span>
+            <span className="text-[10px] mt-0.5 text-gray-400">Audio</span>
             <AudioSettingsDropdown
               isOpen={showSettings} onClose={() => setShowSettings(false)}
               speakerVolume={speakerVolume} setSpeakerVolume={setSpeakerVolume}
