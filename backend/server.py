@@ -805,6 +805,30 @@ async def get_my_tickets(current_user: User = Depends(get_current_user)):
             ticket['purchase_date'] = datetime.fromisoformat(ticket['purchase_date'])
     return tickets
 
+
+@api_router.delete("/tickets/{ticket_id}")
+async def delete_ticket(ticket_id: str, current_user: User = Depends(get_current_user)):
+    """Allow viewers to delete their old/outdated tickets"""
+    # Find the ticket
+    ticket = await db.tickets.find_one({"id": ticket_id, "user_id": current_user.id}, {"_id": 0})
+    if not ticket:
+        raise HTTPException(status_code=404, detail="Ticket not found or you don't own this ticket")
+    
+    # Get the associated event
+    event = await db.events.find_one({"id": ticket.get("event_id")}, {"_id": 0})
+    
+    # Check if event is live - cannot delete ticket for live event
+    if event and event.get("status") == "live":
+        raise HTTPException(status_code=400, detail="Cannot delete ticket for a live event")
+    
+    # Delete the ticket
+    result = await db.tickets.delete_one({"id": ticket_id, "user_id": current_user.id})
+    if result.deleted_count == 0:
+        raise HTTPException(status_code=500, detail="Failed to delete ticket")
+    
+    return {"message": "Ticket deleted successfully", "ticket_id": ticket_id}
+
+
 @api_router.post("/tickets", response_model=Ticket)
 async def purchase_ticket(ticket_input: TicketCreate, current_user: User = Depends(get_current_user)):
     """Purchase ticket (authenticated)"""
