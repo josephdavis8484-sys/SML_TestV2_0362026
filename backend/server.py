@@ -2382,7 +2382,7 @@ async def get_chat_messages(event_id: str, limit: int = 100):
     if not event:
         raise HTTPException(status_code=404, detail="Event not found")
     
-    if not event.get("chat_enabled", False):
+    if not event.get("chat_enabled", True):
         return {"enabled": False, "messages": []}
     
     messages = await db.chat_messages.find(
