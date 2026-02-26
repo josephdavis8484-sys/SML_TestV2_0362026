@@ -8,7 +8,9 @@ import {
   Users, 
   Share2,
   X,
-  ArrowLeft
+  ArrowLeft,
+  Cast,
+  Settings
 } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import {
