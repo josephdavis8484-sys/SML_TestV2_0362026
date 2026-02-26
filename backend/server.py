@@ -2256,6 +2256,9 @@ async def send_announcement(event_id: str, msg: SendMessage, current_user: User 
 @app.websocket("/api/ws/chat/{event_id}")
 async def websocket_chat(websocket: WebSocket, event_id: str):
     """WebSocket endpoint for real-time chat"""
+    # Accept the WebSocket connection first
+    await websocket.accept()
+    
     # Verify event exists and chat OR reactions are enabled
     event = await db.events.find_one({"id": event_id}, {"_id": 0})
     if not event:
