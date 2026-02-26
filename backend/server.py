@@ -3202,6 +3202,76 @@ async def register_pro_mode_device(request: ProModeDeviceRegister, current_user:
         "room_name": room_name
     }
 
+class PublicDeviceRegister(BaseModel):
+    """Request for public device registration using connection token"""
+    event_id: str
+    device_number: int
+    device_name: Optional[str] = None
+    connection_token: str
+
+@api_router.post("/pro-mode/device/register-public")
+async def register_pro_mode_device_public(request: PublicDeviceRegister):
+    """Register a camera device for Pro Mode streaming (public endpoint using token)"""
+    
+    # Verify session exists and token matches
+    session = await db.pro_mode_sessions.find_one({"event_id": request.event_id}, {"_id": 0})
+    if not session:
+        raise HTTPException(status_code=404, detail="Pro Mode session not found")
+    
+    if session.get("connection_token") != request.connection_token:
+        raise HTTPException(status_code=403, detail="Invalid connection token")
+    
+    # Check device number
+    if request.device_number < 1 or request.device_number > 5:
+        raise HTTPException(status_code=400, detail="Device number must be 1-5")
+    
+    # Check if device slot is already taken by an active connection
+    existing_devices = session.get("devices", [])
+    for d in existing_devices:
+        if d.get("device_number") == request.device_number and d.get("is_connected"):
+            raise HTTPException(status_code=400, detail=f"Device {request.device_number} is already connected")
+    
+    device_id = f"{request.event_id}-device-{request.device_number}"
+    
+    # Create device
+    device = ProModeDevice(
+        id=device_id,
+        event_id=request.event_id,
+        device_number=request.device_number,
+        device_name=request.device_name or f"Camera {request.device_number}",
+        is_active=False,
+        is_connected=True,
+        connected_at=datetime.now(timezone.utc),
+        last_heartbeat=datetime.now(timezone.utc)
+    )
+    
+    # Generate LiveKit token for this device
+    room_name = session.get("room_name")
+    token = generate_livekit_token(
+        room_name=room_name,
+        participant_name=f"Camera-{request.device_number}",
+        can_publish=True,
+        can_subscribe=True
+    )
+    
+    # Remove old device entry if exists, then add new one
+    await db.pro_mode_sessions.update_one(
+        {"event_id": request.event_id},
+        {"$pull": {"devices": {"device_number": request.device_number}}}
+    )
+    await db.pro_mode_sessions.update_one(
+        {"event_id": request.event_id},
+        {"$push": {"devices": device.model_dump()}}
+    )
+    
+    return {
+        "device_id": device_id,
+        "device": device.model_dump(),
+        "livekit_token": token,
+        "livekit_url": LIVEKIT_URL,
+        "room_name": room_name
+    }
+
 @api_router.post("/pro-mode/control-panel/connect")
 async def connect_pro_mode_control_panel(event_id: str, current_user: User = Depends(get_current_user)):
     """Connect the control panel to a Pro Mode session"""
