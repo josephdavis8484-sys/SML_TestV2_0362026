@@ -237,8 +237,8 @@ class EventCreate(BaseModel):
     price: float
     image_url: str = "https://images.unsplash.com/photo-1540039155733-5bb30b53aa14?w=400&h=600&fit=crop"
     streaming_package: str = "free"
-    chat_enabled: bool = False
-    reactions_enabled: bool = False
+    chat_enabled: bool = True  # Default to True for better UX
+    reactions_enabled: bool = True  # Default to True for better UX
     chat_mode: str = "open"
     # Geo-fencing
     geo_restricted: bool = False
