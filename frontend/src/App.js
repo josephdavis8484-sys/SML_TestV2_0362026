@@ -164,6 +164,11 @@ function App() {
             <ControlPanel user={user} onLogout={handleLogout} /> : 
             <Navigate to="/" />
           } />
+          <Route path="/pro-mode/:eventId" element={
+            user?.role === "creator" ? 
+            <ProModeControlPanel user={user} onLogout={handleLogout} /> : 
+            <Navigate to="/" />
+          } />
           
           {/* Payment routes */}
           <Route path="/payment-success" element={<PaymentSuccess user={user} onLogout={handleLogout} />} />
