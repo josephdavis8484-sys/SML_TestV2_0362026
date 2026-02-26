@@ -152,6 +152,7 @@ const CameraPublisher = ({ deviceNumber, isActive, onStatusChange }) => {
 const ProModeCameraDevice = ({ user }) => {
   const { eventId, deviceNumber } = useParams();
   const navigate = useNavigate();
+  const [searchParams] = useState(new URLSearchParams(window.location.search));
   
   const [event, setEvent] = useState(null);
   const [session, setSession] = useState(null);
@@ -164,20 +165,28 @@ const ProModeCameraDevice = ({ user }) => {
   
   const wsRef = useRef(null);
   const deviceNum = parseInt(deviceNumber);
+  const connectionToken = searchParams.get("token");
 
   // Register device and get LiveKit token
   useEffect(() => {
     const registerDevice = async () => {
       try {
-        // Get event details
+        if (!connectionToken) {
+          setError("Missing connection token. Please scan the QR code from the Control Panel.");
+          setLoading(false);
+          return;
+        }
+        
+        // Get event details (public endpoint)
         const eventRes = await axiosInstance.get(`/events/${eventId}`);
         setEvent(eventRes.data);
 
-        // Register this device
-        const registerRes = await axiosInstance.post("/pro-mode/device/register", {
+        // Register this device using public endpoint with token
+        const registerRes = await axiosInstance.post("/pro-mode/device/register-public", {
           event_id: eventId,
           device_number: deviceNum,
-          device_name: `Camera ${deviceNum}`
+          device_name: `Camera ${deviceNum}`,
+          connection_token: connectionToken
         });
 
         setLivekitToken(registerRes.data.livekit_token);
@@ -192,7 +201,7 @@ const ProModeCameraDevice = ({ user }) => {
     };
 
     registerDevice();
-  }, [eventId, deviceNum]);
+  }, [eventId, deviceNum, connectionToken]);
 
   // WebSocket connection to receive commands from control panel
   useEffect(() => {
