@@ -1185,6 +1185,132 @@ async def get_checkout_status(session_id: str, current_user: User = Depends(get_
     
     return status
 
+# Pro Mode Unlock Payment
+@api_router.post("/pro-mode/unlock/checkout")
+async def create_pro_mode_checkout(request: Request, current_user: User = Depends(get_current_user)):
+    """Create a Stripe checkout session to unlock Pro Mode for an event"""
+    if current_user.role != "creator":
+        raise HTTPException(status_code=403, detail="Only creators can unlock Pro Mode")
+    
+    body = await request.json()
+    event_id = body.get("event_id")
+    origin_url = body.get("origin_url")
+    promo_code = body.get("promo_code")
+    
+    if not event_id or not origin_url:
+        raise HTTPException(status_code=400, detail="event_id and origin_url are required")
+    
+    # Verify event exists and belongs to creator
+    event = await db.events.find_one({"id": event_id, "creator_id": current_user.id}, {"_id": 0})
+    if not event:
+        raise HTTPException(status_code=404, detail="Event not found or you don't own it")
+    
+    # Check if already premium
+    if event.get("streaming_package") == "premium":
+        raise HTTPException(status_code=400, detail="Pro Mode already unlocked for this event")
+    
+    # Calculate amount (default $1000)
+    amount = STREAMING_PACKAGES.get("premium", 1000.0)
+    discount_amount = 0.0
+    discount_description = ""
+    
+    # Apply promo code if provided
+    if promo_code:
+        promo = await db.promo_codes.find_one({
+            "code": promo_code.upper(),
+            "is_active": True,
+            "applies_to": {"$in": ["pro_mode", "all"]}
+        }, {"_id": 0})
+        
+        if promo:
+            # Check max uses
+            if promo.get("max_uses") and promo.get("current_uses", 0) >= promo["max_uses"]:
+                pass  # Promo exhausted, ignore
+            else:
+                # Check expiration
+                now = datetime.now(timezone.utc).isoformat()
+                if promo.get("expiration_date") and promo["expiration_date"] < now:
+                    pass  # Expired
+                else:
+                    # Apply discount
+                    if promo["discount_type"] == "percentage":
+                        discount_amount = amount * (promo["discount_value"] / 100)
+                    else:  # fixed
+                        discount_amount = min(promo["discount_value"], amount)
+                    
+                    discount_description = f" (Promo: {promo_code.upper()} - ${discount_amount:.2f} off)"
+                    
+                    # Increment promo usage
+                    await db.promo_codes.update_one(
+                        {"code": promo_code.upper()},
+                        {"$inc": {"current_uses": 1}}
+                    )
+    
+    final_amount = max(0, amount - discount_amount)
+    
+    # If fully discounted, unlock directly
+    if final_amount <= 0:
+        await db.events.update_one(
+            {"id": event_id},
+            {"$set": {"streaming_package": "premium"}}
+        )
+        return {
+            "success": True,
+            "message": "Pro Mode unlocked with 100% discount!",
+            "url": None
+        }
+    
+    # Create Stripe checkout
+    api_key = os.environ.get("STRIPE_API_KEY")
+    webhook_url = f"{origin_url}/api/webhook/stripe"
+    stripe_checkout = StripeCheckout(api_key=api_key, webhook_url=webhook_url)
+    
+    success_url = f"{origin_url}/payment-success?session_id={{CHECKOUT_SESSION_ID}}&type=pro_mode"
+    cancel_url = f"{origin_url}/creator/dashboard?cancelled=true"
+    
+    metadata = {
+        "user_id": current_user.id,
+        "payment_type": "pro_mode_unlock",
+        "event_id": event_id,
+        "original_amount": str(amount),
+        "discount_amount": str(discount_amount),
+        "promo_code": promo_code or ""
+    }
+    
+    checkout_request = CheckoutSessionRequest(
+        amount=final_amount,
+        currency="usd",
+        success_url=success_url,
+        cancel_url=cancel_url,
+        metadata=metadata
+    )
+    
+    session = await stripe_checkout.create_checkout_session(checkout_request)
+    
+    # Create transaction record
+    transaction = PaymentTransaction(
+        session_id=session.session_id,
+        user_id=current_user.id,
+        event_id=event_id,
+        amount=final_amount,
+        currency="usd",
+        payment_type="pro_mode_unlock",
+        payment_status="pending",
+        metadata=metadata
+    )
+    
+    trans_doc = transaction.model_dump()
+    trans_doc['created_at'] = trans_doc['created_at'].isoformat()
+    await db.payment_transactions.insert_one(trans_doc)
+    
+    return {
+        "url": session.url,
+        "session_id": session.session_id,
+        "amount": final_amount,
+        "discount": discount_amount,
+        "discount_description": discount_description
+    }
+
 @api_router.post("/webhook/stripe")
 async def stripe_webhook(request: Request):
     body = await request.body()
