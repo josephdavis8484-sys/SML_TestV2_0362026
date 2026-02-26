@@ -429,9 +429,9 @@ class TestReactionsEndpoints:
         
         event_id = response.json().get("id")
         
-        # Post a reaction
+        # Post a reaction - API expects reaction_type field
         reaction_data = {
-            "emoji": "❤️"
+            "reaction_type": "heart"
         }
         
         response = requests.post(
@@ -443,7 +443,7 @@ class TestReactionsEndpoints:
         assert response.status_code == 200, f"Expected 200, got {response.status_code}: {response.text}"
         
         result = response.json()
-        assert result.get("success") == True or "reaction" in result or "emoji" in result, "Reaction should be posted successfully"
+        assert result.get("success") == True, "Reaction should be posted successfully"
         
         print(f"✅ Posted reaction to event successfully")
         
