@@ -67,6 +67,26 @@ const CreatorDashboard = ({ user, onLogout }) => {
     }
   };
 
+  const handleDeleteEvent = async (eventId, eventTitle, status) => {
+    if (status === "live") {
+      toast.error("Cannot delete a live event. Please end the stream first.");
+      return;
+    }
+    
+    const confirmed = window.confirm(
+      `Are you sure you want to permanently delete "${eventTitle}"?\n\nThis action cannot be undone.`
+    );
+    if (!confirmed) return;
+
+    try {
+      await axiosInstance.delete(`/events/creator/${eventId}`);
+      toast.success("Event deleted successfully");
+      fetchData(); // Refresh data
+    } catch (error) {
+      toast.error(error.response?.data?.detail || "Failed to delete event");
+    }
+  };
+
   if (loading) {
     return (
       <div className="min-h-screen bg-[#0f0f0f] flex items-center justify-center">
