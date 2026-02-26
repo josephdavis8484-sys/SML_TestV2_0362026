@@ -464,12 +464,12 @@ const LiveStreamViewer = ({ eventId, userId, userName, event }) => {
             )}
             {reactionsEnabled && (
               <div className="flex gap-1.5">
-                {["👍", "😄", "❤️", "👏"].map((emoji) => (
+                {["👏", "😂", "❤️", "🔥", "😍"].map((emoji) => (
                   <button 
                     key={emoji} 
                     onClick={() => handleSendReaction(emoji)} 
                     disabled={!chatConnected}
-                    className="w-11 h-11 bg-gray-800 hover:bg-gray-700 disabled:opacity-50 rounded-lg text-xl"
+                    className="w-11 h-11 bg-gray-800 hover:bg-gray-700 hover:scale-110 disabled:opacity-50 rounded-lg text-xl transition-transform active:scale-95"
                   >
                     {emoji}
                   </button>
