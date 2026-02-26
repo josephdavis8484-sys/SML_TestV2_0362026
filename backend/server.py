@@ -2621,7 +2621,7 @@ async def websocket_chat(websocket: WebSocket, event_id: str):
             "event_id": event_id,
             "viewer_count": chat_manager.get_connection_count(event_id),
             "chat_mode": event.get("chat_mode", "open"),
-            "reactions_enabled": event.get("reactions_enabled", False)
+            "reactions_enabled": event.get("reactions_enabled", True)
         })
         
         # Broadcast updated viewer count to all
