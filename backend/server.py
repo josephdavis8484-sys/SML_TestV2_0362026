@@ -2832,6 +2832,263 @@ async def websocket_notifications(websocket: WebSocket):
         logging.error(f"Notification WebSocket error: {e}")
         notification_manager.disconnect(websocket, user_id)
 
+# ==================== SECURITY & PRIVACY PROTECTION ====================
+
+VIOLATION_THRESHOLDS = {
+    "warn": 1,           # First violation: warn
+    "end_session": 3,    # 3+ violations: end session
+    "suspend_30d": 5,    # 5+ violations: 30-day suspension
+    "permanent_ban": 1   # 1 violation after 30-day suspension: permanent ban
+}
+
+async def get_or_create_violation_record(user_id: str) -> dict:
+    """Get or create a security violation record for a user"""
+    record = await db.security_violations.find_one({"user_id": user_id}, {"_id": 0})
+    if not record:
+        new_record = SecurityViolation(user_id=user_id)
+        record_doc = new_record.model_dump()
+        record_doc["created_at"] = record_doc["created_at"].isoformat()
+        record_doc["updated_at"] = record_doc["updated_at"].isoformat()
+        if record_doc.get("last_violation_at"):
+            record_doc["last_violation_at"] = record_doc["last_violation_at"].isoformat()
+        if record_doc.get("suspension_start"):
+            record_doc["suspension_start"] = record_doc["suspension_start"].isoformat()
+        if record_doc.get("suspension_end"):
+            record_doc["suspension_end"] = record_doc["suspension_end"].isoformat()
+        await db.security_violations.insert_one(record_doc)
+        record = record_doc
+    return record
+
+async def determine_action(user_id: str, violation_record: dict) -> str:
+    """Determine the action to take based on violation history"""
+    total_violations = violation_record.get("total_violations", 0) + 1
+    current_status = violation_record.get("suspension_status", "none")
+    
+    # If already permanently banned, return that
+    if current_status == "permanent_ban":
+        return "permanent_ban"
+    
+    # If was suspended for 30 days and violating again, permanent ban
+    if current_status == "suspended_30d":
+        suspension_end = violation_record.get("suspension_end")
+        if suspension_end:
+            # Check if suspension is over
+            if isinstance(suspension_end, str):
+                suspension_end = datetime.fromisoformat(suspension_end.replace("Z", "+00:00"))
+            if datetime.now(timezone.utc) > suspension_end:
+                # Suspension is over but user is violating again
+                return "permanent_ban"
+            else:
+                # Still suspended
+                return "suspended_30d"
+    
+    # Determine action based on total violations
+    if total_violations >= VIOLATION_THRESHOLDS["suspend_30d"]:
+        return "suspend_30d"
+    elif total_violations >= VIOLATION_THRESHOLDS["end_session"]:
+        return "end_session"
+    else:
+        return "warn"
+
+@api_router.post("/security/report-capture")
+async def report_capture_attempt(
+    request: ReportCaptureRequest,
+    current_user: User = Depends(get_current_user)
+):
+    """Report a screenshot/recording attempt and determine enforcement action"""
+    
+    # Get or create violation record
+    violation_record = await get_or_create_violation_record(current_user.id)
+    
+    # Check if user is already banned
+    if violation_record.get("suspension_status") == "permanent_ban":
+        return {
+            "action": "permanent_ban",
+            "message": "Your account has been permanently restricted due to repeated privacy violations.",
+            "can_continue": False
+        }
+    
+    # Check if currently suspended
+    if violation_record.get("suspension_status") == "suspended_30d":
+        suspension_end = violation_record.get("suspension_end")
+        if suspension_end:
+            if isinstance(suspension_end, str):
+                suspension_end = datetime.fromisoformat(suspension_end.replace("Z", "+00:00"))
+            if datetime.now(timezone.utc) < suspension_end:
+                days_remaining = (suspension_end - datetime.now(timezone.utc)).days
+                return {
+                    "action": "suspended_30d",
+                    "message": f"Your account is suspended for {days_remaining} more days due to privacy violations.",
+                    "can_continue": False,
+                    "suspension_end": suspension_end.isoformat()
+                }
+    
+    # Determine action
+    action = await determine_action(current_user.id, violation_record)
+    
+    # Log the security event
+    security_event = SecurityEvent(
+        user_id=current_user.id,
+        event_id=request.event_id,
+        device_id=request.device_id,
+        session_id=request.session_id,
+        capture_type=request.capture_type,
+        os=request.os,
+        browser=request.browser,
+        app_version=request.app_version,
+        action_taken=action,
+        details=request.details
+    )
+    
+    event_doc = security_event.model_dump()
+    event_doc["timestamp"] = event_doc["timestamp"].isoformat()
+    await db.security_events.insert_one(event_doc)
+    
+    # Update violation record
+    update_fields = {
+        "total_violations": violation_record.get("total_violations", 0) + 1,
+        "last_violation_at": datetime.now(timezone.utc).isoformat(),
+        "updated_at": datetime.now(timezone.utc).isoformat()
+    }
+    
+    # Update specific capture count
+    if request.capture_type == "screenshot":
+        update_fields["screenshot_count"] = violation_record.get("screenshot_count", 0) + 1
+    elif request.capture_type == "recording":
+        update_fields["recording_count"] = violation_record.get("recording_count", 0) + 1
+    elif request.capture_type == "screen_share":
+        update_fields["screen_share_count"] = violation_record.get("screen_share_count", 0) + 1
+    
+    # Apply suspension if needed
+    if action == "suspend_30d":
+        update_fields["suspension_status"] = "suspended_30d"
+        update_fields["suspension_start"] = datetime.now(timezone.utc).isoformat()
+        update_fields["suspension_end"] = (datetime.now(timezone.utc) + timedelta(days=30)).isoformat()
+    elif action == "permanent_ban":
+        update_fields["suspension_status"] = "permanent_ban"
+        update_fields["suspension_start"] = datetime.now(timezone.utc).isoformat()
+    elif action == "warn":
+        update_fields["suspension_status"] = "warned"
+    
+    await db.security_violations.update_one(
+        {"user_id": current_user.id},
+        {"$set": update_fields}
+    )
+    
+    # Prepare response
+    messages = {
+        "warn": "Screen capture detected. This is a warning. Continued attempts will result in session termination.",
+        "end_session": "Screen capture detected. Your session has been terminated due to repeated violations.",
+        "suspend_30d": "Your account has been suspended for 30 days due to repeated privacy violations.",
+        "permanent_ban": "Your account has been permanently restricted due to repeated privacy violations."
+    }
+    
+    return {
+        "action": action,
+        "message": messages.get(action, "Screen capture is not allowed."),
+        "can_continue": action == "warn",
+        "violation_count": update_fields["total_violations"],
+        "event_logged": True
+    }
+
+@api_router.get("/security/check-status")
+async def check_security_status(current_user: User = Depends(get_current_user)):
+    """Check user's security/suspension status before allowing stream access"""
+    
+    violation_record = await db.security_violations.find_one(
+        {"user_id": current_user.id}, {"_id": 0}
+    )
+    
+    if not violation_record:
+        return {
+            "status": "clear",
+            "can_access": True,
+            "violation_count": 0
+        }
+    
+    suspension_status = violation_record.get("suspension_status", "none")
+    
+    if suspension_status == "permanent_ban":
+        return {
+            "status": "permanent_ban",
+            "can_access": False,
+            "message": "Your account has been permanently restricted due to repeated privacy violations.",
+            "violation_count": violation_record.get("total_violations", 0)
+        }
+    
+    if suspension_status == "suspended_30d":
+        suspension_end = violation_record.get("suspension_end")
+        if suspension_end:
+            if isinstance(suspension_end, str):
+                suspension_end = datetime.fromisoformat(suspension_end.replace("Z", "+00:00"))
+            if datetime.now(timezone.utc) < suspension_end:
+                days_remaining = (suspension_end - datetime.now(timezone.utc)).days
+                return {
+                    "status": "suspended_30d",
+                    "can_access": False,
+                    "message": f"Your account is suspended for {days_remaining} more days.",
+                    "suspension_end": suspension_end.isoformat(),
+                    "violation_count": violation_record.get("total_violations", 0)
+                }
+            else:
+                # Suspension ended, allow access but keep record
+                return {
+                    "status": "post_suspension",
+                    "can_access": True,
+                    "message": "Your suspension has ended. Any further violations will result in permanent restriction.",
+                    "violation_count": violation_record.get("total_violations", 0)
+                }
+    
+    return {
+        "status": violation_record.get("suspension_status", "clear"),
+        "can_access": True,
+        "violation_count": violation_record.get("total_violations", 0),
+        "last_violation": violation_record.get("last_violation_at")
+    }
+
+@api_router.get("/security/violations/{user_id}")
+async def get_user_violations(user_id: str, current_user: User = Depends(get_current_user)):
+    """Get violation history for a user (admin only)"""
+    if current_user.role != "admin":
+        raise HTTPException(status_code=403, detail="Admin access required")
+    
+    # Get violation record
+    violation_record = await db.security_violations.find_one(
+        {"user_id": user_id}, {"_id": 0}
+    )
+    
+    # Get recent events
+    events = await db.security_events.find(
+        {"user_id": user_id},
+        {"_id": 0}
+    ).sort("timestamp", -1).limit(50).to_list(50)
+    
+    return {
+        "violation_summary": violation_record or {"total_violations": 0},
+        "recent_events": events
+    }
+
+@api_router.post("/security/lift-suspension/{user_id}")
+async def lift_user_suspension(user_id: str, current_user: User = Depends(get_current_user)):
+    """Lift a user's suspension (admin only)"""
+    if current_user.role != "admin":
+        raise HTTPException(status_code=403, detail="Admin access required")
+    
+    result = await db.security_violations.update_one(
+        {"user_id": user_id},
+        {"$set": {
+            "suspension_status": "none",
+            "suspension_start": None,
+            "suspension_end": None,
+            "updated_at": datetime.now(timezone.utc).isoformat()
+        }}
+    )
+    
+    if result.matched_count == 0:
+        raise HTTPException(status_code=404, detail="No violation record found for this user")
+    
+    return {"success": True, "message": f"Suspension lifted for user {user_id}"}
+
 # Endpoint to set event live and notify ticket holders
 @api_router.post("/events/{event_id}/go-live")
 async def set_event_live(event_id: str, current_user: User = Depends(get_current_user)):
