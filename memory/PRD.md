@@ -284,14 +284,14 @@ English
 
 ### P2 (Lower Priority - Future)
 - [x] ~~Pro Mode for multi-camera streaming~~ ✅ COMPLETED Feb 26, 2026
+- [x] ~~Pro Mode Fee - Implement Stripe payment ($1000) before enabling Pro Mode~~ ✅ COMPLETED Feb 26, 2026
 - [ ] Refactor `server.py` into separate modules
 - [ ] Additional social logins (Facebook, Instagram, Twitter/X)
 - [ ] Coins/Diamond virtual currency system
-- [ ] Pro Mode Fee - Implement Stripe payment ($1000) before enabling Pro Mode
 
 ---
 
 ## Next Steps
-1. Test Pro Mode with real camera devices by scanning QR codes
-2. Consider implementing Pro Mode payment gate (currently requires premium streaming package)
-3. Refactor server.py for better maintainability
+1. Test Pro Mode unlock payment flow end-to-end (free event → pay → unlock → use Pro Mode)
+2. Refactor server.py for better maintainability
+3. Consider adding more promo codes for marketing campaigns
