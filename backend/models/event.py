@@ -28,8 +28,8 @@ class Event(BaseModel):
     status: str = "upcoming"  # "upcoming", "live", "completed", "cancelled"
     total_revenue: float = 0.0
     viewer_count: int = 0
-    chat_enabled: bool = True
-    reactions_enabled: bool = True
+    chat_enabled: bool = True  # Default to True for better UX
+    reactions_enabled: bool = True  # Default to True for better UX
     share_link: Optional[str] = None
     cancellation_reason: Optional[str] = None
     is_blocked: bool = False
