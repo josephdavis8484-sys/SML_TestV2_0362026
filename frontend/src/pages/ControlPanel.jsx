@@ -726,18 +726,192 @@ const ControlPanel = ({ user, onLogout }) => {
             transform: translateY(0);
           }
         }
-        @keyframes floatUp {
+        
+        /* Chat message glow effect */
+        .drop-shadow-glow {
+          text-shadow: 0 0 10px currentColor, 0 0 20px currentColor;
+        }
+        
+        /* Default reaction - float up with gentle sway */
+        .reaction-default {
+          animation: reactionDefault 2s ease-out forwards;
+        }
+        @keyframes reactionDefault {
           0% {
             opacity: 1;
-            transform: translateY(0) scale(1);
+            transform: translateY(0) scale(0.5) rotate(0deg);
+          }
+          20% {
+            opacity: 1;
+            transform: translateY(-30px) scale(1.2) rotate(-5deg);
           }
           50% {
-            opacity: 0.8;
-            transform: translateY(-100px) scale(1.2);
+            opacity: 0.9;
+            transform: translateY(-80px) scale(1) rotate(5deg);
           }
           100% {
             opacity: 0;
-            transform: translateY(-200px) scale(0.8);
+            transform: translateY(-150px) scale(0.6) rotate(0deg);
+          }
+        }
+        
+        /* Clapping hands - bounce and shake animation */
+        .reaction-clap {
+          animation: reactionClap 2s ease-out forwards;
+        }
+        @keyframes reactionClap {
+          0% {
+            opacity: 1;
+            transform: translateY(0) scale(0.3) rotate(0deg);
+          }
+          10% {
+            transform: translateY(-10px) scale(1.3) rotate(-15deg);
+          }
+          20% {
+            transform: translateY(-25px) scale(1.1) rotate(15deg);
+          }
+          30% {
+            transform: translateY(-40px) scale(1.2) rotate(-10deg);
+          }
+          40% {
+            transform: translateY(-55px) scale(1) rotate(10deg);
+          }
+          50% {
+            opacity: 0.9;
+            transform: translateY(-70px) scale(1.1) rotate(-5deg);
+          }
+          60% {
+            transform: translateY(-90px) scale(1) rotate(5deg);
+          }
+          80% {
+            opacity: 0.5;
+            transform: translateY(-120px) scale(0.9) rotate(0deg);
+          }
+          100% {
+            opacity: 0;
+            transform: translateY(-160px) scale(0.5) rotate(0deg);
+          }
+        }
+        
+        /* Laughing faces - wobble and bounce */
+        .reaction-laugh {
+          animation: reactionLaugh 2s ease-out forwards;
+        }
+        @keyframes reactionLaugh {
+          0% {
+            opacity: 1;
+            transform: translateY(0) scale(0.5) rotate(0deg);
+          }
+          10% {
+            transform: translateY(-15px) scale(1.4) rotate(-20deg);
+          }
+          20% {
+            transform: translateY(-20px) scale(1.2) rotate(20deg);
+          }
+          30% {
+            transform: translateY(-35px) scale(1.3) rotate(-15deg);
+          }
+          40% {
+            transform: translateY(-50px) scale(1.1) rotate(15deg);
+          }
+          50% {
+            opacity: 0.95;
+            transform: translateY(-65px) scale(1.2) rotate(-10deg);
+          }
+          60% {
+            transform: translateY(-85px) scale(1) rotate(10deg);
+          }
+          70% {
+            opacity: 0.7;
+            transform: translateY(-105px) scale(1.05) rotate(-5deg);
+          }
+          85% {
+            opacity: 0.4;
+            transform: translateY(-130px) scale(0.9) rotate(5deg);
+          }
+          100% {
+            opacity: 0;
+            transform: translateY(-160px) scale(0.6) rotate(0deg);
+          }
+        }
+        
+        /* Pumping hearts - pulse and float with glow */
+        .reaction-heart {
+          animation: reactionHeart 2s ease-out forwards;
+          filter: drop-shadow(0 0 15px rgba(239, 68, 68, 0.8));
+        }
+        @keyframes reactionHeart {
+          0% {
+            opacity: 1;
+            transform: translateY(0) scale(0.3);
+            filter: drop-shadow(0 0 5px rgba(239, 68, 68, 0.5));
+          }
+          10% {
+            transform: translateY(-10px) scale(1.5);
+            filter: drop-shadow(0 0 25px rgba(239, 68, 68, 1));
+          }
+          20% {
+            transform: translateY(-25px) scale(1.1);
+            filter: drop-shadow(0 0 15px rgba(239, 68, 68, 0.8));
+          }
+          30% {
+            transform: translateY(-40px) scale(1.4);
+            filter: drop-shadow(0 0 30px rgba(239, 68, 68, 1));
+          }
+          40% {
+            transform: translateY(-55px) scale(1);
+            filter: drop-shadow(0 0 15px rgba(239, 68, 68, 0.7));
+          }
+          50% {
+            opacity: 0.9;
+            transform: translateY(-70px) scale(1.25);
+            filter: drop-shadow(0 0 25px rgba(239, 68, 68, 0.9));
+          }
+          60% {
+            transform: translateY(-90px) scale(1.05);
+            filter: drop-shadow(0 0 12px rgba(239, 68, 68, 0.6));
+          }
+          70% {
+            opacity: 0.7;
+            transform: translateY(-110px) scale(1.15);
+            filter: drop-shadow(0 0 20px rgba(239, 68, 68, 0.7));
+          }
+          85% {
+            opacity: 0.4;
+            transform: translateY(-135px) scale(0.9);
+            filter: drop-shadow(0 0 10px rgba(239, 68, 68, 0.4));
+          }
+          100% {
+            opacity: 0;
+            transform: translateY(-165px) scale(0.5);
+            filter: drop-shadow(0 0 0px rgba(239, 68, 68, 0));
+          }
+        }
+        
+        /* Pulse animation for glow backgrounds */
+        @keyframes pulse {
+          0%, 100% {
+            opacity: 0.3;
+            transform: scale(1);
+          }
+          50% {
+            opacity: 0.6;
+            transform: scale(1.2);
+          }
+        }
+        
+        /* Chat message entrance */
+        .chat-message-animate {
+          animation: chatEnter 0.4s cubic-bezier(0.34, 1.56, 0.64, 1) forwards;
+        }
+        @keyframes chatEnter {
+          from {
+            opacity: 0;
+            transform: translateX(-20px) scale(0.95);
+          }
+          to {
+            opacity: 1;
+            transform: translateX(0) scale(1);
           }
         }
       `}</style>
