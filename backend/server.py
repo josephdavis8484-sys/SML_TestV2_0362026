@@ -69,6 +69,10 @@ PLATFORM_FEE_PERCENTAGE = 20
 PAYOUT_DELAY_HOURS = 24
 GEO_FENCE_RADIUS_METERS = 1000  # Default geo-fence radius
 
+# Admin credentials
+ADMIN_EMAIL = os.environ.get("ADMIN_EMAIL", "admin@showmelive.com")
+ADMIN_PASSWORD = os.environ.get("ADMIN_PASSWORD", "admin123")
+
 # LiveKit Configuration (for when keys are provided)
 LIVEKIT_URL = os.environ.get('LIVEKIT_URL', 'http://localhost:7880')
 LIVEKIT_API_KEY = os.environ.get('LIVEKIT_API_KEY', '')
