@@ -500,9 +500,12 @@ async def logout(request: Request, response: Response):
 # Event Routes
 @api_router.get("/events", response_model=List[Event])
 async def get_events():
-    """Get all upcoming events that haven't expired (based on date)"""
+    """Get all upcoming/live events and recent events from past 7 days"""
+    from datetime import timedelta
+    
     # Get current date for filtering
     today = datetime.now(timezone.utc).date()
+    week_ago = today - timedelta(days=7)
     
     # Find events that are upcoming/live and not cancelled/blocked
     events = await db.events.find({
@@ -510,7 +513,7 @@ async def get_events():
         "is_blocked": {"$ne": True}
     }, {"_id": 0}).to_list(1000)
     
-    # Filter out expired events (date has passed)
+    # Filter events - include future events and recent past events (within 7 days)
     valid_events = []
     for event in events:
         if isinstance(event.get('created_at'), str):
@@ -531,10 +534,21 @@ async def get_events():
             valid_events.append(event)
             continue
         
-        # Include events from today or future (show all day events even after they end)
-        if event_date >= today:
+        # Include events from past 7 days, today, or future
+        if event_date >= week_ago:
             valid_events.append(event)
-        # Else: event_date < today, skip it (expired)
+    
+    # Sort by date (newest first for recent, then by date for upcoming)
+    def sort_key(e):
+        date_str = e.get('date', '')
+        for fmt in ['%Y-%m-%d', '%B %d, %Y', '%b %d, %Y', '%m/%d/%Y']:
+            try:
+                return datetime.strptime(date_str, fmt)
+            except ValueError:
+                continue
+        return datetime.min
+    
+    valid_events.sort(key=sort_key, reverse=False)
     
     return valid_events
 
