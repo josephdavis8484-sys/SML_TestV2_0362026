@@ -13,7 +13,9 @@ import {
   Minus,
   RotateCcw,
   MessageCircle,
-  Heart
+  Heart,
+  SwitchCamera,
+  Sliders
 } from "lucide-react";
 import { toast } from "sonner";
 import {
