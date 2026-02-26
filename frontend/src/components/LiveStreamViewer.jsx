@@ -146,7 +146,32 @@ const LiveStreamViewer = ({ eventId, userId, userName, event }) => {
   const [showShareModal, setShowShareModal] = useState(false);
   const [chatMessage, setChatMessage] = useState("");
   const [chatConnected, setChatConnected] = useState(false);
+  const [videoQuality, setVideoQuality] = useState('auto');
+  const [showQualityMenu, setShowQualityMenu] = useState(false);
   const chatWsRef = useRef(null);
+
+  // Cast to TV function
+  const handleCastToTV = async () => {
+    if ('presentation' in navigator && 'PresentationRequest' in window) {
+      try {
+        const presentationRequest = new window.PresentationRequest([window.location.href]);
+        const connection = await presentationRequest.start();
+        toast.success("Connected to display!");
+        connection.onclose = () => toast.info("Cast disconnected");
+      } catch (err) {
+        if (err.name === 'NotFoundError') {
+          toast.error("No cast devices found");
+        } else {
+          toast.error("Cast not available");
+        }
+      }
+    } else if (navigator.mediaDevices && 'getDisplayMedia' in navigator.mediaDevices) {
+      // Fallback: Try Chrome Cast API
+      toast.info("Use your browser's built-in Cast feature (⋮ menu → Cast)");
+    } else {
+      toast.error("Cast not supported on this browser");
+    }
+  };
 
   // Stream timer
   useEffect(() => {
