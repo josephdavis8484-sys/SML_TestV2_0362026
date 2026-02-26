@@ -604,9 +604,37 @@ const ControlPanel = ({ user, onLogout }) => {
 
   return (
     <div className="h-screen bg-black flex flex-col overflow-hidden">
-      {/* Video Preview */}
-      <div className="flex-1 min-h-0 p-2">
-        <div className="h-full bg-gray-900 rounded-xl overflow-hidden">
+      {/* CSS Animations */}
+      <style>{`
+        @keyframes fadeInUp {
+          from {
+            opacity: 0;
+            transform: translateY(10px);
+          }
+          to {
+            opacity: 1;
+            transform: translateY(0);
+          }
+        }
+        @keyframes floatUp {
+          0% {
+            opacity: 1;
+            transform: translateY(0) scale(1);
+          }
+          50% {
+            opacity: 0.8;
+            transform: translateY(-100px) scale(1.2);
+          }
+          100% {
+            opacity: 0;
+            transform: translateY(-200px) scale(0.8);
+          }
+        }
+      `}</style>
+      
+      {/* Video Preview with Overlay */}
+      <div className="flex-1 min-h-0 p-2 relative">
+        <div className="h-full bg-gray-900 rounded-xl overflow-hidden relative">
           {isStreaming && liveKitToken && liveKitUrl ? (
             <LiveKitRoom
               serverUrl={liveKitUrl}
@@ -637,6 +665,43 @@ const ControlPanel = ({ user, onLogout }) => {
             </LiveKitRoom>
           ) : (
             <CameraPreview isCameraOn={isCameraOn} />
+          )}
+          
+          {/* Floating Overlays - Only when streaming */}
+          {isStreaming && showChatReactions && (
+            <>
+              {event?.chat_enabled && (
+                <FloatingChatOverlay messages={chatMessages} />
+              )}
+              {event?.reactions_enabled && (
+                <FloatingReactionsOverlay reactions={liveReactions} />
+              )}
+              
+              {/* Stream Info Overlay - Top */}
+              <div className="absolute top-3 left-3 right-3 flex items-center justify-between pointer-events-none">
+                <div className="flex items-center gap-3">
+                  <div className="bg-red-600 text-white px-3 py-1 rounded-full text-sm font-bold flex items-center gap-1 animate-pulse">
+                    <span className="w-2 h-2 bg-white rounded-full"></span>
+                    LIVE
+                  </div>
+                  <div className="bg-black/50 backdrop-blur-sm text-white px-3 py-1 rounded-full text-sm">
+                    {Math.floor(streamTime / 60)}:{(streamTime % 60).toString().padStart(2, '0')}
+                  </div>
+                </div>
+                <div className="bg-black/50 backdrop-blur-sm text-white px-3 py-1 rounded-full text-sm flex items-center gap-1">
+                  <Users className="w-4 h-4" />
+                  {viewerCount}
+                </div>
+              </div>
+              
+              {/* Connection Status */}
+              <div className="absolute top-3 left-1/2 -translate-x-1/2">
+                <div className={`flex items-center gap-1 px-2 py-0.5 rounded-full text-xs ${chatConnected ? 'bg-green-500/20 text-green-400' : 'bg-yellow-500/20 text-yellow-400'}`}>
+                  <span className={`w-1.5 h-1.5 rounded-full ${chatConnected ? 'bg-green-400' : 'bg-yellow-400 animate-pulse'}`}></span>
+                  {chatConnected ? 'Chat Connected' : 'Connecting...'}
+                </div>
+              </div>
+            </>
           )}
         </div>
       </div>
