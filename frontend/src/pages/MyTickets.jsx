@@ -392,6 +392,19 @@ const MyTickets = ({ user, onLogout }) => {
                           <Share2 className="w-5 h-5 mr-2" />
                           Share This Show
                         </Button>
+                        
+                        {/* Delete Ticket Button - Only for completed/past events */}
+                        {(event?.status === "completed" || isPast) && (
+                          <Button
+                            onClick={() => handleDeleteTicket(ticket.id, event?.title || "Event", event?.status)}
+                            variant="outline"
+                            className="w-full border-red-600/50 text-red-400 hover:bg-red-600/20 font-medium py-4 text-base rounded-lg"
+                            data-testid={`delete-ticket-${ticket.id}`}
+                          >
+                            <Trash2 className="w-5 h-5 mr-2" />
+                            Delete Ticket
+                          </Button>
+                        )}
                       </div>
                     )}
                     
