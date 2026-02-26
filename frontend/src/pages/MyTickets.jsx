@@ -275,6 +275,13 @@ const MyTickets = ({ user, onLogout }) => {
               const isCancelled = event?.status === "cancelled";
               const isRefunded = ticket.refunded;
               
+              // Check if event date has passed
+              let isPast = false;
+              if (event?.date) {
+                const eventDate = new Date(event.date);
+                isPast = eventDate < new Date();
+              }
+              
               return (
                 <div 
                   key={ticket.id} 
