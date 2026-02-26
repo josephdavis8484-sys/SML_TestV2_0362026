@@ -2256,22 +2256,27 @@ async def send_announcement(event_id: str, msg: SendMessage, current_user: User 
 @app.websocket("/api/ws/chat/{event_id}")
 async def websocket_chat(websocket: WebSocket, event_id: str):
     """WebSocket endpoint for real-time chat"""
-    # Accept the WebSocket connection first
+    # Accept the WebSocket connection first (required before any close or send)
     await websocket.accept()
     
     # Verify event exists and chat OR reactions are enabled
     event = await db.events.find_one({"id": event_id}, {"_id": 0})
     if not event:
+        logging.warning(f"WebSocket: Event {event_id} not found")
         await websocket.close(code=4004, reason="Event not found")
         return
     
     # Allow connection if either chat or reactions are enabled
     if not event.get("chat_enabled", False) and not event.get("reactions_enabled", False):
+        logging.warning(f"WebSocket: Chat/reactions not enabled for event {event_id}")
         await websocket.close(code=4003, reason="Chat and reactions not enabled for this event")
         return
     
-    # Connect to the chat room
-    await chat_manager.connect(websocket, event_id)
+    # Register connection (don't accept again, already accepted)
+    if event_id not in chat_manager.active_connections:
+        chat_manager.active_connections[event_id] = []
+    chat_manager.active_connections[event_id].append(websocket)
+    logging.info(f"WebSocket connected to event {event_id}. Total connections: {len(chat_manager.active_connections[event_id])}")
     
     try:
         # Send initial connection success and viewer count
