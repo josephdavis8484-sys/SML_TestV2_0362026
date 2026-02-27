@@ -3689,11 +3689,11 @@ async def register_pro_mode_device_public(request: PublicDeviceRegister):
     if request.device_number < 1 or request.device_number > 5:
         raise HTTPException(status_code=400, detail="Device number must be 1-5")
     
-    # Check if device slot is already taken by an active connection
-    existing_devices = session.get("devices", [])
-    for d in existing_devices:
-        if d.get("device_number") == request.device_number and d.get("is_connected"):
-            raise HTTPException(status_code=400, detail=f"Device {request.device_number} is already connected")
+    # Remove any existing device with this number (allow reconnection)
+    await db.pro_mode_sessions.update_one(
+        {"event_id": request.event_id},
+        {"$pull": {"devices": {"device_number": request.device_number}}}
+    )
     
     device_id = f"{request.event_id}-device-{request.device_number}"
     
