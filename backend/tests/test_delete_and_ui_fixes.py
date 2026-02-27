@@ -38,25 +38,27 @@ def viewer_client():
     session = requests.Session()
     session.headers.update({"Content-Type": "application/json"})
     
-    # Create a test viewer user and session
+    # Create a test viewer user and session with ISO format dates
     import subprocess
     result = subprocess.run([
         'mongosh', '--quiet', '--eval', '''
         use("test_database");
         var userId = "test-viewer-" + Date.now();
-        var sessionToken = "viewer_" + Date.now();
+        var sessionToken = "viewer_test_" + Date.now();
+        var expiresAt = new Date(Date.now() + 7*24*60*60*1000).toISOString();
+        var createdAt = new Date().toISOString();
         db.users.insertOne({
             id: userId,
             email: "test.viewer." + Date.now() + "@example.com",
             name: "Test Viewer",
             role: "viewer",
-            created_at: new Date()
+            created_at: createdAt
         });
         db.user_sessions.insertOne({
             user_id: userId,
             session_token: sessionToken,
-            expires_at: new Date(Date.now() + 7*24*60*60*1000),
-            created_at: new Date()
+            expires_at: expiresAt,
+            created_at: createdAt
         });
         print(JSON.stringify({userId: userId, sessionToken: sessionToken}));
         '''
