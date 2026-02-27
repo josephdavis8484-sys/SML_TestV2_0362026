@@ -457,8 +457,12 @@ const LiveStreamViewer = ({ eventId, userId, userName, event }) => {
         </div>
       )}
 
-      {/* Protected Video Area */}
-      <ProtectedContent isProtected={isProtected} showWarning={showWarning} className="flex-1 relative min-h-0">
+      {/* Protected Video Area - adjusted height when chat is shown */}
+      <ProtectedContent 
+        isProtected={isProtected} 
+        showWarning={showWarning} 
+        className={`relative ${showInteraction ? 'h-[calc(100vh-80px)]' : 'flex-1'}`}
+      >
         <LiveKitRoom
           serverUrl={wsUrl}
           token={token}
@@ -467,7 +471,7 @@ const LiveStreamViewer = ({ eventId, userId, userName, event }) => {
           video={false}
           options={{
             adaptiveStream: {
-              pixel: true,    // Subscribe to highest quality based on element size
+              pixel: true,
             },
             dynacast: true,
             disconnectOnPageLeave: false,
