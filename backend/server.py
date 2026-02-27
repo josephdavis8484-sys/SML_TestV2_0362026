@@ -3644,7 +3644,7 @@ async def register_pro_mode_device(request: ProModeDeviceRegister, current_user:
     
     # Generate LiveKit token for this device
     room_name = session.get("room_name")
-    participant_identity = f"camera-{request.device_number}"
+    participant_identity = f"Camera-{request.device_number}"
     token = generate_livekit_token(
         room_name=room_name,
         participant_identity=participant_identity,
@@ -3711,7 +3711,7 @@ async def register_pro_mode_device_public(request: PublicDeviceRegister):
     
     # Generate LiveKit token for this device
     room_name = session.get("room_name")
-    participant_identity = f"camera-{request.device_number}"
+    participant_identity = f"Camera-{request.device_number}"
     token = generate_livekit_token(
         room_name=room_name,
         participant_identity=participant_identity,
