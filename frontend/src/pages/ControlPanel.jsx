@@ -192,13 +192,7 @@ const FloatingChatOverlay = ({ messages }) => {
 
   return (
     <div className="absolute bottom-0 left-0 w-[55%] h-[25%] pointer-events-none overflow-hidden">
-      {/* Gradient fade - bottom 0.38 opacity to top 0 */}
-      <div 
-        className="absolute inset-0"
-        style={{
-          background: 'linear-gradient(to top, rgba(0,0,0,0.38) 0%, rgba(0,0,0,0.2) 40%, rgba(0,0,0,0) 100%)'
-        }}
-      />
+      {/* No gradient - clean overlay */}
       
       <div className="absolute bottom-3 left-4 right-4 space-y-2">
         {displayMessages.map((msg) => {
