@@ -366,7 +366,27 @@ Created modular architecture:
   - Updated EventCreate model (lines 240-241)
   - Updated WebSocket endpoint defaults
   - Migrated existing events in database
-- **Geo-Fencing**: Verified working correctly with radius-based location checking
+
+- **Video Layout Fix**: LiveStreamViewer now reserves 80px at bottom for chat bar
+  - Video height: `h-[calc(100vh-80px)]` when interactions enabled
+  - Chat bar: Fixed 80px height with larger buttons
+  
+- **Gradient Removal**: Removed gradient backgrounds from:
+  - FloatingChatOverlay (ControlPanel.jsx line 195)
+  - FloatingReactionsOverlay (ControlPanel.jsx line 292)
+
+- **Pro Mode Camera Identity Fix**: Consistent `Camera-{number}` format
+  - Fixed participant_identity in device registration
+  - Frontend and backend now match
+
+- **Delete Functionality**: Verified working for:
+  - Creator deleting events (except live events)
+  - Viewer deleting tickets (except for live events)
+
+- **Privacy Protection Note**: Browser-based detection has limitations
+  - Cannot fully prevent Chrome screen recording via extensions
+  - System logs violations and escalates enforcement when detected
+  - Keyboard shortcuts and visibility changes are detected
 
 ---
 
