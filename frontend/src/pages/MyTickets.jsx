@@ -400,8 +400,8 @@ const MyTickets = ({ user, onLogout }) => {
                           Share This Show
                         </Button>
                         
-                        {/* Delete Ticket Button - Only for completed/past events */}
-                        {(event?.status === "completed" || isPast) && (
+                        {/* Delete Ticket Button - Available for upcoming, completed, or past events */}
+                        {(event?.status === "upcoming" || event?.status === "completed" || isPast) && (
                           <Button
                             onClick={() => handleDeleteTicket(ticket.id, event?.title || "Event", event?.status)}
                             variant="outline"
