@@ -490,10 +490,10 @@ const LiveStreamViewer = ({ eventId, userId, userName, event }) => {
         </LiveKitRoom>
       </ProtectedContent>
 
-      {/* Chat/Reactions Bar */}
+      {/* Chat/Reactions Bar - Fixed at bottom, always visible when enabled */}
       {showInteraction && (
-        <div className="bg-gray-900 border-t border-gray-800 p-3">
-          <div className="flex items-center gap-2 max-w-2xl mx-auto">
+        <div className="h-[80px] bg-gray-900 border-t border-gray-800 p-3 flex-shrink-0">
+          <div className="flex items-center gap-2 max-w-4xl mx-auto h-full">
             {chatEnabled && (
               <div className="flex-1 flex gap-2">
                 <input
@@ -503,25 +503,25 @@ const LiveStreamViewer = ({ eventId, userId, userName, event }) => {
                   onKeyPress={(e) => e.key === "Enter" && handleSendChat()}
                   placeholder={chatConnected ? "Send a message..." : "Connecting to chat..."}
                   disabled={!chatConnected}
-                  className="flex-1 bg-gray-800 border border-gray-700 rounded-lg px-3 py-2.5 text-white text-sm placeholder-gray-500 disabled:opacity-50"
+                  className="flex-1 bg-gray-800 border border-gray-700 rounded-lg px-4 py-3 text-white text-sm placeholder-gray-500 disabled:opacity-50"
                 />
                 <button 
                   onClick={handleSendChat} 
                   disabled={!chatMessage.trim() || !chatConnected} 
-                  className="bg-blue-600 hover:bg-blue-700 disabled:bg-gray-700 disabled:opacity-50 text-white px-4 py-2.5 rounded-lg text-sm"
+                  className="bg-blue-600 hover:bg-blue-700 disabled:bg-gray-700 disabled:opacity-50 text-white px-5 py-3 rounded-lg text-sm font-medium"
                 >
                   Send
                 </button>
               </div>
             )}
             {reactionsEnabled && (
-              <div className="flex gap-1.5">
+              <div className="flex gap-2">
                 {["👏", "😂", "❤️", "🔥", "😍"].map((emoji) => (
                   <button 
                     key={emoji} 
                     onClick={() => handleSendReaction(emoji)} 
                     disabled={!chatConnected}
-                    className="w-11 h-11 bg-gray-800 hover:bg-gray-700 hover:scale-110 disabled:opacity-50 rounded-lg text-xl transition-transform active:scale-95"
+                    className="w-12 h-12 bg-gray-800 hover:bg-gray-700 hover:scale-110 disabled:opacity-50 rounded-lg text-2xl transition-transform active:scale-95"
                   >
                     {emoji}
                   </button>
