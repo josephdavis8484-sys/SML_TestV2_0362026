@@ -289,13 +289,7 @@ const FloatingReactionsOverlay = ({ reactions }) => {
 
   return (
     <div className="absolute bottom-0 right-0 w-[30%] h-[50%] pointer-events-none overflow-hidden">
-      {/* Gradient fade - bottom 0.38 opacity to top 0 */}
-      <div 
-        className="absolute inset-0"
-        style={{
-          background: 'linear-gradient(to top, rgba(0,0,0,0.38) 0%, rgba(0,0,0,0.15) 50%, rgba(0,0,0,0) 100%)'
-        }}
-      />
+      {/* No gradient - clean overlay */}
       
       {/* Glow effect background */}
       <div className="absolute inset-0 opacity-30">
