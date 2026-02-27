@@ -379,9 +379,15 @@ Created modular architecture:
   - Fixed participant_identity in device registration
   - Frontend and backend now match
 
-- **Delete Functionality**: Verified working for:
-  - Creator deleting events (except live events)
-  - Viewer deleting tickets (except for live events)
+- **Delete Functionality**: 
+  - Delete Event button now visible for upcoming, completed, and cancelled events
+  - Delete Ticket button now visible for upcoming, completed, and past event tickets
+  - Backend APIs verified working
+
+- **Pro Mode Camera Switching**: 
+  - Camera identity format fixed to `Camera-{number}`
+  - Switch device API working at `/api/pro-mode/switch-device`
+  - Transition selector visible in Control Panel header
 
 - **Privacy Protection Note**: Browser-based detection has limitations
   - Cannot fully prevent Chrome screen recording via extensions
