@@ -369,13 +369,21 @@ const CreatorDashboard = ({ user, onLogout }) => {
                           </Button>
                           <Button
                             onClick={() => handleCancelEvent(event.id, event.title)}
-                            className="flex-1 bg-red-600/20 hover:bg-red-600/40 text-red-400 border border-red-600/50 text-sm"
+                            className="flex-1 bg-orange-600/20 hover:bg-orange-600/40 text-orange-400 border border-orange-600/50 text-sm"
                             data-testid={`cancel-button-${event.id}`}
                           >
                             <XCircle className="w-4 h-4 mr-1" />
                             Cancel
                           </Button>
                         </div>
+                        <Button
+                          onClick={() => handleDeleteEvent(event.id, event.title, event.status)}
+                          className="w-full bg-red-600/20 hover:bg-red-600/40 text-red-400 border border-red-600/50 text-sm"
+                          data-testid={`delete-button-${event.id}`}
+                        >
+                          <Trash2 className="w-4 h-4 mr-1" />
+                          Delete Event
+                        </Button>
                       </div>
                     ) : event.status === "completed" ? (
                       <div className="space-y-2">
