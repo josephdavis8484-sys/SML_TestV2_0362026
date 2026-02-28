@@ -28,7 +28,87 @@ import ScreenProtectionOverlay, { ProtectedContent } from "@/components/ScreenPr
 
 const BACKEND_URL = process.env.REACT_APP_BACKEND_URL;
 
-// Simple Stage component that renders all remote video/audio
+// Pro Mode Stage - Only shows the active camera selected by the control panel
+const ProModeStage = ({ eventId }) => {
+  const [activeDeviceId, setActiveDeviceId] = useState(null);
+  const [activeParticipantIdentity, setActiveParticipantIdentity] = useState(null);
+  
+  const tracks = useTracks(
+    [
+      { source: Track.Source.Camera, withPlaceholder: true },
+      { source: Track.Source.ScreenShare, withPlaceholder: false },
+      { source: Track.Source.Microphone, withPlaceholder: false },
+    ],
+    { onlySubscribed: false }
+  );
+
+  // Fetch active device from backend periodically
+  useEffect(() => {
+    const fetchActiveDevice = async () => {
+      try {
+        const response = await axiosInstance.get(`/pro-mode/session/${eventId}`);
+        const session = response.data;
+        if (session.active_device_id) {
+          setActiveDeviceId(session.active_device_id);
+          // Extract device number from device_id (format: eventId-device-X)
+          const deviceNumber = session.active_device_id.split('-device-')[1];
+          if (deviceNumber) {
+            setActiveParticipantIdentity(`Camera-${deviceNumber}`);
+          }
+        }
+      } catch (error) {
+        // Session might not exist for non-pro-mode events
+        console.log('Pro Mode session not found, showing all tracks');
+      }
+    };
+
+    fetchActiveDevice();
+    // Poll for active device changes every 2 seconds
+    const interval = setInterval(fetchActiveDevice, 2000);
+    return () => clearInterval(interval);
+  }, [eventId]);
+
+  const remoteTracks = tracks.filter((track) => !track.participant.isLocal);
+  
+  // Filter to only show the active camera's video
+  let videoTracks = remoteTracks.filter((t) => 
+    t.source === Track.Source.Camera || t.source === Track.Source.ScreenShare
+  );
+  
+  // If we have an active participant identity, filter to only that camera
+  if (activeParticipantIdentity) {
+    const activeTrack = videoTracks.find((t) => 
+      t.participant.identity === activeParticipantIdentity
+    );
+    if (activeTrack) {
+      videoTracks = [activeTrack];
+    }
+  }
+
+  return (
+    <div className="w-full h-full">
+      <RoomAudioRenderer />
+      
+      {videoTracks.length > 0 ? (
+        <GridLayout tracks={videoTracks} style={{ height: '100%' }}>
+          <ParticipantTile />
+        </GridLayout>
+      ) : (
+        <div className="w-full h-full flex items-center justify-center bg-gray-900">
+          <div className="text-center">
+            <Video className="w-12 h-12 text-gray-500 mx-auto mb-3" />
+            <p className="text-gray-400">Waiting for creator to start streaming...</p>
+            {activeParticipantIdentity && (
+              <p className="text-gray-500 text-sm mt-2">Active camera: {activeParticipantIdentity}</p>
+            )}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+};
+
+// Simple Stage component that renders all remote video/audio (for regular events)
 const Stage = () => {
   const tracks = useTracks(
     [
