@@ -3507,7 +3507,16 @@ async def join_room_as_viewer(
     if not ticket and event.get("price", 0) > 0:
         raise HTTPException(status_code=403, detail="You need a ticket to watch this event")
     
-    room_name = f"event_{event_id}"
+    # Check if this is a Pro Mode event with an active session
+    pro_mode_session = await db.pro_mode_sessions.find_one({"event_id": event_id}, {"_id": 0})
+    
+    if pro_mode_session and event.get("streaming_package") == "premium":
+        # Use Pro Mode room
+        room_name = pro_mode_session.get("room_name", f"pro-{event_id}")
+    else:
+        # Use regular event room
+        room_name = f"event_{event_id}"
+    
     participant_id = f"viewer_{current_user.id}"
     
     token = generate_livekit_token(
@@ -3522,7 +3531,8 @@ async def join_room_as_viewer(
         "room_name": room_name,
         "token": token,
         "url": LIVEKIT_URL,
-        "can_publish": False
+        "can_publish": False,
+        "is_pro_mode": pro_mode_session is not None and event.get("streaming_package") == "premium"
     }
 
 @api_router.post("/livekit/end-stream/{event_id}")
