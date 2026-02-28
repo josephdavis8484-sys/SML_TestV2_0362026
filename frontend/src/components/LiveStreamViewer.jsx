@@ -567,7 +567,7 @@ const LiveStreamViewer = ({ eventId, userId, userName, event }) => {
           data-lk-theme="default"
           style={{ height: '100%' }}
         >
-          <Stage />
+          {isProMode ? <ProModeStage eventId={eventId} /> : <Stage />}
           <StreamOverlay streamTime={streamTime} onShare={() => setShowShareModal(true)} viewerCount={1} />
         </LiveKitRoom>
       </ProtectedContent>
