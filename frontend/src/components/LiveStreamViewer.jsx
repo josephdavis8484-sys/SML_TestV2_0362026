@@ -304,6 +304,7 @@ const LiveStreamViewer = ({ eventId, userId, userName, event }) => {
         if (response.data.token && response.data.url) {
           setToken(response.data.token);
           setWsUrl(response.data.url);
+          setIsProMode(response.data.is_pro_mode || false);
         } else {
           throw new Error("Invalid response");
         }
