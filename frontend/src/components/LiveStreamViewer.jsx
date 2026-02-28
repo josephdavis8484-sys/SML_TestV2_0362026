@@ -231,6 +231,7 @@ const LiveStreamViewer = ({ eventId, userId, userName, event }) => {
   const [chatConnected, setChatConnected] = useState(false);
   const [videoQuality, setVideoQuality] = useState('auto');
   const [showQualityMenu, setShowQualityMenu] = useState(false);
+  const [isProMode, setIsProMode] = useState(false);
   const chatWsRef = useRef(null);
 
   // Screen protection hook
