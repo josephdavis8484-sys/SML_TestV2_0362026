@@ -68,12 +68,16 @@ const ProModeStage = ({ eventId }) => {
     return () => clearInterval(interval);
   }, [eventId]);
 
+  // Filter to only show Camera tracks (not viewers)
   const remoteTracks = tracks.filter((track) => !track.participant.isLocal);
   
-  // Filter to only show the active camera's video
-  let videoTracks = remoteTracks.filter((t) => 
-    t.source === Track.Source.Camera || t.source === Track.Source.ScreenShare
-  );
+  // Only show tracks from Camera participants (Camera-1, Camera-2, etc.) - NOT viewers
+  let videoTracks = remoteTracks.filter((t) => {
+    const identity = t.participant.identity;
+    const isCamera = identity && identity.startsWith('Camera-');
+    const isVideoSource = t.source === Track.Source.Camera || t.source === Track.Source.ScreenShare;
+    return isCamera && isVideoSource;
+  });
   
   // If we have an active participant identity, filter to only that camera
   if (activeParticipantIdentity) {
@@ -108,7 +112,7 @@ const ProModeStage = ({ eventId }) => {
   );
 };
 
-// Simple Stage component that renders all remote video/audio (for regular events)
+// Simple Stage component for regular events - Only shows creator's stream (not other viewers)
 const Stage = () => {
   const tracks = useTracks(
     [
@@ -120,7 +124,14 @@ const Stage = () => {
   );
 
   const remoteTracks = tracks.filter((track) => !track.participant.isLocal);
-  const videoTracks = remoteTracks.filter((t) => t.source === Track.Source.Camera || t.source === Track.Source.ScreenShare);
+  
+  // Only show tracks from creators (identity starts with "creator_") - NOT viewers
+  const videoTracks = remoteTracks.filter((t) => {
+    const identity = t.participant.identity;
+    const isCreator = identity && identity.startsWith('creator_');
+    const isVideoSource = t.source === Track.Source.Camera || t.source === Track.Source.ScreenShare;
+    return isCreator && isVideoSource;
+  });
 
   return (
     <div className="w-full h-full">
