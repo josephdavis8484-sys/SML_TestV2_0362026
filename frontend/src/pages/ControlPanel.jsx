@@ -16,7 +16,8 @@ import {
   Heart,
   SwitchCamera,
   Sliders,
-  Shield
+  Shield,
+  Zap
 } from "lucide-react";
 import { toast } from "sonner";
 import {
@@ -30,6 +31,7 @@ import "@livekit/components-styles";
 import { Track } from "livekit-client";
 import { useScreenProtection } from "@/hooks/useScreenProtection";
 import ScreenProtectionOverlay, { ProtectedContent } from "@/components/ScreenProtectionOverlay";
+import { useReactionEnergyMeter, ENERGY_STATES, getEnergyStateClasses } from "@/hooks/useReactionEnergyMeter";
 
 const BACKEND_URL = process.env.REACT_APP_BACKEND_URL;
 
