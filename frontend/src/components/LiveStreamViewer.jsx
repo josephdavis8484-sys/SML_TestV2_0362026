@@ -11,7 +11,9 @@ import {
   ArrowLeft,
   Cast,
   Settings,
-  Shield
+  Shield,
+  MessageCircle,
+  Send
 } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import {
@@ -25,6 +27,7 @@ import "@livekit/components-styles";
 import { Track } from "livekit-client";
 import { useScreenProtection } from "@/hooks/useScreenProtection";
 import ScreenProtectionOverlay, { ProtectedContent } from "@/components/ScreenProtectionOverlay";
+import { useReactionProgression, BASE_REACTION_EMOJIS, getReactionType } from "@/hooks/useReactionProgression";
 
 const BACKEND_URL = process.env.REACT_APP_BACKEND_URL;
 
@@ -42,7 +45,6 @@ const ProModeStage = ({ eventId }) => {
     { onlySubscribed: false }
   );
 
-  // Fetch active device from backend periodically
   useEffect(() => {
     const fetchActiveDevice = async () => {
       try {
@@ -50,28 +52,23 @@ const ProModeStage = ({ eventId }) => {
         const session = response.data;
         if (session.active_device_id) {
           setActiveDeviceId(session.active_device_id);
-          // Extract device number from device_id (format: eventId-device-X)
           const deviceNumber = session.active_device_id.split('-device-')[1];
           if (deviceNumber) {
             setActiveParticipantIdentity(`Camera-${deviceNumber}`);
           }
         }
       } catch (error) {
-        // Session might not exist for non-pro-mode events
         console.log('Pro Mode session not found, showing all tracks');
       }
     };
 
     fetchActiveDevice();
-    // Poll for active device changes every 2 seconds
     const interval = setInterval(fetchActiveDevice, 2000);
     return () => clearInterval(interval);
   }, [eventId]);
 
-  // Filter to only show Camera tracks (not viewers)
   const remoteTracks = tracks.filter((track) => !track.participant.isLocal);
   
-  // Only show tracks from Camera participants (Camera-1, Camera-2, etc.) - NOT viewers
   let videoTracks = remoteTracks.filter((t) => {
     const identity = t.participant.identity;
     const isCamera = identity && identity.startsWith('Camera-');
@@ -79,7 +76,6 @@ const ProModeStage = ({ eventId }) => {
     return isCamera && isVideoSource;
   });
   
-  // If we have an active participant identity, filter to only that camera
   if (activeParticipantIdentity) {
     const activeTrack = videoTracks.find((t) => 
       t.participant.identity === activeParticipantIdentity
@@ -98,9 +94,9 @@ const ProModeStage = ({ eventId }) => {
           <ParticipantTile />
         </GridLayout>
       ) : (
-        <div className="w-full h-full flex items-center justify-center bg-gray-900">
+        <div className="w-full h-full flex items-center justify-center bg-black">
           <div className="text-center">
-            <Video className="w-12 h-12 text-gray-500 mx-auto mb-3" />
+            <Video className="w-12 h-12 text-gray-600 mx-auto mb-3" />
             <p className="text-gray-400">Waiting for creator to start streaming...</p>
             {activeParticipantIdentity && (
               <p className="text-gray-500 text-sm mt-2">Active camera: {activeParticipantIdentity}</p>
@@ -112,7 +108,7 @@ const ProModeStage = ({ eventId }) => {
   );
 };
 
-// Simple Stage component for regular events - Only shows creator's stream (not other viewers)
+// Simple Stage component for regular events
 const Stage = () => {
   const tracks = useTracks(
     [
@@ -125,7 +121,6 @@ const Stage = () => {
 
   const remoteTracks = tracks.filter((track) => !track.participant.isLocal);
   
-  // Only show tracks from creators (identity starts with "creator_") - NOT viewers
   const videoTracks = remoteTracks.filter((t) => {
     const identity = t.participant.identity;
     const isCreator = identity && identity.startsWith('creator_');
@@ -142,9 +137,9 @@ const Stage = () => {
           <ParticipantTile />
         </GridLayout>
       ) : (
-        <div className="w-full h-full flex items-center justify-center bg-gray-900">
+        <div className="w-full h-full flex items-center justify-center bg-black">
           <div className="text-center">
-            <Video className="w-12 h-12 text-gray-500 mx-auto mb-3" />
+            <Video className="w-12 h-12 text-gray-600 mx-auto mb-3" />
             <p className="text-gray-400">Waiting for creator to start streaming...</p>
           </div>
         </div>
@@ -159,7 +154,6 @@ const ShareModal = ({ isOpen, onClose, eventTitle, eventUrl }) => {
 
   const copyLink = () => {
     navigator.clipboard.writeText(eventUrl);
-    toast.success("Link copied!");
     onClose();
   };
 
@@ -195,7 +189,7 @@ const ShareModal = ({ isOpen, onClose, eventTitle, eventUrl }) => {
   );
 };
 
-// Overlay with LIVE badge
+// Overlay with LIVE badge - positioned at top
 const StreamOverlay = ({ streamTime, onShare, viewerCount }) => {
   const formatTime = (seconds) => {
     const hrs = Math.floor(seconds / 3600);
@@ -211,22 +205,300 @@ const StreamOverlay = ({ streamTime, onShare, viewerCount }) => {
           <div className="w-2 h-2 bg-white rounded-full animate-pulse"></div>
           <span className="text-white font-bold text-xs">LIVE</span>
         </div>
-        <div className="bg-black/60 px-2 py-1 rounded flex items-center gap-1.5">
+        <div className="bg-black/60 backdrop-blur-sm px-2 py-1 rounded flex items-center gap-1.5">
           <Users className="w-3 h-3 text-white" />
           <span className="text-white font-medium text-xs">{viewerCount}</span>
         </div>
       </div>
       
       <div className="absolute top-3 right-3 flex items-center gap-2 z-10">
-        <div className="bg-black/60 px-2 py-1 rounded">
+        <div className="bg-black/60 backdrop-blur-sm px-2 py-1 rounded">
           <span className="text-white font-mono text-xs">{formatTime(streamTime)}</span>
         </div>
-        <button onClick={onShare} className="bg-black/60 hover:bg-black/80 px-2 py-1 rounded flex items-center gap-1">
+        <button onClick={onShare} className="bg-black/60 backdrop-blur-sm hover:bg-black/80 px-2 py-1 rounded flex items-center gap-1">
           <Share2 className="w-3 h-3 text-white" />
           <span className="text-white text-xs">Share</span>
         </button>
       </div>
     </>
+  );
+};
+
+// Floating Chat Message - Single message that fades in and out
+const FloatingChatMessage = ({ message, onComplete }) => {
+  const [opacity, setOpacity] = useState(0);
+  
+  useEffect(() => {
+    // Fade in (200ms)
+    const fadeInTimer = setTimeout(() => setOpacity(1), 10);
+    
+    // Start fade out after 1.7s (200ms fade-in + 1.5s visible)
+    const fadeOutTimer = setTimeout(() => setOpacity(0), 1700);
+    
+    // Remove after total ~2.4s
+    const removeTimer = setTimeout(onComplete, 2400);
+    
+    return () => {
+      clearTimeout(fadeInTimer);
+      clearTimeout(fadeOutTimer);
+      clearTimeout(removeTimer);
+    };
+  }, [onComplete]);
+
+  return (
+    <div 
+      className="chat-message-float"
+      style={{
+        opacity,
+        transition: `opacity ${opacity === 0 ? '700ms' : '200ms'} ease-out`,
+      }}
+    >
+      <div className="inline-flex items-center gap-2 bg-black/50 backdrop-blur-xl rounded-2xl px-4 py-2 max-w-[90%]">
+        <span 
+          className="font-bold text-sm"
+          style={{ color: message.color || '#60a5fa' }}
+        >
+          {message.username}
+        </span>
+        <span className="text-white text-sm font-medium">{message.message}</span>
+      </div>
+    </div>
+  );
+};
+
+// Viewer Chat Message Queue - Shows sent messages briefly
+const ViewerChatFeedback = ({ messages }) => {
+  const [displayMessages, setDisplayMessages] = useState([]);
+
+  useEffect(() => {
+    if (messages.length > 0) {
+      const latest = messages[messages.length - 1];
+      // Only add if not already displayed
+      if (!displayMessages.find(m => m.id === latest.id)) {
+        setDisplayMessages(prev => [...prev, latest]);
+      }
+    }
+  }, [messages]);
+
+  const handleComplete = (id) => {
+    setDisplayMessages(prev => prev.filter(m => m.id !== id));
+  };
+
+  return (
+    <div className="absolute bottom-16 left-4 right-4 pointer-events-none z-20 flex flex-col items-start gap-2" style={{ maxHeight: '10%' }}>
+      {displayMessages.slice(-3).map((msg) => (
+        <FloatingChatMessage 
+          key={msg.id} 
+          message={msg} 
+          onComplete={() => handleComplete(msg.id)}
+        />
+      ))}
+    </div>
+  );
+};
+
+// Floating Reaction - Animates upward and fades
+const FloatingReaction = ({ emoji, startX, onComplete }) => {
+  const [style, setStyle] = useState({
+    opacity: 1,
+    transform: 'translateY(0) scale(1)',
+  });
+
+  useEffect(() => {
+    // Start animation after mount
+    const animateTimer = setTimeout(() => {
+      setStyle({
+        opacity: 0,
+        transform: 'translateY(-200px) scale(0.8)',
+      });
+    }, 50);
+
+    // Remove after animation
+    const removeTimer = setTimeout(onComplete, 2000);
+
+    return () => {
+      clearTimeout(animateTimer);
+      clearTimeout(removeTimer);
+    };
+  }, [onComplete]);
+
+  // Slight horizontal drift
+  const drift = (Math.random() - 0.5) * 40;
+
+  return (
+    <div
+      className="absolute pointer-events-none"
+      style={{
+        left: `${startX}%`,
+        bottom: '80px',
+        ...style,
+        transform: `${style.transform} translateX(${drift}px)`,
+        transition: 'all 1.8s cubic-bezier(0.25, 0.46, 0.45, 0.94)',
+        fontSize: '2.5rem',
+        textShadow: '0 2px 10px rgba(0,0,0,0.5)',
+        zIndex: 25,
+      }}
+    >
+      {emoji}
+    </div>
+  );
+};
+
+// Reaction Animation Container
+const ReactionAnimationContainer = ({ reactions }) => {
+  const [activeReactions, setActiveReactions] = useState([]);
+
+  useEffect(() => {
+    if (reactions.length > 0) {
+      const latest = reactions[reactions.length - 1];
+      if (!activeReactions.find(r => r.id === latest.id)) {
+        setActiveReactions(prev => [...prev, latest]);
+      }
+    }
+  }, [reactions]);
+
+  const handleComplete = (id) => {
+    setActiveReactions(prev => prev.filter(r => r.id !== id));
+  };
+
+  return (
+    <div className="absolute inset-0 pointer-events-none overflow-hidden z-20">
+      {activeReactions.map((reaction) => (
+        <FloatingReaction
+          key={reaction.id}
+          emoji={reaction.emoji}
+          startX={reaction.startX}
+          onComplete={() => handleComplete(reaction.id)}
+        />
+      ))}
+    </div>
+  );
+};
+
+// ShowMe Interaction Bar - Transparent overlay at bottom
+const ShowMeInteractionBar = ({ 
+  chatEnabled, 
+  reactionsEnabled, 
+  chatMessage, 
+  setChatMessage, 
+  onSendChat, 
+  onSendReaction,
+  chatConnected,
+  reactionProgression
+}) => {
+  const { getCurrentEmoji, handleReactionTap, getTapCount } = reactionProgression;
+
+  const handleReactionClick = (type) => {
+    const emoji = handleReactionTap(type);
+    onSendReaction(emoji, type);
+  };
+
+  // Reaction button with glow effect based on tap count
+  const ReactionButton = ({ type, baseEmoji }) => {
+    const currentEmoji = getCurrentEmoji(type);
+    const tapCount = getTapCount(type);
+    
+    // Glow intensity increases with tap count
+    const glowIntensity = Math.min(tapCount / 10, 1);
+    const glowColor = {
+      laugh: 'rgba(250, 204, 21, VAL)',
+      heart: 'rgba(239, 68, 68, VAL)',
+      fire: 'rgba(251, 146, 60, VAL)',
+      clap: 'rgba(168, 85, 247, VAL)',
+    }[type].replace('VAL', glowIntensity * 0.6);
+
+    return (
+      <button
+        onClick={() => handleReactionClick(type)}
+        disabled={!chatConnected}
+        className="w-12 h-12 flex items-center justify-center rounded-full transition-all duration-200 active:scale-90 disabled:opacity-50 hover:scale-110"
+        style={{
+          background: `rgba(255,255,255,0.1)`,
+          boxShadow: tapCount > 0 ? `0 0 ${12 + tapCount * 2}px ${glowColor}` : 'none',
+        }}
+        data-testid={`reaction-btn-${type}`}
+      >
+        <span className="text-2xl">{currentEmoji || baseEmoji}</span>
+      </button>
+    );
+  };
+
+  return (
+    <div className="absolute bottom-0 left-0 right-0 z-30 p-3" style={{ maxHeight: '5%', minHeight: '60px' }}>
+      {/* Transparent glass bar */}
+      <div className="flex items-center gap-2 mx-auto max-w-3xl bg-black/40 backdrop-blur-xl rounded-full px-4 py-2 border border-white/10">
+        {/* Chat Icon */}
+        {chatEnabled && (
+          <div className="flex items-center gap-2 text-gray-400">
+            <MessageCircle className="w-5 h-5" />
+          </div>
+        )}
+        
+        {/* Chat Input */}
+        {chatEnabled && (
+          <input
+            type="text"
+            value={chatMessage}
+            onChange={(e) => setChatMessage(e.target.value)}
+            onKeyPress={(e) => e.key === "Enter" && onSendChat()}
+            placeholder="Send a message..."
+            disabled={!chatConnected}
+            className="flex-1 bg-transparent border-none outline-none text-white text-sm placeholder-gray-400 disabled:opacity-50 min-w-[120px]"
+            data-testid="chat-input"
+          />
+        )}
+        
+        {/* Reaction Buttons */}
+        {reactionsEnabled && (
+          <div className="flex items-center gap-1">
+            <ReactionButton type="heart" baseEmoji={BASE_REACTION_EMOJIS.heart} />
+            <ReactionButton type="laugh" baseEmoji={BASE_REACTION_EMOJIS.laugh} />
+            <ReactionButton type="fire" baseEmoji={BASE_REACTION_EMOJIS.fire} />
+            <ReactionButton type="clap" baseEmoji={BASE_REACTION_EMOJIS.clap} />
+          </div>
+        )}
+        
+        {/* Send Button */}
+        {chatEnabled && (
+          <button
+            onClick={onSendChat}
+            disabled={!chatMessage.trim() || !chatConnected}
+            className="w-10 h-10 flex items-center justify-center rounded-full bg-white/10 hover:bg-white/20 disabled:opacity-50 transition-colors"
+            data-testid="send-chat-btn"
+          >
+            <Send className="w-4 h-4 text-white" />
+          </button>
+        )}
+      </div>
+    </div>
+  );
+};
+
+// Settings Dropdown
+const SettingsDropdown = ({ isOpen, onClose, videoQuality, setVideoQuality, onCast }) => {
+  if (!isOpen) return null;
+
+  return (
+    <div className="absolute bottom-12 right-0 bg-black/90 backdrop-blur-xl border border-white/10 rounded-xl shadow-lg py-2 min-w-[140px] z-40">
+      <div className="px-3 py-1 text-xs text-gray-400 uppercase tracking-wider">Quality</div>
+      {['auto', '1080p', '720p', '480p'].map((q) => (
+        <button
+          key={q}
+          onClick={() => { setVideoQuality(q); onClose(); }}
+          className={`w-full px-3 py-2 text-left text-sm hover:bg-white/10 ${videoQuality === q ? 'text-blue-400' : 'text-white'}`}
+        >
+          {q === 'auto' ? 'Auto' : q}
+        </button>
+      ))}
+      <div className="border-t border-white/10 my-1"></div>
+      <button
+        onClick={() => { onCast(); onClose(); }}
+        className="w-full px-3 py-2 text-left text-sm text-white hover:bg-white/10 flex items-center gap-2"
+      >
+        <Cast className="w-4 h-4" />
+        Cast to TV
+      </button>
+    </div>
   );
 };
 
@@ -241,9 +513,17 @@ const LiveStreamViewer = ({ eventId, userId, userName, event }) => {
   const [chatMessage, setChatMessage] = useState("");
   const [chatConnected, setChatConnected] = useState(false);
   const [videoQuality, setVideoQuality] = useState('auto');
-  const [showQualityMenu, setShowQualityMenu] = useState(false);
+  const [showSettings, setShowSettings] = useState(false);
   const [isProMode, setIsProMode] = useState(false);
   const chatWsRef = useRef(null);
+  
+  // Sent messages for viewer feedback
+  const [sentMessages, setSentMessages] = useState([]);
+  // Sent reactions for animation
+  const [sentReactions, setSentReactions] = useState([]);
+  
+  // Reaction progression hook
+  const reactionProgression = useReactionProgression();
 
   // Screen protection hook
   const {
@@ -261,11 +541,9 @@ const LiveStreamViewer = ({ eventId, userId, userName, event }) => {
       try {
         const response = await axiosInstance.get('/security/check-status');
         if (!response.data.can_access) {
-          toast.error(response.data.message);
-          setTimeout(() => navigate('/'), 2000);
+          navigate('/');
         }
       } catch (err) {
-        // Continue if check fails - don't block
         console.warn('Security check failed:', err);
       }
     };
@@ -277,21 +555,10 @@ const LiveStreamViewer = ({ eventId, userId, userName, event }) => {
     if ('presentation' in navigator && 'PresentationRequest' in window) {
       try {
         const presentationRequest = new window.PresentationRequest([window.location.href]);
-        const connection = await presentationRequest.start();
-        toast.success("Connected to display!");
-        connection.onclose = () => toast.info("Cast disconnected");
+        await presentationRequest.start();
       } catch (err) {
-        if (err.name === 'NotFoundError') {
-          toast.error("No cast devices found");
-        } else {
-          toast.error("Cast not available");
-        }
+        // Silent fail
       }
-    } else if (navigator.mediaDevices && 'getDisplayMedia' in navigator.mediaDevices) {
-      // Fallback: Try Chrome Cast API
-      toast.info("Use your browser's built-in Cast feature (⋮ menu → Cast)");
-    } else {
-      toast.error("Cast not supported on this browser");
     }
   };
 
@@ -343,7 +610,7 @@ const LiveStreamViewer = ({ eventId, userId, userName, event }) => {
         try {
           chatWsRef.current.send(JSON.stringify(msg));
         } catch (e) {
-          messageQueueRef.current.push(msg); // Re-queue on failure
+          messageQueueRef.current.push(msg);
         }
       });
     }
@@ -352,21 +619,19 @@ const LiveStreamViewer = ({ eventId, userId, userName, event }) => {
   // Chat WebSocket - Robust connection with auto-reconnect
   const connectChatWebSocket = useCallback(() => {
     if (!eventId) return;
-    if (isConnectingRef.current) return; // Prevent multiple simultaneous connections
+    if (isConnectingRef.current) return;
     
     const chatEnabled = event?.chat_enabled;
     const reactionsEnabled = event?.reactions_enabled;
     
     if (!(chatEnabled || reactionsEnabled)) return;
     
-    // Build WebSocket URL
     let chatWsUrl = BACKEND_URL;
     if (!chatWsUrl) return;
     
     chatWsUrl = chatWsUrl.replace('https://', 'wss://').replace('http://', 'ws://');
     chatWsUrl = `${chatWsUrl}/api/ws/chat/${eventId}`;
     
-    // Close existing connection cleanly
     if (chatWsRef.current) {
       if (chatWsRef.current.readyState === WebSocket.OPEN || 
           chatWsRef.current.readyState === WebSocket.CONNECTING) {
@@ -383,27 +648,19 @@ const LiveStreamViewer = ({ eventId, userId, userName, event }) => {
         isConnectingRef.current = false;
         setChatConnected(true);
         reconnectAttemptsRef.current = 0;
-        
-        // Only show toast on first connection or after extended disconnect
-        if (reconnectAttemptsRef.current === 0) {
-          toast.success("Chat connected!");
-        }
-        
-        // Process any queued messages
         processMessageQueue();
         
-        // Setup ping interval
         if (pingIntervalRef.current) clearInterval(pingIntervalRef.current);
         pingIntervalRef.current = setInterval(() => {
           if (ws.readyState === WebSocket.OPEN) {
             ws.send("ping");
           }
-        }, 10000); // Ping every 10 seconds for more aggressive keepalive
+        }, 10000);
       };
       
       ws.onmessage = (wsEvent) => {
         if (wsEvent.data === "pong") return;
-        // Viewers don't need to process messages per design spec
+        // Viewers don't process incoming messages per design spec
       };
       
       ws.onclose = (closeEvent) => {
@@ -415,7 +672,6 @@ const LiveStreamViewer = ({ eventId, userId, userName, event }) => {
           pingIntervalRef.current = null;
         }
         
-        // Auto-reconnect unless it was a clean close or max retries reached
         if (closeEvent.code !== 1000 && reconnectAttemptsRef.current < maxReconnectAttempts) {
           const delay = Math.min(500 * Math.pow(1.3, reconnectAttemptsRef.current), 5000);
           reconnectAttemptsRef.current += 1;
@@ -450,35 +706,39 @@ const LiveStreamViewer = ({ eventId, userId, userName, event }) => {
     };
   }, [eventId, event?.chat_enabled, event?.reactions_enabled, connectChatWebSocket]);
 
+  // Send chat message with inline feedback (no toast)
   const handleSendChat = () => {
     if (!chatMessage.trim()) return;
     
+    const msgId = Date.now() + Math.random();
     const msg = { 
       type: "message", 
       username: userName || "Viewer", 
       message: chatMessage.trim() 
     };
     
-    // Try to send immediately if connected
     if (chatWsRef.current?.readyState === WebSocket.OPEN) {
       try {
         chatWsRef.current.send(JSON.stringify(msg));
+        // Add to sent messages for inline feedback
+        setSentMessages(prev => [...prev, {
+          id: msgId,
+          username: msg.username,
+          message: msg.message,
+          color: '#60a5fa'
+        }]);
         setChatMessage("");
-        toast.success("Message sent!");
       } catch (e) {
-        // Queue message for retry
         messageQueueRef.current.push(msg);
-        toast.error("Message queued, sending when connected...");
       }
     } else {
-      // Queue message and trigger reconnect
       messageQueueRef.current.push(msg);
-      toast.info("Connecting... message will send automatically");
       connectChatWebSocket();
     }
   };
 
-  const handleSendReaction = (emoji) => {
+  // Send reaction with float animation (no toast)
+  const handleSendReaction = (emoji, type) => {
     const msg = { 
       type: "reaction", 
       emoji, 
@@ -488,7 +748,14 @@ const LiveStreamViewer = ({ eventId, userId, userName, event }) => {
     if (chatWsRef.current?.readyState === WebSocket.OPEN) {
       try {
         chatWsRef.current.send(JSON.stringify(msg));
-        toast.success(`${emoji} sent!`);
+        // Add to sent reactions for float animation
+        // Position based on which button was clicked
+        const buttonPositions = { heart: 55, laugh: 65, fire: 75, clap: 85 };
+        setSentReactions(prev => [...prev, {
+          id: Date.now() + Math.random(),
+          emoji,
+          startX: buttonPositions[type] || 70,
+        }]);
       } catch (e) {
         messageQueueRef.current.push(msg);
       }
@@ -526,7 +793,25 @@ const LiveStreamViewer = ({ eventId, userId, userName, event }) => {
   }
 
   return (
-    <div className="h-screen w-full flex flex-col bg-black overflow-hidden">
+    <div className="h-screen w-full bg-black overflow-hidden relative" data-testid="live-stream-viewer">
+      {/* CSS for ShowMe Interaction Viewer */}
+      <style>{`
+        .chat-message-float {
+          animation: chatFadeIn 0.2s ease-out;
+        }
+        
+        @keyframes chatFadeIn {
+          from {
+            opacity: 0;
+            transform: translateY(10px);
+          }
+          to {
+            opacity: 1;
+            transform: translateY(0);
+          }
+        }
+      `}</style>
+      
       {/* Screen Protection Overlay */}
       <ScreenProtectionOverlay
         showWarning={showWarning}
@@ -538,23 +823,45 @@ const LiveStreamViewer = ({ eventId, userId, userName, event }) => {
       />
       
       {/* Back Button */}
-      <button onClick={() => navigate(-1)} className="absolute top-3 left-3 z-20 bg-black/60 hover:bg-black/80 text-white p-2 rounded-full">
+      <button 
+        onClick={() => navigate(-1)} 
+        className="absolute top-3 left-3 z-30 bg-black/60 backdrop-blur-sm hover:bg-black/80 text-white p-2 rounded-full"
+        data-testid="back-btn"
+      >
         <ArrowLeft className="w-5 h-5" />
       </button>
       
       {/* Security Badge */}
       {violationCount > 0 && (
-        <div className="absolute top-3 left-14 z-20 bg-yellow-500/80 text-black text-xs px-2 py-1 rounded-full flex items-center gap-1">
+        <div className="absolute top-3 left-14 z-30 bg-yellow-500/80 text-black text-xs px-2 py-1 rounded-full flex items-center gap-1">
           <Shield className="w-3 h-3" />
           <span>{violationCount} warning{violationCount !== 1 ? 's' : ''}</span>
         </div>
       )}
 
-      {/* Protected Video Area - adjusted height when chat is shown */}
+      {/* Settings Button */}
+      <div className="absolute top-3 right-20 z-30 relative">
+        <button
+          onClick={() => setShowSettings(!showSettings)}
+          className="bg-black/60 backdrop-blur-sm hover:bg-black/80 text-white p-2 rounded-full"
+          data-testid="settings-btn"
+        >
+          <Settings className="w-5 h-5" />
+        </button>
+        <SettingsDropdown
+          isOpen={showSettings}
+          onClose={() => setShowSettings(false)}
+          videoQuality={videoQuality}
+          setVideoQuality={setVideoQuality}
+          onCast={handleCastToTV}
+        />
+      </div>
+
+      {/* Full Screen Video - Landscape mode */}
       <ProtectedContent 
         isProtected={isProtected} 
         showWarning={showWarning} 
-        className={`relative ${showInteraction ? 'h-[calc(100vh-80px)]' : 'flex-1'}`}
+        className="w-full h-full"
       >
         <LiveKitRoom
           serverUrl={wsUrl}
@@ -563,108 +870,56 @@ const LiveStreamViewer = ({ eventId, userId, userName, event }) => {
           audio={false}
           video={false}
           options={{
-            adaptiveStream: {
-              pixel: true,
-            },
+            adaptiveStream: { pixel: true },
             dynacast: true,
             disconnectOnPageLeave: false,
             reconnectPolicy: {
-              nextRetryDelayInMs: (ctx) => {
-                return Math.min(1000 * Math.pow(2, ctx.retryCount), 10000);
-              },
+              nextRetryDelayInMs: (ctx) => Math.min(1000 * Math.pow(2, ctx.retryCount), 10000),
               maxRetries: 10
             }
           }}
           data-lk-theme="default"
-          style={{ height: '100%' }}
+          style={{ height: '100%', width: '100%' }}
         >
           {isProMode ? <ProModeStage eventId={eventId} /> : <Stage />}
-          <StreamOverlay streamTime={streamTime} onShare={() => setShowShareModal(true)} viewerCount={1} />
+          <StreamOverlay 
+            streamTime={streamTime} 
+            onShare={() => setShowShareModal(true)} 
+            viewerCount={1} 
+          />
         </LiveKitRoom>
       </ProtectedContent>
 
-      {/* Chat/Reactions Bar - Fixed at bottom, always visible when enabled */}
-      {showInteraction && (
-        <div className="h-[80px] bg-gray-900 border-t border-gray-800 p-3 flex-shrink-0">
-          <div className="flex items-center gap-2 max-w-4xl mx-auto h-full">
-            {chatEnabled && (
-              <div className="flex-1 flex gap-2">
-                <input
-                  type="text"
-                  value={chatMessage}
-                  onChange={(e) => setChatMessage(e.target.value)}
-                  onKeyPress={(e) => e.key === "Enter" && handleSendChat()}
-                  placeholder={chatConnected ? "Send a message..." : "Connecting to chat..."}
-                  disabled={!chatConnected}
-                  className="flex-1 bg-gray-800 border border-gray-700 rounded-lg px-4 py-3 text-white text-sm placeholder-gray-500 disabled:opacity-50"
-                />
-                <button 
-                  onClick={handleSendChat} 
-                  disabled={!chatMessage.trim() || !chatConnected} 
-                  className="bg-blue-600 hover:bg-blue-700 disabled:bg-gray-700 disabled:opacity-50 text-white px-5 py-3 rounded-lg text-sm font-medium"
-                >
-                  Send
-                </button>
-              </div>
-            )}
-            {reactionsEnabled && (
-              <div className="flex gap-2">
-                {["👏", "😂", "❤️", "🔥", "😍"].map((emoji) => (
-                  <button 
-                    key={emoji} 
-                    onClick={() => handleSendReaction(emoji)} 
-                    disabled={!chatConnected}
-                    className="w-12 h-12 bg-gray-800 hover:bg-gray-700 hover:scale-110 disabled:opacity-50 rounded-lg text-2xl transition-transform active:scale-95"
-                  >
-                    {emoji}
-                  </button>
-                ))}
-              </div>
-            )}
-            
-            {/* Quality Selector */}
-            <div className="relative">
-              <button 
-                onClick={() => setShowQualityMenu(!showQualityMenu)}
-                className="w-11 h-11 bg-gray-800 hover:bg-gray-700 rounded-lg flex items-center justify-center text-white"
-                title="Video Quality"
-              >
-                <Settings className="w-4 h-4" />
-              </button>
-              {showQualityMenu && (
-                <div className="absolute bottom-full right-0 mb-2 bg-gray-800 border border-gray-700 rounded-lg shadow-lg py-1 min-w-[100px]">
-                  {['auto', '1080p', '720p', '480p'].map((q) => (
-                    <button
-                      key={q}
-                      onClick={() => { setVideoQuality(q); setShowQualityMenu(false); toast.success(`Quality: ${q.toUpperCase()}`); }}
-                      className={`w-full px-3 py-1.5 text-left text-sm hover:bg-gray-700 ${videoQuality === q ? 'text-blue-400' : 'text-white'}`}
-                    >
-                      {q === 'auto' ? 'Auto' : q}
-                    </button>
-                  ))}
-                </div>
-              )}
-            </div>
-            
-            {/* Cast to TV Button */}
-            <button 
-              onClick={handleCastToTV}
-              className="w-11 h-11 bg-gray-800 hover:bg-gray-700 rounded-lg flex items-center justify-center text-white"
-              title="Cast to TV"
-            >
-              <Cast className="w-4 h-4" />
-            </button>
-          </div>
-          {/* Connection status indicator */}
-          <div className="text-center mt-2">
-            <span className={`text-xs ${chatConnected ? 'text-green-400' : 'text-yellow-400'}`}>
-              {chatConnected ? '● Chat connected' : '○ Connecting to chat...'}
-            </span>
-          </div>
-        </div>
+      {/* Viewer Chat Feedback - Shows sent messages briefly */}
+      {chatEnabled && (
+        <ViewerChatFeedback messages={sentMessages} />
       )}
 
-      <ShareModal isOpen={showShareModal} onClose={() => setShowShareModal(false)} eventTitle={event?.title || "Live Stream"} eventUrl={`${window.location.origin}/event/${eventId}`} />
+      {/* Reaction Animation Container */}
+      {reactionsEnabled && (
+        <ReactionAnimationContainer reactions={sentReactions} />
+      )}
+
+      {/* ShowMe Interaction Bar - Transparent overlay at bottom */}
+      {showInteraction && (
+        <ShowMeInteractionBar
+          chatEnabled={chatEnabled}
+          reactionsEnabled={reactionsEnabled}
+          chatMessage={chatMessage}
+          setChatMessage={setChatMessage}
+          onSendChat={handleSendChat}
+          onSendReaction={handleSendReaction}
+          chatConnected={chatConnected}
+          reactionProgression={reactionProgression}
+        />
+      )}
+
+      <ShareModal 
+        isOpen={showShareModal} 
+        onClose={() => setShowShareModal(false)} 
+        eventTitle={event?.title || "Live Stream"} 
+        eventUrl={`${window.location.origin}/event/${eventId}`} 
+      />
     </div>
   );
 };
