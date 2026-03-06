@@ -1005,6 +1005,100 @@ const ControlPanel = ({ user, onLogout }) => {
             transform: translateX(0) scale(1);
           }
         }
+        
+        /* Energy State Animations - Creator Only */
+        .energy-normal {}
+        
+        .energy-hype .reaction-default,
+        .energy-hype .reaction-clap,
+        .energy-hype .reaction-laugh,
+        .energy-hype .reaction-heart,
+        .energy-hype .reaction-fire {
+          filter: drop-shadow(0 0 8px currentColor);
+        }
+        
+        .energy-surge .reaction-default,
+        .energy-surge .reaction-clap,
+        .energy-surge .reaction-laugh,
+        .energy-surge .reaction-heart,
+        .energy-surge .reaction-fire {
+          filter: drop-shadow(0 0 12px currentColor);
+          animation-timing-function: ease-in-out;
+        }
+        
+        .energy-crowd-wave .reaction-default,
+        .energy-crowd-wave .reaction-clap,
+        .energy-crowd-wave .reaction-laugh,
+        .energy-crowd-wave .reaction-heart,
+        .energy-crowd-wave .reaction-fire {
+          filter: drop-shadow(0 0 16px currentColor);
+        }
+        
+        @keyframes crowdWaveMotion {
+          0%, 100% { transform: translateX(0) rotate(0deg); }
+          25% { transform: translateX(10px) rotate(5deg); }
+          50% { transform: translateX(-10px) rotate(-5deg); }
+          75% { transform: translateX(5px) rotate(3deg); }
+        }
+        
+        .energy-crowd-wave {
+          animation: crowdWaveMotion 0.5s ease-in-out infinite;
+        }
+        
+        .energy-creator-moment .reaction-default,
+        .energy-creator-moment .reaction-clap,
+        .energy-creator-moment .reaction-laugh,
+        .energy-creator-moment .reaction-heart,
+        .energy-creator-moment .reaction-fire {
+          filter: drop-shadow(0 0 20px currentColor) drop-shadow(0 0 40px currentColor);
+          animation-timing-function: cubic-bezier(0.68, -0.55, 0.265, 1.55);
+        }
+        
+        @keyframes creatorMomentBurst {
+          0% { transform: scale(1); opacity: 1; }
+          50% { transform: scale(1.3); opacity: 0.8; }
+          100% { transform: scale(1); opacity: 1; }
+        }
+        
+        .energy-creator-moment {
+          animation: creatorMomentBurst 0.3s ease-out;
+        }
+        
+        /* Fire reaction - new animation type */
+        .reaction-fire {
+          animation: reactionFire 2s ease-out forwards;
+        }
+        @keyframes reactionFire {
+          0% {
+            opacity: 1;
+            transform: translateY(0) scale(0.5) rotate(0deg);
+            filter: drop-shadow(0 0 10px rgba(251, 146, 60, 0.8));
+          }
+          20% {
+            opacity: 1;
+            transform: translateY(-25px) scale(1.3) rotate(-8deg);
+            filter: drop-shadow(0 0 20px rgba(251, 146, 60, 1));
+          }
+          40% {
+            transform: translateY(-50px) scale(1.1) rotate(8deg);
+            filter: drop-shadow(0 0 15px rgba(251, 146, 60, 0.9));
+          }
+          60% {
+            opacity: 0.9;
+            transform: translateY(-80px) scale(1.2) rotate(-5deg);
+            filter: drop-shadow(0 0 25px rgba(251, 146, 60, 1));
+          }
+          80% {
+            opacity: 0.5;
+            transform: translateY(-120px) scale(0.9) rotate(5deg);
+            filter: drop-shadow(0 0 10px rgba(251, 146, 60, 0.5));
+          }
+          100% {
+            opacity: 0;
+            transform: translateY(-160px) scale(0.5) rotate(0deg);
+            filter: drop-shadow(0 0 0px rgba(251, 146, 60, 0));
+          }
+        }
       `}</style>
       
       {/* Video Preview with Overlay */}
