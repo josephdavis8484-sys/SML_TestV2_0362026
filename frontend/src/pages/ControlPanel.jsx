@@ -635,6 +635,15 @@ const ControlPanel = ({ user, onLogout }) => {
             const reactionId = Date.now() + Math.random();
             const left = Math.random() * 60 + 20;
             setLiveReactions(prev => [...prev, { id: reactionId, emoji: data.emoji, left }]);
+            
+            // Add to energy meter
+            addReaction({
+              id: reactionId.toString(),
+              viewerId: data.username || 'anonymous',
+              eventId: eventId,
+              emoji: data.emoji,
+            });
+            
             setTimeout(() => {
               setLiveReactions(prev => prev.filter(r => r.id !== reactionId));
             }, 3000);
