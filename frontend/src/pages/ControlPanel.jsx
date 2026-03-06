@@ -1049,7 +1049,11 @@ const ControlPanel = ({ user, onLogout }) => {
                 <FloatingChatOverlay messages={chatMessages} />
               )}
               {event?.reactions_enabled && (
-                <FloatingReactionsOverlay reactions={liveReactions} />
+                <FloatingReactionsOverlay 
+                  reactions={liveReactions}
+                  energyState={energyState}
+                  animationConfig={animationConfig}
+                />
               )}
               
               {/* Stream Info Overlay - Top */}
