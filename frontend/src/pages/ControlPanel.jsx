@@ -1066,6 +1066,14 @@ const ControlPanel = ({ user, onLogout }) => {
                   <div className="bg-black/50 backdrop-blur-sm text-white px-3 py-1 rounded-full text-sm">
                     {Math.floor(streamTime / 60)}:{(streamTime % 60).toString().padStart(2, '0')}
                   </div>
+                  {/* Energy Meter Indicator - Creator Only */}
+                  {event?.reactions_enabled && (
+                    <EnergyMeterIndicator 
+                      energyState={energyState}
+                      reactionCount={reactionCount}
+                      isCreatorMomentActive={isCreatorMomentActive}
+                    />
+                  )}
                 </div>
                 <div className="bg-black/50 backdrop-blur-sm text-white px-3 py-1 rounded-full text-sm flex items-center gap-1">
                   <Users className="w-4 h-4" />
