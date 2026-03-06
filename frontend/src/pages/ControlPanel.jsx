@@ -535,6 +535,16 @@ const ControlPanel = ({ user, onLogout }) => {
   const [liveReactions, setLiveReactions] = useState([]);
   const chatWsRef = useRef(null);
 
+  // Reaction Energy Meter hook - Creator only
+  const {
+    energyState,
+    reactionCount,
+    isCreatorMomentActive,
+    addReaction,
+    animationConfig,
+    resetMeter,
+  } = useReactionEnergyMeter(true); // true = isCreator
+
   // Screen protection hook - also for creators
   const {
     isProtected,
