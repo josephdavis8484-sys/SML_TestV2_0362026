@@ -35,6 +35,37 @@ import { useReactionEnergyMeter, ENERGY_STATES, getEnergyStateClasses } from "@/
 
 const BACKEND_URL = process.env.REACT_APP_BACKEND_URL;
 
+// Energy Meter Indicator - Shows current energy state to creator
+const EnergyMeterIndicator = ({ energyState, reactionCount, isCreatorMomentActive }) => {
+  const getStateColor = () => {
+    switch (energyState) {
+      case ENERGY_STATES.HYPE: return 'from-yellow-500 to-orange-500';
+      case ENERGY_STATES.SURGE: return 'from-orange-500 to-red-500';
+      case ENERGY_STATES.CROWD_WAVE: return 'from-red-500 to-pink-500';
+      case ENERGY_STATES.CREATOR_MOMENT: return 'from-pink-500 to-purple-500';
+      default: return 'from-gray-500 to-gray-600';
+    }
+  };
+
+  const getStateLabel = () => {
+    switch (energyState) {
+      case ENERGY_STATES.HYPE: return 'HYPE';
+      case ENERGY_STATES.SURGE: return 'SURGE';
+      case ENERGY_STATES.CROWD_WAVE: return 'WAVE';
+      case ENERGY_STATES.CREATOR_MOMENT: return '🎉 MOMENT!';
+      default: return 'NORMAL';
+    }
+  };
+
+  return (
+    <div className={`flex items-center gap-2 px-3 py-1.5 rounded-full bg-gradient-to-r ${getStateColor()} ${isCreatorMomentActive ? 'animate-pulse' : ''}`}>
+      <Zap className={`w-4 h-4 text-white ${isCreatorMomentActive ? 'animate-bounce' : ''}`} />
+      <span className="text-white font-bold text-xs">{getStateLabel()}</span>
+      <span className="text-white/80 text-xs">({reactionCount})</span>
+    </div>
+  );
+};
+
 // Audio Settings Dropdown Component
 const AudioSettingsDropdown = ({ 
   isOpen, onClose, speakerVolume, setSpeakerVolume, 
