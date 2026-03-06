@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef, useCallback } from "react";
+import React, { useState, useEffect, useRef, useCallback, useMemo } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { axiosInstance } from "@/App";
 import { 
@@ -9,13 +9,10 @@ import {
   VideoOff,
   Users,
   Volume2,
-  Plus,
-  Minus,
   RotateCcw,
   MessageCircle,
   Heart,
   SwitchCamera,
-  Sliders,
   Shield,
   Zap
 } from "lucide-react";
@@ -31,42 +28,445 @@ import "@livekit/components-styles";
 import { Track } from "livekit-client";
 import { useScreenProtection } from "@/hooks/useScreenProtection";
 import ScreenProtectionOverlay, { ProtectedContent } from "@/components/ScreenProtectionOverlay";
-import { useReactionEnergyMeter, ENERGY_STATES, getEnergyStateClasses } from "@/hooks/useReactionEnergyMeter";
 
 const BACKEND_URL = process.env.REACT_APP_BACKEND_URL;
 
-// Energy Meter Indicator - Shows current energy state to creator
-const EnergyMeterIndicator = ({ energyState, reactionCount, isCreatorMomentActive }) => {
-  const getStateColor = () => {
-    switch (energyState) {
-      case ENERGY_STATES.HYPE: return 'from-yellow-500 to-orange-500';
-      case ENERGY_STATES.SURGE: return 'from-orange-500 to-red-500';
-      case ENERGY_STATES.CROWD_WAVE: return 'from-red-500 to-pink-500';
-      case ENERGY_STATES.CREATOR_MOMENT: return 'from-pink-500 to-purple-500';
-      default: return 'from-gray-500 to-gray-600';
-    }
-  };
+// ============================================
+// SHOWMELIVE REACTION ENERGY METER SYSTEM
+// Creator-only engagement overlay system
+// ============================================
 
-  const getStateLabel = () => {
-    switch (energyState) {
-      case ENERGY_STATES.HYPE: return 'HYPE';
-      case ENERGY_STATES.SURGE: return 'SURGE';
-      case ENERGY_STATES.CROWD_WAVE: return 'WAVE';
-      case ENERGY_STATES.CREATOR_MOMENT: return '🎉 MOMENT!';
-      default: return 'NORMAL';
+// Energy States and Thresholds
+const ENERGY_STATES = {
+  LOW: 'low',
+  WARM: 'warm',
+  ACTIVE: 'active',
+  HIGH: 'high',
+  PEAK: 'peak',
+};
+
+const ENERGY_THRESHOLDS = [
+  { min: 0, max: 15, state: ENERGY_STATES.LOW },
+  { min: 16, max: 30, state: ENERGY_STATES.WARM },
+  { min: 31, max: 50, state: ENERGY_STATES.ACTIVE },
+  { min: 51, max: 75, state: ENERGY_STATES.HIGH },
+  { min: 76, max: Infinity, state: ENERGY_STATES.PEAK },
+];
+
+// Reaction Resolution Logic - ShowMeLive Interaction Viewer
+const resolveReactionEmoji = (reactionType, tapCount) => {
+  if (reactionType === "laugh") {
+    if (tapCount >= 15) return "🪦";
+    if (tapCount >= 7) return "💀";
+    if (tapCount >= 5) return "😭";
+    if (tapCount >= 3) return "🤣";
+    return "😂";
+  }
+  if (reactionType === "heart") {
+    if (tapCount >= 6) return "❤️‍🔥";
+    return "❤️";
+  }
+  if (reactionType === "fire") {
+    if (tapCount >= 8) return "🌋";
+    if (tapCount >= 4) return "🔥🔥";
+    return "🔥";
+  }
+  if (reactionType === "clap") {
+    if (tapCount >= 8) return "🏆";
+    if (tapCount >= 4) return "🎉";
+    return "👏";
+  }
+  if (reactionType === "like") {
+    return "👍";
+  }
+  return "👍";
+};
+
+// Get reaction type from emoji
+const getReactionTypeFromEmoji = (emoji) => {
+  if (['😂', '🤣', '😭', '💀', '🪦'].includes(emoji)) return 'laugh';
+  if (['❤️', '❤️‍🔥'].includes(emoji)) return 'heart';
+  if (['🔥', '🔥🔥', '🌋', '🚀'].includes(emoji)) return 'fire';
+  if (['👏', '🎉', '🙌', '🏆'].includes(emoji)) return 'clap';
+  if (['👍'].includes(emoji)) return 'like';
+  return 'default';
+};
+
+// ============================================
+// CREATOR CHAT LANE COMPONENT (Left Side Only)
+// ============================================
+const CreatorChatLane = ({ messages }) => {
+  const [displayMessages, setDisplayMessages] = useState([]);
+  const containerRef = useRef(null);
+
+  // Add new messages with animation timing
+  useEffect(() => {
+    if (messages.length > 0) {
+      const latestMsg = messages[messages.length - 1];
+      if (!displayMessages.find(m => m.id === latestMsg.id)) {
+        const msgWithTime = { ...latestMsg, addedAt: Date.now(), exiting: false };
+        setDisplayMessages(prev => [...prev.slice(-5), msgWithTime]); // Keep max 6 chats
+      }
     }
+  }, [messages.length]);
+
+  // Cleanup old messages after 8 seconds
+  useEffect(() => {
+    const cleanup = setInterval(() => {
+      const now = Date.now();
+      setDisplayMessages(prev => {
+        // Mark messages for exit animation after 6 seconds
+        const updated = prev.map(msg => {
+          if (now - msg.addedAt > 6000 && !msg.exiting) {
+            return { ...msg, exiting: true };
+          }
+          return msg;
+        });
+        // Remove after 8 seconds
+        return updated.filter(msg => now - msg.addedAt < 8000);
+      });
+    }, 500);
+    return () => clearInterval(cleanup);
+  }, []);
+
+  // Random avatar colors
+  const getAvatarColor = (username) => {
+    const colors = ['#3b82f6', '#8b5cf6', '#ec4899', '#10b981', '#f59e0b', '#ef4444'];
+    const hash = username.split('').reduce((acc, char) => acc + char.charCodeAt(0), 0);
+    return colors[hash % colors.length];
   };
 
   return (
-    <div className={`flex items-center gap-2 px-3 py-1.5 rounded-full bg-gradient-to-r ${getStateColor()} ${isCreatorMomentActive ? 'animate-pulse' : ''}`}>
-      <Zap className={`w-4 h-4 text-white ${isCreatorMomentActive ? 'animate-bounce' : ''}`} />
-      <span className="text-white font-bold text-xs">{getStateLabel()}</span>
-      <span className="text-white/80 text-xs">({reactionCount})</span>
+    <div 
+      ref={containerRef}
+      className="absolute left-0 top-0 bottom-0 w-[45%] pointer-events-none overflow-hidden z-30"
+      style={{ paddingLeft: '16px', paddingTop: '60px', paddingBottom: '20%' }}
+    >
+      <div className="flex flex-col justify-end h-full gap-3">
+        {displayMessages.map((msg) => {
+          const age = Date.now() - msg.addedAt;
+          const isExiting = msg.exiting || age > 6000;
+          
+          return (
+            <div
+              key={msg.id}
+              className={`chat-bubble-enter ${isExiting ? 'chat-bubble-exit' : ''}`}
+              style={{
+                opacity: isExiting ? 0 : 1,
+                transform: isExiting ? 'translateX(-20px) translateY(-10px)' : 'translateX(0)',
+                transition: 'all 0.6s ease-out',
+              }}
+            >
+              <div className="inline-flex items-center gap-2 max-w-[90%] chat-bubble-glass">
+                {/* Avatar */}
+                <div 
+                  className="w-8 h-8 rounded-full flex items-center justify-center text-white text-xs font-bold flex-shrink-0"
+                  style={{ backgroundColor: getAvatarColor(msg.username) }}
+                >
+                  {msg.username.charAt(0).toUpperCase()}
+                </div>
+                
+                {/* Username and Message */}
+                <div className="flex flex-col min-w-0">
+                  <span className="text-blue-300 font-bold text-xs truncate">
+                    {msg.username}
+                  </span>
+                  <span className="text-white text-sm font-medium break-words">
+                    {msg.message}
+                  </span>
+                </div>
+              </div>
+            </div>
+          );
+        })}
+      </div>
     </div>
   );
 };
 
-// Audio Settings Dropdown Component
+// ============================================
+// SHOWMELIVE EFFECT - FLOATING REACTION COMPONENT
+// ============================================
+const ShowMeLiveReaction = ({ emoji, startX, startY, energyLevel, onComplete }) => {
+  const [style, setStyle] = useState({
+    opacity: 0,
+    transform: 'scale(0.3) translateY(0)',
+  });
+  const [sparkles, setSparkles] = useState([]);
+  
+  // Energy-based configuration
+  const getEnergyConfig = () => {
+    switch (energyLevel) {
+      case ENERGY_STATES.PEAK:
+        return { glow: 0.8, speed: 1.5, scale: 1.3, sparkleCount: 5 };
+      case ENERGY_STATES.HIGH:
+        return { glow: 0.6, speed: 1.3, scale: 1.2, sparkleCount: 4 };
+      case ENERGY_STATES.ACTIVE:
+        return { glow: 0.4, speed: 1.15, scale: 1.1, sparkleCount: 3 };
+      case ENERGY_STATES.WARM:
+        return { glow: 0.2, speed: 1.05, scale: 1.05, sparkleCount: 2 };
+      default:
+        return { glow: 0, speed: 1, scale: 1, sparkleCount: 1 };
+    }
+  };
+  
+  const config = getEnergyConfig();
+  const duration = Math.round(1400 / config.speed);
+  
+  // Horizontal drift
+  const drift = useMemo(() => (Math.random() - 0.5) * 60, []);
+  
+  // Generate sparkles
+  useEffect(() => {
+    if (config.sparkleCount > 0) {
+      const newSparkles = Array.from({ length: config.sparkleCount }, (_, i) => ({
+        id: i,
+        angle: (360 / config.sparkleCount) * i + Math.random() * 30,
+        distance: 20 + Math.random() * 20,
+        delay: Math.random() * 200,
+      }));
+      setSparkles(newSparkles);
+    }
+  }, [config.sparkleCount]);
+  
+  // Animation sequence
+  useEffect(() => {
+    // Pop in with bounce
+    setTimeout(() => {
+      setStyle({
+        opacity: 1,
+        transform: `scale(${config.scale * 1.2}) translateY(0)`,
+      });
+    }, 10);
+    
+    // Settle
+    setTimeout(() => {
+      setStyle({
+        opacity: 1,
+        transform: `scale(${config.scale}) translateY(-20px)`,
+      });
+    }, 150);
+    
+    // Float up
+    setTimeout(() => {
+      setStyle({
+        opacity: 0.9,
+        transform: `scale(${config.scale * 0.95}) translateY(-100px) translateX(${drift}px)`,
+      });
+    }, 400);
+    
+    // Fade out
+    setTimeout(() => {
+      setStyle({
+        opacity: 0,
+        transform: `scale(${config.scale * 0.7}) translateY(-180px) translateX(${drift * 1.2}px)`,
+      });
+    }, duration - 400);
+    
+    // Remove
+    setTimeout(onComplete, duration);
+  }, [config.scale, drift, duration, onComplete]);
+  
+  // Get glow color based on emoji type
+  const getGlowColor = () => {
+    const type = getReactionTypeFromEmoji(emoji);
+    switch (type) {
+      case 'heart': return 'rgba(239, 68, 68, VAL)';
+      case 'laugh': return 'rgba(251, 191, 36, VAL)';
+      case 'fire': return 'rgba(251, 146, 60, VAL)';
+      case 'clap': return 'rgba(168, 85, 247, VAL)';
+      default: return 'rgba(59, 130, 246, VAL)';
+    }
+  };
+  
+  const glowColor = getGlowColor().replace('VAL', config.glow);
+  
+  return (
+    <div
+      className="absolute pointer-events-none showmelive-reaction"
+      style={{
+        left: `${startX}%`,
+        bottom: `${startY}%`,
+        ...style,
+        transition: `all ${duration * 0.4}ms cubic-bezier(0.34, 1.56, 0.64, 1)`,
+        zIndex: 25,
+      }}
+    >
+      {/* Main Emoji */}
+      <span 
+        className="text-4xl md:text-5xl block"
+        style={{
+          filter: config.glow > 0 ? `drop-shadow(0 0 ${config.glow * 25}px ${glowColor})` : undefined,
+          textShadow: config.glow > 0 ? `0 0 ${config.glow * 20}px ${glowColor}` : undefined,
+        }}
+      >
+        {emoji}
+      </span>
+      
+      {/* Sparkles */}
+      {sparkles.map((sparkle) => (
+        <div
+          key={sparkle.id}
+          className="absolute w-2 h-2 rounded-full sparkle-particle"
+          style={{
+            left: '50%',
+            top: '50%',
+            background: `radial-gradient(circle, ${glowColor} 0%, transparent 70%)`,
+            transform: `translate(-50%, -50%) rotate(${sparkle.angle}deg) translateX(${sparkle.distance}px)`,
+            animationDelay: `${sparkle.delay}ms`,
+          }}
+        />
+      ))}
+    </div>
+  );
+};
+
+// ============================================
+// FLOATING REACTION LAYER (ShowMeLive Effect)
+// ============================================
+const FloatingReactionLayer = ({ reactions, energyLevel }) => {
+  const [activeReactions, setActiveReactions] = useState([]);
+  const maxReactions = 25; // Performance cap
+
+  useEffect(() => {
+    if (reactions.length > 0) {
+      const latest = reactions[reactions.length - 1];
+      if (!activeReactions.find(r => r.id === latest.id)) {
+        // Apply density based on energy level
+        const shouldAdd = activeReactions.length < maxReactions;
+        if (shouldAdd) {
+          setActiveReactions(prev => [...prev, latest]);
+        }
+      }
+    }
+  }, [reactions]);
+
+  const handleComplete = (id) => {
+    setActiveReactions(prev => prev.filter(r => r.id !== id));
+  };
+
+  return (
+    <div className="absolute right-0 bottom-0 w-[50%] h-[50%] pointer-events-none overflow-hidden z-25">
+      {activeReactions.map((reaction) => (
+        <ShowMeLiveReaction
+          key={reaction.id}
+          emoji={reaction.emoji}
+          startX={reaction.startX}
+          startY={reaction.startY || 10}
+          energyLevel={energyLevel}
+          onComplete={() => handleComplete(reaction.id)}
+        />
+      ))}
+    </div>
+  );
+};
+
+// ============================================
+// ENERGY METER CONTROLLER - Tracks engagement
+// ============================================
+const useEnergyMeter = () => {
+  const [events, setEvents] = useState([]);
+  const [energyScore, setEnergyScore] = useState(0);
+  const [energyLevel, setEnergyLevel] = useState(ENERGY_STATES.LOW);
+  const [reactionVelocity, setReactionVelocity] = useState(0);
+  
+  const WINDOW_MS = 15000; // 15-second rolling window
+  
+  // Add event to the meter
+  const addEvent = useCallback((event) => {
+    const weightedEvent = {
+      ...event,
+      timestamp: Date.now(),
+      weight: event.type === 'burst' ? 4 : event.type === 'escalated' ? 2 : 1,
+    };
+    setEvents(prev => [...prev, weightedEvent]);
+  }, []);
+  
+  // Calculate energy score periodically
+  useEffect(() => {
+    const interval = setInterval(() => {
+      const now = Date.now();
+      const cutoff = now - WINDOW_MS;
+      
+      // Prune old events
+      setEvents(prev => {
+        const active = prev.filter(e => e.timestamp > cutoff);
+        
+        // Calculate score
+        const score = active.reduce((sum, e) => sum + e.weight, 0);
+        setEnergyScore(score);
+        
+        // Calculate velocity (events per second)
+        const recentWindow = 5000; // 5 seconds
+        const recentEvents = active.filter(e => e.timestamp > now - recentWindow);
+        setReactionVelocity(Math.round(recentEvents.length / 5));
+        
+        // Determine energy level
+        const level = ENERGY_THRESHOLDS.find(t => score >= t.min && score <= t.max)?.state || ENERGY_STATES.LOW;
+        setEnergyLevel(level);
+        
+        return active;
+      });
+    }, 200);
+    
+    return () => clearInterval(interval);
+  }, []);
+  
+  // Reset meter
+  const reset = useCallback(() => {
+    setEvents([]);
+    setEnergyScore(0);
+    setEnergyLevel(ENERGY_STATES.LOW);
+    setReactionVelocity(0);
+  }, []);
+  
+  return {
+    energyScore,
+    energyLevel,
+    reactionVelocity,
+    addEvent,
+    reset,
+  };
+};
+
+// ============================================
+// ENERGY METER INDICATOR UI
+// ============================================
+const EnergyMeterIndicator = ({ energyLevel, energyScore, reactionVelocity }) => {
+  const getStateConfig = () => {
+    switch (energyLevel) {
+      case ENERGY_STATES.PEAK:
+        return { gradient: 'from-pink-500 via-purple-500 to-indigo-500', label: '🔥 PEAK!', animate: true };
+      case ENERGY_STATES.HIGH:
+        return { gradient: 'from-orange-500 to-red-500', label: '⚡ HIGH', animate: true };
+      case ENERGY_STATES.ACTIVE:
+        return { gradient: 'from-yellow-500 to-orange-500', label: '✨ ACTIVE', animate: false };
+      case ENERGY_STATES.WARM:
+        return { gradient: 'from-green-500 to-yellow-500', label: '💫 WARM', animate: false };
+      default:
+        return { gradient: 'from-gray-500 to-gray-600', label: 'READY', animate: false };
+    }
+  };
+  
+  const config = getStateConfig();
+  
+  return (
+    <div className={`flex items-center gap-2 px-3 py-1.5 rounded-full bg-gradient-to-r ${config.gradient} ${config.animate ? 'animate-pulse' : ''} shadow-lg`}>
+      <Zap className={`w-4 h-4 text-white ${config.animate ? 'animate-bounce' : ''}`} />
+      <span className="text-white font-bold text-xs">{config.label}</span>
+      <div className="flex items-center gap-1 text-white/80 text-xs">
+        <span>({energyScore})</span>
+        {reactionVelocity > 0 && (
+          <span className="text-yellow-300">+{reactionVelocity}/s</span>
+        )}
+      </div>
+    </div>
+  );
+};
+
+// ============================================
+// AUDIO SETTINGS DROPDOWN
+// ============================================
 const AudioSettingsDropdown = ({ 
   isOpen, onClose, speakerVolume, setSpeakerVolume, 
   micVolume, setMicVolume, balance, setBalance, 
@@ -106,19 +506,14 @@ const AudioSettingsDropdown = ({
         <h3 className="text-white font-bold text-sm">AUDIO SETTINGS</h3>
       </div>
       <div className="p-3 space-y-3">
-        {/* Speaker & Mic Row */}
         <div className="grid grid-cols-2 gap-3">
           <SliderControl icon={Volume2} label="Speaker" value={speakerVolume} onChange={setSpeakerVolume} />
           <SliderControl icon={Mic} label="Mic" value={micVolume} onChange={setMicVolume} />
         </div>
-        
-        {/* Treble & Bass Row */}
         <div className="grid grid-cols-2 gap-3">
           <SliderControl icon={Volume2} label="Treble" value={treble} onChange={setTreble} color="#10b981" />
           <SliderControl icon={Volume2} label="Bass" value={bass} onChange={setBass} color="#f59e0b" />
         </div>
-        
-        {/* Balance (full width) */}
         <div className="space-y-1">
           <div className="flex items-center justify-between">
             <span className="text-gray-400 text-xs">L</span>
@@ -128,10 +523,8 @@ const AudioSettingsDropdown = ({
           <input type="range" min="0" max="100" value={balance}
             onChange={(e) => setBalance(parseInt(e.target.value))}
             className="w-full h-1.5 bg-gray-700 rounded-lg appearance-none cursor-pointer"
-            style={{ background: `linear-gradient(to right, #374151 0%, #374151 ${balance}%, #8b5cf6 ${balance}%, #374151 ${balance}%, #374151 100%)` }}
           />
         </div>
-        
         <div className="flex justify-end pt-1">
           <button onClick={onReset} className="px-3 py-1 bg-gray-700 hover:bg-gray-600 text-white rounded text-xs flex items-center gap-1">
             <RotateCcw className="w-3 h-3" /> Reset All
@@ -142,246 +535,9 @@ const AudioSettingsDropdown = ({
   );
 };
 
-// Live Chat Component for Creator
-const LiveChatPanel = ({ messages }) => {
-  const messagesEndRef = useRef(null);
-
-  useEffect(() => {
-    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
-  }, [messages]);
-
-  return (
-    <div className="flex flex-col h-full bg-gray-800/50 rounded-lg p-2">
-      <div className="flex items-center gap-2 mb-2">
-        <MessageCircle className="w-4 h-4 text-blue-400" />
-        <h4 className="text-white text-sm font-bold">Live Chat</h4>
-        <span className="text-gray-400 text-xs">({messages.length})</span>
-      </div>
-      <div className="flex-1 overflow-y-auto space-y-1.5 min-h-0">
-        {messages.length === 0 ? (
-          <p className="text-gray-500 text-xs text-center py-4">Waiting for messages...</p>
-        ) : (
-          messages.map((msg) => (
-            <div key={msg.id} className="bg-gray-900/50 rounded px-2 py-1">
-              <span className="font-bold text-xs" style={{ color: msg.color }}>{msg.username}:</span>
-              <span className="text-gray-300 text-xs ml-1">{msg.message}</span>
-            </div>
-          ))
-        )}
-        <div ref={messagesEndRef} />
-      </div>
-    </div>
-  );
-};
-
-// Live Reactions Component for Creator
-const LiveReactionsPanel = ({ reactions }) => {
-  return (
-    <div className="relative h-full bg-gray-800/50 rounded-lg p-2 overflow-hidden">
-      <div className="flex items-center gap-2 mb-2">
-        <Heart className="w-4 h-4 text-red-400" />
-        <h4 className="text-white text-sm font-bold">Live Reactions</h4>
-        <span className="text-gray-400 text-xs">({reactions.length})</span>
-      </div>
-      
-      {reactions.length === 0 ? (
-        <p className="text-gray-500 text-xs text-center py-4">Waiting for reactions...</p>
-      ) : (
-        reactions.map((reaction) => (
-          <div
-            key={reaction.id}
-            className="absolute text-2xl animate-bounce"
-            style={{ left: `${reaction.left}%`, bottom: '40px' }}
-          >
-            {reaction.emoji}
-          </div>
-        ))
-      )}
-    </div>
-  );
-};
-
-// Floating Chat Overlay - Messages that animate upward and fade out with gradient
-const FloatingChatOverlay = ({ messages }) => {
-  const [displayMessages, setDisplayMessages] = useState([]);
-
-  useEffect(() => {
-    // Add new messages with timestamp
-    if (messages.length > 0) {
-      const latestMsg = messages[messages.length - 1];
-      const msgWithTime = { ...latestMsg, addedAt: Date.now() };
-      setDisplayMessages(prev => [...prev.slice(-8), msgWithTime]);
-    }
-  }, [messages.length]);
-
-  // Clean up old messages after 6 seconds (3s hold + 3s fade)
-  useEffect(() => {
-    const cleanup = setInterval(() => {
-      const now = Date.now();
-      setDisplayMessages(prev => prev.filter(msg => now - msg.addedAt < 6000));
-    }, 500);
-    return () => clearInterval(cleanup);
-  }, []);
-
-  return (
-    <div className="absolute bottom-0 left-0 w-[55%] h-[25%] pointer-events-none overflow-hidden">
-      {/* No gradient - clean overlay */}
-      
-      <div className="absolute bottom-3 left-4 right-4 space-y-2">
-        {displayMessages.map((msg) => {
-          const age = Date.now() - msg.addedAt;
-          const holdTime = 3000; // 3s hold
-          const fadeTime = 3000; // 3s fade
-          let opacity = 1;
-          
-          if (age > holdTime) {
-            // Start fading after hold time
-            opacity = Math.max(0, 1 - (age - holdTime) / fadeTime);
-          }
-          
-          return (
-            <div
-              key={msg.id}
-              className="chat-message-animate"
-              style={{
-                opacity,
-                transform: `translateY(${Math.min(0, -(age / 100))}px)`,
-                transition: 'opacity 0.3s ease-out, transform 0.3s ease-out',
-              }}
-            >
-              <div className="inline-flex items-center gap-2 bg-black/60 backdrop-blur-md rounded-2xl px-4 py-2 shadow-lg shadow-black/20">
-                <span 
-                  className="font-bold text-sm drop-shadow-glow"
-                  style={{ color: msg.color || '#60a5fa' }}
-                >
-                  {msg.username}
-                </span>
-                <span className="text-white text-sm font-medium">{msg.message}</span>
-              </div>
-            </div>
-          );
-        })}
-      </div>
-    </div>
-  );
-};
-
-// Modern Reaction Component with motion animations - Energy state aware
-const AnimatedReaction = ({ emoji, left, onComplete, energyState = 'normal', animationConfig = {} }) => {
-  const [isVisible, setIsVisible] = useState(true);
-  
-  // Map emojis to their animation types
-  const getAnimationType = (emoji) => {
-    if (['👏', '🙌', '🎉', '🏆'].includes(emoji)) return 'clap';
-    if (['😂', '🤣', '😭', '💀', '🪦', '😆'].includes(emoji)) return 'laugh';
-    if (['❤️', '❤️‍🔥', '💖', '💕', '😍'].includes(emoji)) return 'heart';
-    if (['🔥', '🔥🔥', '🚀', '🌋'].includes(emoji)) return 'fire';
-    return 'default';
-  };
-  
-  const animationType = getAnimationType(emoji);
-  const { speedMultiplier = 1, glow = 0, scaleBoost = 1 } = animationConfig;
-  
-  // Duration based on energy state
-  const duration = Math.round(2000 / speedMultiplier);
-  
-  useEffect(() => {
-    const timer = setTimeout(() => {
-      setIsVisible(false);
-      setTimeout(onComplete, 300);
-    }, duration);
-    return () => clearTimeout(timer);
-  }, [onComplete, duration]);
-  
-  if (!isVisible) return null;
-  
-  // Energy state classes
-  const energyClass = energyState !== 'normal' ? `energy-${energyState}` : '';
-  
-  return (
-    <div
-      className={`absolute reaction-${animationType} ${energyClass}`}
-      style={{
-        left: `${left}%`,
-        bottom: '10%',
-        '--glow-intensity': glow,
-        '--scale-boost': scaleBoost,
-        animationDuration: `${duration}ms`,
-      }}
-    >
-      <span 
-        className="text-4xl md:text-5xl drop-shadow-2xl"
-        style={{
-          filter: glow > 0 ? `drop-shadow(0 0 ${glow * 30}px currentColor)` : undefined,
-          transform: `scale(${scaleBoost})`,
-        }}
-      >
-        {emoji}
-      </span>
-    </div>
-  );
-};
-
-// Floating Reactions Overlay - Modern flashy design with motion and energy states
-const FloatingReactionsOverlay = ({ reactions, energyState = 'normal', animationConfig = {} }) => {
-  const [activeReactions, setActiveReactions] = useState([]);
-
-  useEffect(() => {
-    if (reactions.length > 0) {
-      const latest = reactions[reactions.length - 1];
-      if (!activeReactions.find(r => r.id === latest.id)) {
-        setActiveReactions(prev => [...prev, latest]);
-      }
-    }
-  }, [reactions]);
-
-  const handleComplete = (id) => {
-    setActiveReactions(prev => prev.filter(r => r.id !== id));
-  };
-
-  // Get glow color based on emoji
-  const getGlowColor = (emoji) => {
-    if (emoji.includes('❤') || emoji.includes('🔥')) return 'rgba(239,68,68,0.6)';
-    if (emoji.includes('😂') || emoji.includes('🤣') || emoji.includes('😭') || emoji.includes('💀') || emoji.includes('🪦')) return 'rgba(251,191,36,0.6)';
-    if (emoji.includes('👏') || emoji.includes('🙌') || emoji.includes('🎉') || emoji.includes('🏆')) return 'rgba(168,85,247,0.6)';
-    if (emoji.includes('🚀') || emoji.includes('🌋')) return 'rgba(251,146,60,0.6)';
-    return 'rgba(168,85,247,0.6)';
-  };
-
-  return (
-    <div className={`absolute bottom-0 right-0 w-[30%] h-[50%] pointer-events-none overflow-hidden ${getEnergyStateClasses(energyState)}`}>
-      {/* Glow effect background - intensifies with energy state */}
-      <div className="absolute inset-0" style={{ opacity: 0.3 + (animationConfig.glow || 0) }}>
-        {activeReactions.slice(-5).map((r, i) => (
-          <div 
-            key={`glow-${r.id}`}
-            className="absolute w-20 h-20 rounded-full blur-xl"
-            style={{
-              left: `${r.left}%`,
-              bottom: `${20 + i * 12}%`,
-              background: getGlowColor(r.emoji),
-              animation: 'pulse 1s ease-in-out infinite',
-              transform: `scale(${1 + (animationConfig.scaleBoost || 0) * 0.3})`,
-            }}
-          />
-        ))}
-      </div>
-      
-      {activeReactions.map((reaction) => (
-        <AnimatedReaction
-          key={reaction.id}
-          emoji={reaction.emoji}
-          left={reaction.left}
-          onComplete={() => handleComplete(reaction.id)}
-          energyState={energyState}
-          animationConfig={animationConfig}
-        />
-      ))}
-    </div>
-  );
-};
-
-// LiveKit Stream Publisher Component
+// ============================================
+// LIVEKIT STREAM PUBLISHER
+// ============================================
 const StreamPublisher = ({ onViewerCount, isCameraOn, isMicOn, streamTime, facingMode, videoQuality }) => {
   const { localParticipant } = useLocalParticipant();
   const room = useRoomContext();
@@ -391,7 +547,6 @@ const StreamPublisher = ({ onViewerCount, isCameraOn, isMicOn, streamTime, facin
     (t) => t.participant.isLocal && t.source === Track.Source.Camera
   );
 
-  // Quality presets
   const qualityPresets = {
     'auto': { width: 1920, height: 1080, frameRate: 60 },
     '1080p': { width: 1920, height: 1080, frameRate: 60 },
@@ -448,22 +603,6 @@ const StreamPublisher = ({ onViewerCount, isCameraOn, isMicOn, streamTime, facin
         </div>
       )}
       
-      <div className="absolute top-2 left-2 flex items-center gap-2">
-        <div className="bg-red-600 px-2 py-0.5 rounded flex items-center gap-1">
-          <div className="w-1.5 h-1.5 bg-white rounded-full animate-pulse"></div>
-          <span className="text-white font-bold text-xs">LIVE</span>
-        </div>
-        <div className="bg-black/60 px-2 py-0.5 rounded flex items-center gap-1">
-          <Users className="w-3 h-3 text-white" />
-          <span className="text-white font-medium text-xs">{room?.remoteParticipants?.size || 0}</span>
-        </div>
-      </div>
-      
-      <div className="absolute top-2 right-2 bg-black/60 px-2 py-0.5 rounded flex items-center gap-1">
-        <div className="w-1.5 h-1.5 bg-red-500 rounded-full"></div>
-        <span className="text-white font-mono text-xs">{formatTime(streamTime)}</span>
-      </div>
-      
       {!isMicOn && (
         <div className="absolute bottom-2 left-2 bg-red-600/80 px-2 py-0.5 rounded flex items-center gap-1">
           <MicOff className="w-3 h-3 text-white" />
@@ -474,7 +613,9 @@ const StreamPublisher = ({ onViewerCount, isCameraOn, isMicOn, streamTime, facin
   );
 };
 
-// Pre-stream Camera Preview
+// ============================================
+// CAMERA PREVIEW (Pre-stream)
+// ============================================
 const CameraPreview = ({ isCameraOn }) => {
   const videoRef = useRef(null);
 
@@ -509,6 +650,9 @@ const CameraPreview = ({ isCameraOn }) => {
   return <video ref={videoRef} autoPlay playsInline muted className="w-full h-full object-cover" />;
 };
 
+// ============================================
+// MAIN CONTROL PANEL COMPONENT
+// ============================================
 const ControlPanel = ({ user, onLogout }) => {
   const { eventId } = useParams();
   const navigate = useNavigate();
@@ -521,8 +665,8 @@ const ControlPanel = ({ user, onLogout }) => {
   
   const [isCameraOn, setIsCameraOn] = useState(true);
   const [isMicOn, setIsMicOn] = useState(true);
-  const [facingMode, setFacingMode] = useState('user'); // 'user' = front, 'environment' = back
-  const [videoQuality, setVideoQuality] = useState('1080p'); // Auto, 1080p, 720p, 480p
+  const [facingMode, setFacingMode] = useState('user');
+  const [videoQuality, setVideoQuality] = useState('1080p');
   
   const [micVolume, setMicVolume] = useState(75);
   const [speakerVolume, setSpeakerVolume] = useState(80);
@@ -534,18 +678,14 @@ const ControlPanel = ({ user, onLogout }) => {
   const [chatMessages, setChatMessages] = useState([]);
   const [liveReactions, setLiveReactions] = useState([]);
   const chatWsRef = useRef(null);
+  
+  // Reaction tap tracking for escalation
+  const reactionTapCountRef = useRef({});
+  
+  // Energy Meter
+  const { energyScore, energyLevel, reactionVelocity, addEvent, reset: resetEnergyMeter } = useEnergyMeter();
 
-  // Reaction Energy Meter hook - Creator only
-  const {
-    energyState,
-    reactionCount,
-    isCreatorMomentActive,
-    addReaction,
-    animationConfig,
-    resetMeter,
-  } = useReactionEnergyMeter(true); // true = isCreator
-
-  // Screen protection hook - also for creators
+  // Screen protection
   const {
     isProtected,
     showWarning,
@@ -567,23 +707,20 @@ const ControlPanel = ({ user, onLogout }) => {
   const [chatConnected, setChatConnected] = useState(false);
   const reconnectAttemptsRef = useRef(0);
   const maxReconnectAttempts = 10;
-
   const isConnectingRef = useRef(false);
   const pingIntervalRef = useRef(null);
 
-  // WebSocket connection - robust connection with auto-reconnect
+  // WebSocket connection
   const connectWebSocket = useCallback(() => {
     if (!eventId) return;
-    if (isConnectingRef.current) return; // Prevent multiple simultaneous connections
+    if (isConnectingRef.current) return;
     
-    // Build WebSocket URL
     let wsUrl = BACKEND_URL;
     if (!wsUrl) return;
     
     wsUrl = wsUrl.replace('https://', 'wss://').replace('http://', 'ws://');
     wsUrl = `${wsUrl}/api/ws/chat/${eventId}`;
     
-    // Close existing connection cleanly
     if (chatWsRef.current) {
       if (chatWsRef.current.readyState === WebSocket.OPEN || 
           chatWsRef.current.readyState === WebSocket.CONNECTING) {
@@ -601,12 +738,10 @@ const ControlPanel = ({ user, onLogout }) => {
         setChatConnected(true);
         reconnectAttemptsRef.current = 0;
         
-        // Only show toast on first connection
         if (reconnectAttemptsRef.current === 0) {
           toast.success("Chat connected!");
         }
         
-        // Setup ping interval - every 10 seconds for aggressive keepalive
         if (pingIntervalRef.current) clearInterval(pingIntervalRef.current);
         pingIntervalRef.current = setInterval(() => {
           if (ws.readyState === WebSocket.OPEN) {
@@ -622,31 +757,64 @@ const ControlPanel = ({ user, onLogout }) => {
           const data = JSON.parse(wsEvent.data);
           
           if (data.type === "message") {
+            const msgId = Date.now() + Math.random();
             setChatMessages(prev => {
               const newMessages = [...prev.slice(-50), {
-                id: Date.now() + Math.random(),
+                id: msgId,
                 username: data.username || "Anonymous",
                 message: data.message || "",
                 color: data.color || "#60a5fa"
               }];
               return newMessages;
             });
-          } else if (data.type === "reaction") {
-            const reactionId = Date.now() + Math.random();
-            const left = Math.random() * 60 + 20;
-            setLiveReactions(prev => [...prev, { id: reactionId, emoji: data.emoji, left }]);
             
             // Add to energy meter
-            addReaction({
-              id: reactionId.toString(),
-              viewerId: data.username || 'anonymous',
-              eventId: eventId,
-              emoji: data.emoji,
-            });
+            addEvent({ type: 'chat' });
             
+          } else if (data.type === "reaction") {
+            const reactionId = Date.now() + Math.random();
+            const emoji = data.emoji;
+            const reactionType = getReactionTypeFromEmoji(emoji);
+            
+            // Track tap count per viewer for escalation
+            const viewerId = data.username || 'anonymous';
+            const tapKey = `${viewerId}_${reactionType}`;
+            const now = Date.now();
+            
+            // Reset tap count if more than 60 seconds since last tap
+            if (!reactionTapCountRef.current[tapKey] || 
+                now - reactionTapCountRef.current[tapKey].lastTap > 60000) {
+              reactionTapCountRef.current[tapKey] = { count: 0, lastTap: now };
+            }
+            
+            reactionTapCountRef.current[tapKey].count += 1;
+            reactionTapCountRef.current[tapKey].lastTap = now;
+            
+            const tapCount = reactionTapCountRef.current[tapKey].count;
+            
+            // Resolve emoji based on tap count (escalation)
+            const resolvedEmoji = resolveReactionEmoji(reactionType, tapCount);
+            
+            // Calculate spawn position
+            const startX = Math.random() * 60 + 20; // 20-80% from left
+            const startY = Math.random() * 10 + 5; // 5-15% from bottom
+            
+            setLiveReactions(prev => [...prev, { 
+              id: reactionId, 
+              emoji: resolvedEmoji, 
+              startX,
+              startY,
+              tapCount,
+            }]);
+            
+            // Add to energy meter (escalated reactions have more weight)
+            const isEscalated = tapCount >= 3;
+            addEvent({ type: isEscalated ? 'escalated' : 'reaction' });
+            
+            // Cleanup old reactions after animation
             setTimeout(() => {
               setLiveReactions(prev => prev.filter(r => r.id !== reactionId));
-            }, 3000);
+            }, 2000);
           }
         } catch (e) {
           // Silent error handling
@@ -662,7 +830,6 @@ const ControlPanel = ({ user, onLogout }) => {
           pingIntervalRef.current = null;
         }
         
-        // Auto-reconnect with faster exponential backoff
         if (closeEvent.code !== 1000 && reconnectAttemptsRef.current < maxReconnectAttempts) {
           const delay = Math.min(500 * Math.pow(1.3, reconnectAttemptsRef.current), 5000);
           reconnectAttemptsRef.current += 1;
@@ -678,9 +845,9 @@ const ControlPanel = ({ user, onLogout }) => {
     } catch (error) {
       isConnectingRef.current = false;
     }
-  }, [eventId]);
+  }, [eventId, addEvent]);
 
-  // Connect WebSocket as soon as event is loaded with chat/reactions enabled
+  // Connect WebSocket when event loads
   useEffect(() => {
     const chatEnabled = event?.chat_enabled;
     const reactionsEnabled = event?.reactions_enabled;
@@ -705,7 +872,6 @@ const ControlPanel = ({ user, onLogout }) => {
     try {
       const eventRes = await axiosInstance.get(`/events/${eventId}`);
       setEvent(eventRes.data);
-      console.log("Event loaded:", eventRes.data.title, "Chat:", eventRes.data.chat_enabled, "Reactions:", eventRes.data.reactions_enabled);
       
       if (eventRes.data.status === "live") {
         handleStartStream();
@@ -727,7 +893,8 @@ const ControlPanel = ({ user, onLogout }) => {
         setStreamTime(0);
         setChatMessages([]);
         setLiveReactions([]);
-        resetMeter(); // Reset energy meter when stream ends
+        resetEnergyMeter();
+        reactionTapCountRef.current = {};
         toast.success("Stream ended");
         fetchData();
       } catch (error) {
@@ -805,200 +972,30 @@ const ControlPanel = ({ user, onLogout }) => {
         isProtected={false}
       />
       
-      {/* CSS Animations */}
+      {/* ShowMeLive Effect CSS Animations */}
       <style>{`
-        @keyframes fadeInUp {
+        /* Chat Bubble Glassmorphism Style */
+        .chat-bubble-glass {
+          background: rgba(0, 0, 0, 0.5);
+          backdrop-filter: blur(12px);
+          -webkit-backdrop-filter: blur(12px);
+          border: 1px solid rgba(59, 130, 246, 0.4);
+          border-radius: 16px;
+          padding: 8px 12px;
+          box-shadow: 
+            0 0 15px rgba(59, 130, 246, 0.3),
+            0 0 30px rgba(59, 130, 246, 0.1),
+            inset 0 0 10px rgba(59, 130, 246, 0.05);
+        }
+        
+        /* Chat Bubble Enter Animation */
+        .chat-bubble-enter {
+          animation: chatBubbleEnter 0.4s cubic-bezier(0.34, 1.56, 0.64, 1) forwards;
+        }
+        @keyframes chatBubbleEnter {
           from {
             opacity: 0;
-            transform: translateY(10px);
-          }
-          to {
-            opacity: 1;
-            transform: translateY(0);
-          }
-        }
-        
-        /* Chat message glow effect */
-        .drop-shadow-glow {
-          text-shadow: 0 0 10px currentColor, 0 0 20px currentColor;
-        }
-        
-        /* Default reaction - float up with gentle sway */
-        .reaction-default {
-          animation: reactionDefault 2s ease-out forwards;
-        }
-        @keyframes reactionDefault {
-          0% {
-            opacity: 1;
-            transform: translateY(0) scale(0.5) rotate(0deg);
-          }
-          20% {
-            opacity: 1;
-            transform: translateY(-30px) scale(1.2) rotate(-5deg);
-          }
-          50% {
-            opacity: 0.9;
-            transform: translateY(-80px) scale(1) rotate(5deg);
-          }
-          100% {
-            opacity: 0;
-            transform: translateY(-150px) scale(0.6) rotate(0deg);
-          }
-        }
-        
-        /* Clapping hands - bounce and shake animation */
-        .reaction-clap {
-          animation: reactionClap 2s ease-out forwards;
-        }
-        @keyframes reactionClap {
-          0% {
-            opacity: 1;
-            transform: translateY(0) scale(0.3) rotate(0deg);
-          }
-          10% {
-            transform: translateY(-10px) scale(1.3) rotate(-15deg);
-          }
-          20% {
-            transform: translateY(-25px) scale(1.1) rotate(15deg);
-          }
-          30% {
-            transform: translateY(-40px) scale(1.2) rotate(-10deg);
-          }
-          40% {
-            transform: translateY(-55px) scale(1) rotate(10deg);
-          }
-          50% {
-            opacity: 0.9;
-            transform: translateY(-70px) scale(1.1) rotate(-5deg);
-          }
-          60% {
-            transform: translateY(-90px) scale(1) rotate(5deg);
-          }
-          80% {
-            opacity: 0.5;
-            transform: translateY(-120px) scale(0.9) rotate(0deg);
-          }
-          100% {
-            opacity: 0;
-            transform: translateY(-160px) scale(0.5) rotate(0deg);
-          }
-        }
-        
-        /* Laughing faces - wobble and bounce */
-        .reaction-laugh {
-          animation: reactionLaugh 2s ease-out forwards;
-        }
-        @keyframes reactionLaugh {
-          0% {
-            opacity: 1;
-            transform: translateY(0) scale(0.5) rotate(0deg);
-          }
-          10% {
-            transform: translateY(-15px) scale(1.4) rotate(-20deg);
-          }
-          20% {
-            transform: translateY(-20px) scale(1.2) rotate(20deg);
-          }
-          30% {
-            transform: translateY(-35px) scale(1.3) rotate(-15deg);
-          }
-          40% {
-            transform: translateY(-50px) scale(1.1) rotate(15deg);
-          }
-          50% {
-            opacity: 0.95;
-            transform: translateY(-65px) scale(1.2) rotate(-10deg);
-          }
-          60% {
-            transform: translateY(-85px) scale(1) rotate(10deg);
-          }
-          70% {
-            opacity: 0.7;
-            transform: translateY(-105px) scale(1.05) rotate(-5deg);
-          }
-          85% {
-            opacity: 0.4;
-            transform: translateY(-130px) scale(0.9) rotate(5deg);
-          }
-          100% {
-            opacity: 0;
-            transform: translateY(-160px) scale(0.6) rotate(0deg);
-          }
-        }
-        
-        /* Pumping hearts - pulse and float with glow */
-        .reaction-heart {
-          animation: reactionHeart 2s ease-out forwards;
-          filter: drop-shadow(0 0 15px rgba(239, 68, 68, 0.8));
-        }
-        @keyframes reactionHeart {
-          0% {
-            opacity: 1;
-            transform: translateY(0) scale(0.3);
-            filter: drop-shadow(0 0 5px rgba(239, 68, 68, 0.5));
-          }
-          10% {
-            transform: translateY(-10px) scale(1.5);
-            filter: drop-shadow(0 0 25px rgba(239, 68, 68, 1));
-          }
-          20% {
-            transform: translateY(-25px) scale(1.1);
-            filter: drop-shadow(0 0 15px rgba(239, 68, 68, 0.8));
-          }
-          30% {
-            transform: translateY(-40px) scale(1.4);
-            filter: drop-shadow(0 0 30px rgba(239, 68, 68, 1));
-          }
-          40% {
-            transform: translateY(-55px) scale(1);
-            filter: drop-shadow(0 0 15px rgba(239, 68, 68, 0.7));
-          }
-          50% {
-            opacity: 0.9;
-            transform: translateY(-70px) scale(1.25);
-            filter: drop-shadow(0 0 25px rgba(239, 68, 68, 0.9));
-          }
-          60% {
-            transform: translateY(-90px) scale(1.05);
-            filter: drop-shadow(0 0 12px rgba(239, 68, 68, 0.6));
-          }
-          70% {
-            opacity: 0.7;
-            transform: translateY(-110px) scale(1.15);
-            filter: drop-shadow(0 0 20px rgba(239, 68, 68, 0.7));
-          }
-          85% {
-            opacity: 0.4;
-            transform: translateY(-135px) scale(0.9);
-            filter: drop-shadow(0 0 10px rgba(239, 68, 68, 0.4));
-          }
-          100% {
-            opacity: 0;
-            transform: translateY(-165px) scale(0.5);
-            filter: drop-shadow(0 0 0px rgba(239, 68, 68, 0));
-          }
-        }
-        
-        /* Pulse animation for glow backgrounds */
-        @keyframes pulse {
-          0%, 100% {
-            opacity: 0.3;
-            transform: scale(1);
-          }
-          50% {
-            opacity: 0.6;
-            transform: scale(1.2);
-          }
-        }
-        
-        /* Chat message entrance */
-        .chat-message-animate {
-          animation: chatEnter 0.4s cubic-bezier(0.34, 1.56, 0.64, 1) forwards;
-        }
-        @keyframes chatEnter {
-          from {
-            opacity: 0;
-            transform: translateX(-20px) scale(0.95);
+            transform: translateX(-30px) scale(0.9);
           }
           to {
             opacity: 1;
@@ -1006,102 +1003,66 @@ const ControlPanel = ({ user, onLogout }) => {
           }
         }
         
-        /* Energy State Animations - Creator Only */
-        .energy-normal {}
-        
-        .energy-hype .reaction-default,
-        .energy-hype .reaction-clap,
-        .energy-hype .reaction-laugh,
-        .energy-hype .reaction-heart,
-        .energy-hype .reaction-fire {
-          filter: drop-shadow(0 0 8px currentColor);
+        /* Chat Bubble Exit Animation */
+        .chat-bubble-exit {
+          animation: chatBubbleExit 0.6s ease-out forwards;
+        }
+        @keyframes chatBubbleExit {
+          from {
+            opacity: 1;
+            transform: translateX(0) translateY(0);
+          }
+          to {
+            opacity: 0;
+            transform: translateX(-20px) translateY(-15px);
+            filter: blur(2px);
+          }
         }
         
-        .energy-surge .reaction-default,
-        .energy-surge .reaction-clap,
-        .energy-surge .reaction-laugh,
-        .energy-surge .reaction-heart,
-        .energy-surge .reaction-fire {
-          filter: drop-shadow(0 0 12px currentColor);
-          animation-timing-function: ease-in-out;
+        /* ShowMeLive Reaction Animation */
+        .showmelive-reaction {
+          will-change: transform, opacity;
         }
         
-        .energy-crowd-wave .reaction-default,
-        .energy-crowd-wave .reaction-clap,
-        .energy-crowd-wave .reaction-laugh,
-        .energy-crowd-wave .reaction-heart,
-        .energy-crowd-wave .reaction-fire {
-          filter: drop-shadow(0 0 16px currentColor);
+        /* Sparkle Particle Animation */
+        .sparkle-particle {
+          animation: sparkle 0.8s ease-out forwards;
         }
-        
-        @keyframes crowdWaveMotion {
-          0%, 100% { transform: translateX(0) rotate(0deg); }
-          25% { transform: translateX(10px) rotate(5deg); }
-          50% { transform: translateX(-10px) rotate(-5deg); }
-          75% { transform: translateX(5px) rotate(3deg); }
-        }
-        
-        .energy-crowd-wave {
-          animation: crowdWaveMotion 0.5s ease-in-out infinite;
-        }
-        
-        .energy-creator-moment .reaction-default,
-        .energy-creator-moment .reaction-clap,
-        .energy-creator-moment .reaction-laugh,
-        .energy-creator-moment .reaction-heart,
-        .energy-creator-moment .reaction-fire {
-          filter: drop-shadow(0 0 20px currentColor) drop-shadow(0 0 40px currentColor);
-          animation-timing-function: cubic-bezier(0.68, -0.55, 0.265, 1.55);
-        }
-        
-        @keyframes creatorMomentBurst {
-          0% { transform: scale(1); opacity: 1; }
-          50% { transform: scale(1.3); opacity: 0.8; }
-          100% { transform: scale(1); opacity: 1; }
-        }
-        
-        .energy-creator-moment {
-          animation: creatorMomentBurst 0.3s ease-out;
-        }
-        
-        /* Fire reaction - new animation type */
-        .reaction-fire {
-          animation: reactionFire 2s ease-out forwards;
-        }
-        @keyframes reactionFire {
+        @keyframes sparkle {
           0% {
             opacity: 1;
-            transform: translateY(0) scale(0.5) rotate(0deg);
-            filter: drop-shadow(0 0 10px rgba(251, 146, 60, 0.8));
+            transform: translate(-50%, -50%) scale(1);
           }
-          20% {
-            opacity: 1;
-            transform: translateY(-25px) scale(1.3) rotate(-8deg);
-            filter: drop-shadow(0 0 20px rgba(251, 146, 60, 1));
-          }
-          40% {
-            transform: translateY(-50px) scale(1.1) rotate(8deg);
-            filter: drop-shadow(0 0 15px rgba(251, 146, 60, 0.9));
-          }
-          60% {
-            opacity: 0.9;
-            transform: translateY(-80px) scale(1.2) rotate(-5deg);
-            filter: drop-shadow(0 0 25px rgba(251, 146, 60, 1));
-          }
-          80% {
-            opacity: 0.5;
-            transform: translateY(-120px) scale(0.9) rotate(5deg);
-            filter: drop-shadow(0 0 10px rgba(251, 146, 60, 0.5));
+          50% {
+            opacity: 0.8;
+            transform: translate(-50%, -50%) scale(1.5);
           }
           100% {
             opacity: 0;
-            transform: translateY(-160px) scale(0.5) rotate(0deg);
-            filter: drop-shadow(0 0 0px rgba(251, 146, 60, 0));
+            transform: translate(-50%, -50%) scale(0.5);
           }
+        }
+        
+        /* Pulse animation for energy states */
+        @keyframes pulse {
+          0%, 100% {
+            opacity: 0.6;
+            transform: scale(1);
+          }
+          50% {
+            opacity: 1;
+            transform: scale(1.1);
+          }
+        }
+        
+        /* Stream Info Overlay Styling */
+        .stream-info-badge {
+          backdrop-filter: blur(8px);
+          -webkit-backdrop-filter: blur(8px);
         }
       `}</style>
       
-      {/* Video Preview with Overlay */}
+      {/* Video Preview with ShowMeLive Overlay */}
       <div className="flex-1 min-h-0 p-2 relative">
         <div className="h-full bg-gray-900 rounded-xl overflow-hidden relative">
           {isStreaming && liveKitToken && liveKitUrl ? (
@@ -1116,9 +1077,7 @@ const ControlPanel = ({ user, onLogout }) => {
                 dynacast: true,
                 disconnectOnPageLeave: false,
                 reconnectPolicy: {
-                  nextRetryDelayInMs: (ctx) => {
-                    return Math.min(1000 * Math.pow(2, ctx.retryCount), 10000);
-                  },
+                  nextRetryDelayInMs: (ctx) => Math.min(1000 * Math.pow(2, ctx.retryCount), 10000),
                   maxRetries: 10
                 }
               }}
@@ -1136,48 +1095,51 @@ const ControlPanel = ({ user, onLogout }) => {
             <CameraPreview isCameraOn={isCameraOn} />
           )}
           
-          {/* Floating Overlays - Only when streaming */}
+          {/* ShowMeLive Reaction Energy Meter Overlay - CREATOR ONLY */}
           {isStreaming && showChatReactions && (
             <>
+              {/* Left-Side Chat Lane */}
               {event?.chat_enabled && (
-                <FloatingChatOverlay messages={chatMessages} />
+                <CreatorChatLane messages={chatMessages} />
               )}
+              
+              {/* Floating Reactions with ShowMeLive Effect */}
               {event?.reactions_enabled && (
-                <FloatingReactionsOverlay 
+                <FloatingReactionLayer 
                   reactions={liveReactions}
-                  energyState={energyState}
-                  animationConfig={animationConfig}
+                  energyLevel={energyLevel}
                 />
               )}
               
               {/* Stream Info Overlay - Top */}
-              <div className="absolute top-3 left-3 right-3 flex items-center justify-between pointer-events-none">
+              <div className="absolute top-3 left-3 right-3 flex items-center justify-between pointer-events-none z-40">
                 <div className="flex items-center gap-3">
-                  <div className="bg-red-600 text-white px-3 py-1 rounded-full text-sm font-bold flex items-center gap-1 animate-pulse">
+                  <div className="bg-red-600 text-white px-3 py-1 rounded-full text-sm font-bold flex items-center gap-1 animate-pulse stream-info-badge">
                     <span className="w-2 h-2 bg-white rounded-full"></span>
                     LIVE
                   </div>
-                  <div className="bg-black/50 backdrop-blur-sm text-white px-3 py-1 rounded-full text-sm">
+                  <div className="bg-black/50 text-white px-3 py-1 rounded-full text-sm stream-info-badge">
                     {Math.floor(streamTime / 60)}:{(streamTime % 60).toString().padStart(2, '0')}
                   </div>
-                  {/* Energy Meter Indicator - Creator Only */}
+                  
+                  {/* Energy Meter Indicator */}
                   {event?.reactions_enabled && (
                     <EnergyMeterIndicator 
-                      energyState={energyState}
-                      reactionCount={reactionCount}
-                      isCreatorMomentActive={isCreatorMomentActive}
+                      energyLevel={energyLevel}
+                      energyScore={energyScore}
+                      reactionVelocity={reactionVelocity}
                     />
                   )}
                 </div>
-                <div className="bg-black/50 backdrop-blur-sm text-white px-3 py-1 rounded-full text-sm flex items-center gap-1">
+                <div className="bg-black/50 text-white px-3 py-1 rounded-full text-sm flex items-center gap-1 stream-info-badge">
                   <Users className="w-4 h-4" />
                   {viewerCount}
                 </div>
               </div>
               
               {/* Connection Status */}
-              <div className="absolute top-3 left-1/2 -translate-x-1/2">
-                <div className={`flex items-center gap-1 px-2 py-0.5 rounded-full text-xs ${chatConnected ? 'bg-green-500/20 text-green-400' : 'bg-yellow-500/20 text-yellow-400'}`}>
+              <div className="absolute top-3 left-1/2 -translate-x-1/2 z-40">
+                <div className={`flex items-center gap-1 px-2 py-0.5 rounded-full text-xs stream-info-badge ${chatConnected ? 'bg-green-500/20 text-green-400' : 'bg-yellow-500/20 text-yellow-400'}`}>
                   <span className={`w-1.5 h-1.5 rounded-full ${chatConnected ? 'bg-green-400' : 'bg-yellow-400 animate-pulse'}`}></span>
                   {chatConnected ? 'Chat Connected' : 'Connecting...'}
                 </div>
@@ -1198,12 +1160,11 @@ const ControlPanel = ({ user, onLogout }) => {
             <span className={`text-[10px] mt-0.5 ${isCameraOn ? 'text-green-400' : 'text-red-400'}`}>{isCameraOn ? 'On' : 'Off'}</span>
           </div>
 
-          {/* Camera Switch (Front/Back) */}
+          {/* Camera Switch */}
           <div className="flex flex-col items-center">
             <button 
               onClick={() => setFacingMode(prev => prev === 'user' ? 'environment' : 'user')} 
               className="w-10 h-10 bg-gray-800 hover:bg-gray-700 rounded-lg flex items-center justify-center text-white"
-              title={facingMode === 'user' ? 'Switch to Back Camera' : 'Switch to Front Camera'}
             >
               <SwitchCamera className="w-4 h-4" />
             </button>
