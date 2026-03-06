@@ -291,8 +291,8 @@ const AnimatedReaction = ({ emoji, left, onComplete, energyState = 'normal', ani
   );
 };
 
-// Floating Reactions Overlay - Modern flashy design with motion
-const FloatingReactionsOverlay = ({ reactions }) => {
+// Floating Reactions Overlay - Modern flashy design with motion and energy states
+const FloatingReactionsOverlay = ({ reactions, energyState = 'normal', animationConfig = {} }) => {
   const [activeReactions, setActiveReactions] = useState([]);
 
   useEffect(() => {
@@ -308,23 +308,29 @@ const FloatingReactionsOverlay = ({ reactions }) => {
     setActiveReactions(prev => prev.filter(r => r.id !== id));
   };
 
+  // Get glow color based on emoji
+  const getGlowColor = (emoji) => {
+    if (emoji.includes('❤') || emoji.includes('🔥')) return 'rgba(239,68,68,0.6)';
+    if (emoji.includes('😂') || emoji.includes('🤣') || emoji.includes('😭') || emoji.includes('💀') || emoji.includes('🪦')) return 'rgba(251,191,36,0.6)';
+    if (emoji.includes('👏') || emoji.includes('🙌') || emoji.includes('🎉') || emoji.includes('🏆')) return 'rgba(168,85,247,0.6)';
+    if (emoji.includes('🚀') || emoji.includes('🌋')) return 'rgba(251,146,60,0.6)';
+    return 'rgba(168,85,247,0.6)';
+  };
+
   return (
-    <div className="absolute bottom-0 right-0 w-[30%] h-[50%] pointer-events-none overflow-hidden">
-      {/* No gradient - clean overlay */}
-      
-      {/* Glow effect background */}
-      <div className="absolute inset-0 opacity-30">
-        {activeReactions.slice(-3).map((r, i) => (
+    <div className={`absolute bottom-0 right-0 w-[30%] h-[50%] pointer-events-none overflow-hidden ${getEnergyStateClasses(energyState)}`}>
+      {/* Glow effect background - intensifies with energy state */}
+      <div className="absolute inset-0" style={{ opacity: 0.3 + (animationConfig.glow || 0) }}>
+        {activeReactions.slice(-5).map((r, i) => (
           <div 
             key={`glow-${r.id}`}
             className="absolute w-20 h-20 rounded-full blur-xl"
             style={{
               left: `${r.left}%`,
-              bottom: `${20 + i * 15}%`,
-              background: r.emoji.includes('❤') ? 'rgba(239,68,68,0.6)' : 
-                         r.emoji.includes('😂') || r.emoji.includes('🤣') ? 'rgba(251,191,36,0.6)' : 
-                         'rgba(168,85,247,0.6)',
+              bottom: `${20 + i * 12}%`,
+              background: getGlowColor(r.emoji),
               animation: 'pulse 1s ease-in-out infinite',
+              transform: `scale(${1 + (animationConfig.scaleBoost || 0) * 0.3})`,
             }}
           />
         ))}
@@ -336,6 +342,8 @@ const FloatingReactionsOverlay = ({ reactions }) => {
           emoji={reaction.emoji}
           left={reaction.left}
           onComplete={() => handleComplete(reaction.id)}
+          energyState={energyState}
+          animationConfig={animationConfig}
         />
       ))}
     </div>
