@@ -235,39 +235,58 @@ const FloatingChatOverlay = ({ messages }) => {
   );
 };
 
-// Modern Reaction Component with motion animations
-const AnimatedReaction = ({ emoji, left, onComplete }) => {
+// Modern Reaction Component with motion animations - Energy state aware
+const AnimatedReaction = ({ emoji, left, onComplete, energyState = 'normal', animationConfig = {} }) => {
   const [isVisible, setIsVisible] = useState(true);
   
   // Map emojis to their animation types
   const getAnimationType = (emoji) => {
-    if (emoji === '👏' || emoji === '🙌') return 'clap';
-    if (emoji === '😂' || emoji === '🤣' || emoji === '😆') return 'laugh';
-    if (emoji === '❤️' || emoji === '💖' || emoji === '💕' || emoji === '😍') return 'heart';
+    if (['👏', '🙌', '🎉', '🏆'].includes(emoji)) return 'clap';
+    if (['😂', '🤣', '😭', '💀', '🪦', '😆'].includes(emoji)) return 'laugh';
+    if (['❤️', '❤️‍🔥', '💖', '💕', '😍'].includes(emoji)) return 'heart';
+    if (['🔥', '🔥🔥', '🚀', '🌋'].includes(emoji)) return 'fire';
     return 'default';
   };
   
   const animationType = getAnimationType(emoji);
+  const { speedMultiplier = 1, glow = 0, scaleBoost = 1 } = animationConfig;
+  
+  // Duration based on energy state
+  const duration = Math.round(2000 / speedMultiplier);
   
   useEffect(() => {
     const timer = setTimeout(() => {
       setIsVisible(false);
       setTimeout(onComplete, 300);
-    }, 2000); // 2s total animation
+    }, duration);
     return () => clearTimeout(timer);
-  }, [onComplete]);
+  }, [onComplete, duration]);
   
   if (!isVisible) return null;
   
+  // Energy state classes
+  const energyClass = energyState !== 'normal' ? `energy-${energyState}` : '';
+  
   return (
     <div
-      className={`absolute reaction-${animationType}`}
+      className={`absolute reaction-${animationType} ${energyClass}`}
       style={{
         left: `${left}%`,
         bottom: '10%',
+        '--glow-intensity': glow,
+        '--scale-boost': scaleBoost,
+        animationDuration: `${duration}ms`,
       }}
     >
-      <span className="text-4xl md:text-5xl drop-shadow-2xl">{emoji}</span>
+      <span 
+        className="text-4xl md:text-5xl drop-shadow-2xl"
+        style={{
+          filter: glow > 0 ? `drop-shadow(0 0 ${glow * 30}px currentColor)` : undefined,
+          transform: `scale(${scaleBoost})`,
+        }}
+      >
+        {emoji}
+      </span>
     </div>
   );
 };
