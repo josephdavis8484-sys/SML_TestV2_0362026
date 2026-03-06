@@ -6,7 +6,7 @@ import pytest
 import requests
 import os
 
-BASE_URL = os.environ.get('REACT_APP_BACKEND_URL', 'https://virtual-events-3.preview.emergentagent.com').rstrip('/')
+BASE_URL = os.environ.get('REACT_APP_BACKEND_URL', 'https://creator-stage-6.preview.emergentagent.com').rstrip('/')
 
 # Test credentials from main agent
 TEST_CREATOR_SESSION = "creator_03ff4597-16ea-4eaa-a710-27d4a50735ca"
@@ -39,7 +39,7 @@ class TestProModeUnlockCheckout:
         """Test that Pro Mode unlock checkout creates Stripe checkout session"""
         response = creator_session.post(f"{BASE_URL}/api/pro-mode/unlock/checkout", json={
             "event_id": TEST_EVENT_FREE,
-            "origin_url": "https://virtual-events-3.preview.emergentagent.com"
+            "origin_url": "https://creator-stage-6.preview.emergentagent.com"
         })
         
         # Should return 200 with checkout URL
@@ -60,7 +60,7 @@ class TestProModeUnlockCheckout:
         """Test that promo code applies discount correctly"""
         response = creator_session.post(f"{BASE_URL}/api/pro-mode/unlock/checkout", json={
             "event_id": TEST_EVENT_FREE,
-            "origin_url": "https://virtual-events-3.preview.emergentagent.com",
+            "origin_url": "https://creator-stage-6.preview.emergentagent.com",
             "promo_code": PROMO_CODE
         })
         
@@ -80,7 +80,7 @@ class TestProModeUnlockCheckout:
         """Test that checkout rejects events that already have premium package"""
         response = creator_session.post(f"{BASE_URL}/api/pro-mode/unlock/checkout", json={
             "event_id": TEST_EVENT_PREMIUM,
-            "origin_url": "https://virtual-events-3.preview.emergentagent.com"
+            "origin_url": "https://creator-stage-6.preview.emergentagent.com"
         })
         
         # Should return 400 - already premium
@@ -96,7 +96,7 @@ class TestProModeUnlockCheckout:
         """Test that checkout requires authentication"""
         response = unauthenticated_session.post(f"{BASE_URL}/api/pro-mode/unlock/checkout", json={
             "event_id": TEST_EVENT_FREE,
-            "origin_url": "https://virtual-events-3.preview.emergentagent.com"
+            "origin_url": "https://creator-stage-6.preview.emergentagent.com"
         })
         
         # Should return 401 - not authenticated
@@ -110,7 +110,7 @@ class TestProModeUnlockCheckout:
         # We verify by checking that the request succeeds (role check passes)
         response = creator_session.post(f"{BASE_URL}/api/pro-mode/unlock/checkout", json={
             "event_id": TEST_EVENT_FREE,
-            "origin_url": "https://virtual-events-3.preview.emergentagent.com"
+            "origin_url": "https://creator-stage-6.preview.emergentagent.com"
         })
         
         # Should succeed (200) or fail for other reasons, but NOT 403
@@ -123,7 +123,7 @@ class TestProModeUnlockCheckout:
         # Try to unlock an event not owned by this creator
         response = creator_session.post(f"{BASE_URL}/api/pro-mode/unlock/checkout", json={
             "event_id": "non-existent-event-12345",
-            "origin_url": "https://virtual-events-3.preview.emergentagent.com"
+            "origin_url": "https://creator-stage-6.preview.emergentagent.com"
         })
         
         # Should return 404 - event not found or not owned
@@ -134,7 +134,7 @@ class TestProModeUnlockCheckout:
     def test_pro_mode_checkout_requires_event_id(self, creator_session):
         """Test that event_id is required"""
         response = creator_session.post(f"{BASE_URL}/api/pro-mode/unlock/checkout", json={
-            "origin_url": "https://virtual-events-3.preview.emergentagent.com"
+            "origin_url": "https://creator-stage-6.preview.emergentagent.com"
         })
         
         # Should return 400 - missing event_id
@@ -157,7 +157,7 @@ class TestProModeUnlockCheckout:
         """Test that invalid promo code is ignored (not error)"""
         response = creator_session.post(f"{BASE_URL}/api/pro-mode/unlock/checkout", json={
             "event_id": TEST_EVENT_FREE,
-            "origin_url": "https://virtual-events-3.preview.emergentagent.com",
+            "origin_url": "https://creator-stage-6.preview.emergentagent.com",
             "promo_code": "INVALID_CODE_12345"
         })
         

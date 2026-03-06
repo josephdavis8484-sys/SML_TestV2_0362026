@@ -12,7 +12,7 @@ import pytest
 import requests
 import os
 
-BASE_URL = os.environ.get('REACT_APP_BACKEND_URL', 'https://virtual-events-3.preview.emergentagent.com')
+BASE_URL = os.environ.get('REACT_APP_BACKEND_URL', 'https://creator-stage-6.preview.emergentagent.com')
 
 # Test credentials from the review request
 TEST_SESSION_TOKEN = "creator_03ff4597-16ea-4eaa-a710-27d4a50735ca"
