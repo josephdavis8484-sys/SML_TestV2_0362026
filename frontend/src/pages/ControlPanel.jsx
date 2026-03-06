@@ -727,6 +727,7 @@ const ControlPanel = ({ user, onLogout }) => {
         setStreamTime(0);
         setChatMessages([]);
         setLiveReactions([]);
+        resetMeter(); // Reset energy meter when stream ends
         toast.success("Stream ended");
         fetchData();
       } catch (error) {
